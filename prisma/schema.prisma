@@ -1,0 +1,190 @@
+// Prisma Schema for AI Native App
+// Better Auth + PostgreSQL (Neon)
+
+generator client {
+  provider = "prisma-client"
+  previewFeatures = ["postgresqlExtensions"]
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  extensions = [pgvector(map: "vector")]
+}
+
+// ==========================================
+// Better Auth Core Schema
+// ==========================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          String    @default("user") // "user" | "admin"
+  banned        Boolean?
+  banReason     String?
+  banExpires    DateTime?
+  twoFactorEnabled Boolean? @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions Session[]
+  accounts Account[]
+  twoFactors TwoFactor[]
+
+  @@map("user")
+}
+
+model Session {
+  id              String   @id @default(cuid())
+  userId          String
+  token           String   @unique
+  expiresAt       DateTime
+  ipAddress       String?
+  userAgent       String?
+  impersonatedBy  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@map("verification")
+}
+
+// ==========================================
+// Better Auth Two-Factor Plugin
+// ==========================================
+
+model TwoFactor {
+  id          String  @id @default(cuid())
+  userId      String
+  secret      String
+  backupCodes String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("twoFactor")
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  content   String   // เนื้อหาข้อความ
+  metadata  Json?    // ข้อมูลเพิ่มเติม (เช่น ชื่อไฟล์, หน้า)
+  embedding Unsupported("vector(1536)")? // เวกเตอร์จาก OpenAI (1536 มิติ)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("document")
+}
+
+// ==========================================
+// ChatSession + ChatMessage
+// ==========================================
+model ChatSession {
+  id        String        @id @default(cuid())
+  userId    String
+  title     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+
+  @@map("chat_session")
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  role      String      // "user" | "assistant"
+  content   String
+  sources   Json?       // แหล่งข้อมูลอ้างอิง
+  createdAt DateTime    @default(now())
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("chat_message")
+}
+
+// ==========================================
+// Knowledge Base Management
+// ==========================================
+model KnowledgeDocument {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @db.Text
+  source    String?              // ชื่อไฟล์ต้นฉบับ (ถ้าอัปโหลด)
+  fileType  String?              // "pdf" | "csv" | "txt" | "manual"
+  fileSize  Int?                 // ขนาดไฟล์ (bytes)
+  isIndexed Boolean  @default(false) // ถูก process เข้า Vector DB แล้วหรือยัง
+  createdBy String               // userId ของผู้สร้าง
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("knowledge_document")
+}
+
+// ==========================================
+// Lead Capture Table
+// ==========================================
+model Lead {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  company   String?
+  interest  String?
+  source    String   @default("website")
+  status    String   @default("new")  // new, contacted, qualified, converted
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("lead")
+}
+
+// ==========================================
+// LINE Group Registration Table
+// ==========================================
+model LineGroup {
+  id        String   @id @default(cuid())
+  groupId   String   @unique          // LINE Group ID (เช่น Cf224170d...)
+  groupName String?                   // ชื่อกลุ่ม (ดึงจาก LINE API)
+  active    Boolean  @default(true)   // true = ส่งแจ้งเตือน, false = หยุดส่ง
+  joinedAt  DateTime @default(now())  // วันที่ Bot เข้ากลุ่ม
+  updatedAt DateTime @updatedAt
+
+  @@map("line_group")
+}

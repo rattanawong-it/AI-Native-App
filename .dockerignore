@@ -1,0 +1,61 @@
+# Dependencies (install fresh in container)
+node_modules
+npm-debug.log*
+
+# Build output
+.next
+out
+build
+dist
+
+# Version control
+.git
+.gitignore
+
+# Environment files — ส่งผ่าน docker-compose env_file เท่านั้น
+.env
+.env.*
+!.env.example
+
+# IDE / Editor
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Test & coverage
+coverage
+__tests__
+*.test.ts
+*.spec.ts
+cypress
+playwright
+
+# SQLite / local DB
+*.db
+*.db-journal
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Documentation
+*.md
+
+# Misc
+.vercel
+.prettierrc
+.eslintcache
+.claude
+example
+
+# Docker files (ไม่ต้อง copy เข้า container)
+.dockerignore
+Dockerfile
+Containerfile
+docker-compose*.yml
+podman-compose*.yml
+
+# Backup DB (ใหญ่มาก ไม่ต้องส่งเข้า build context)
+backupdb/

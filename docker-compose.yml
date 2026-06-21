@@ -1,0 +1,21 @@
+networks:
+  app-network:
+    driver: bridge
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # บังคับใช้ port 8810 สำหรับ production build ใน docker
+        - NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:8810
+    # image: ghcr.io/${GITHUB_ACTOR:-iamsamitdev}/ai-native-app:latest
+    container_name: ai-native-app
+    ports:
+      - "8810:3000"
+    env_file:
+      - .env.production
+    networks:
+      - app-network
+    restart: unless-stopped
