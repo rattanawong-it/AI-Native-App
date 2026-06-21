@@ -21,7 +21,7 @@ export const auth = betterAuth({
         provider: "postgresql",
     }),
         trustedOrigins: [
-        "https://your.domain.com",
+        "https://ai-native-app-one.vercel.app/",
         "http://localhost:3000",
         "http://localhost:8810"
     ],
