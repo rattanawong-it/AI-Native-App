@@ -3,14 +3,18 @@ import crypto from "crypto"
 import { generateRAGResponse } from "@/lib/rag-service"
 import { prisma } from "@/lib/prisma"
 
-const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET!
-const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN!
+const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET
+const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN
 
 // Keyword สำหรับเรียก Bot ใน Group
 const TRIGGER_KEYWORDS = ["/bot", "!ask", "/ถาม", "@bot"]
 
 // ตรวจสอบ Signature จาก LINE
 function verifySignature(body: string, signature: string): boolean {
+  if (!LINE_CHANNEL_SECRET || !signature) {
+    return false
+  }
+
   const hash = crypto
     .createHmac("SHA256", LINE_CHANNEL_SECRET)
     .update(body)
@@ -149,6 +153,14 @@ async function replyFlexMessage(
 
 export async function POST(request: NextRequest) {
   try {
+    if (!LINE_CHANNEL_SECRET || !LINE_CHANNEL_ACCESS_TOKEN) {
+      console.error("LINE Webhook Error: missing LINE_CHANNEL_SECRET or LINE_CHANNEL_ACCESS_TOKEN")
+      return NextResponse.json(
+        { error: "LINE webhook not configured" },
+        { status: 500 }
+      )
+    }
+
     const body = await request.text()
     const signature = request.headers.get("x-line-signature") || ""
 

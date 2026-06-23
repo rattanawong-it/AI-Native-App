@@ -49,11 +49,11 @@ export default function Footer() {
                     <div>
                         <h3 className="mb-3 font-semibold">ติดต่อ</h3>
                         <ul className="space-y-2 text-sm text-muted-foreground">
-                            <li>IT Genius Engineering</li>
-                            <li>อ.สามิตร โกยม</li>
+                            <li>ศูนย์เทคโนโลยีสารสนเทศฯ</li>
+                            <li>มหาวิทยาลัยเกริก</li>
                             <li>
-                                <a href="https://www.itgenius.co.th" className="text-purple-500 hover:text-purple-400 transition-colors">
-                                    www.itgenius.co.th
+                                <a href="https://www.krirk.ac.th" className="text-purple-500 hover:text-purple-400 transition-colors">
+                                    www.krirk.ac.th
                                 </a>
                             </li>
                         </ul>
@@ -62,7 +62,7 @@ export default function Footer() {
 
                 <div className="mt-10 border-t pt-6 text-center text-sm text-muted-foreground">
                     <p>© 2026 AI Native App — Next.js 16: The AI-Native Developer Masterclass</p>
-                    <p className="mt-1">โดย อ.สามิตร โกยม (IT Genius Engineering)</p>
+                    <p className="mt-1">โดย ศูนย์เทคโนโลยีสารสนเทศฯ มหาวิทยาลัยเกริก</p>
                 </div>
             </div>
         </footer>
