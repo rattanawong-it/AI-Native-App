@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type SyntheticEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
@@ -18,7 +18,7 @@ export default function SignupForm() {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState("")
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: SyntheticEvent<HTMLFormElement>) => {
         e.preventDefault()
         setIsLoading(true)
         setError("")
