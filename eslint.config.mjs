@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // ไฟล์ที่ Prisma generate ให้ — ไม่ใช่โค้ดที่เราเขียนเอง
+    "app/generated/**",
+    // ไฟล์ต้นแบบ UI ที่ export มาจาก Claude Design — เป็น prototype ไม่ใช่ซอร์สของแอป
+    "project-ui/**",
   ]),
 ]);
 

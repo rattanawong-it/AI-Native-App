@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth"
 import { prismaAdapter } from "better-auth/adapters/prisma"
 import { admin as adminPlugin, twoFactor } from "better-auth/plugins"
-import { ac, admin, manager, user } from "@/lib/permissions"
+import { ac, admin, manager, agent, user, student } from "@/lib/permissions"
 import { prisma } from "@/lib/prisma"
 import nodemailer from "nodemailer"
 
@@ -97,7 +97,9 @@ export const auth = betterAuth({
             roles: {
                 admin,
                 manager,
-                user
+                agent,
+                user,
+                student
             }
         }),
         twoFactor({

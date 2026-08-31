@@ -44,6 +44,50 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* ── ITSM: แบรนด์ OIT Center ── */
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-tint: var(--brand-tint);
+  --color-gold: var(--gold);
+  --color-gold-bg: var(--gold-bg);
+  --color-gold-fg: var(--gold-fg);
+
+  /* ── ITSM: Priority (Impact × Urgency) ── */
+  --color-priority-critical: var(--priority-critical);
+  --color-priority-critical-bg: var(--priority-critical-bg);
+  --color-priority-critical-fg: var(--priority-critical-fg);
+  --color-priority-high: var(--priority-high);
+  --color-priority-high-bg: var(--priority-high-bg);
+  --color-priority-high-fg: var(--priority-high-fg);
+  --color-priority-medium: var(--priority-medium);
+  --color-priority-medium-bg: var(--priority-medium-bg);
+  --color-priority-medium-fg: var(--priority-medium-fg);
+  --color-priority-low: var(--priority-low);
+  --color-priority-low-bg: var(--priority-low-bg);
+  --color-priority-low-fg: var(--priority-low-fg);
+
+  /* ── ITSM: Ticket Status (5 สถานะ) ── */
+  --color-status-new: var(--status-new);
+  --color-status-new-bg: var(--status-new-bg);
+  --color-status-new-fg: var(--status-new-fg);
+  --color-status-assigned: var(--status-assigned);
+  --color-status-assigned-bg: var(--status-assigned-bg);
+  --color-status-assigned-fg: var(--status-assigned-fg);
+  --color-status-progress: var(--status-progress);
+  --color-status-progress-bg: var(--status-progress-bg);
+  --color-status-progress-fg: var(--status-progress-fg);
+  --color-status-resolved: var(--status-resolved);
+  --color-status-resolved-bg: var(--status-resolved-bg);
+  --color-status-resolved-fg: var(--status-resolved-fg);
+  --color-status-closed: var(--status-closed);
+  --color-status-closed-bg: var(--status-closed-bg);
+  --color-status-closed-fg: var(--status-closed-fg);
+
+  /* ── ITSM: SLA Indicator ── */
+  --color-sla-ontime: var(--sla-ontime);
+  --color-sla-atrisk: var(--sla-atrisk);
+  --color-sla-breached: var(--sla-breached);
 }
 
 :root {
@@ -53,8 +97,9 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  /* แบรนด์ OIT Center — navy #13215E (แทนสีดำเดิม) */
+  --primary: #13215e;
+  --primary-foreground: #ffffff;
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -63,56 +108,139 @@
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
+  --input: #d1d5db;
+  --ring: #13215e;
+  --chart-1: #2563eb;
+  --chart-2: #7d5fd1;
+  --chart-3: #2fa37a;
+  --chart-4: #e8a400;
+  --chart-5: #dc2626;
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: #13215e;
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-ring: #13215e;
+
+  /* ── ITSM tokens — Light ── */
+  --brand: #13215e;
+  --brand-dark: #0a1440;
+  --brand-tint: #eef1fa;
+  --gold: #e8a400;
+  --gold-bg: #fdf1d6;
+  --gold-fg: #946400;
+
+  --priority-critical: #dc2626;
+  --priority-critical-bg: #fee2e2;
+  --priority-critical-fg: #991b1b;
+  --priority-high: #ea580c;
+  --priority-high-bg: #ffedd5;
+  --priority-high-fg: #9a3412;
+  --priority-medium: #ca8a04;
+  --priority-medium-bg: #fef9c3;
+  --priority-medium-fg: #854d0e;
+  --priority-low: #64748b;
+  --priority-low-bg: #f1f5f9;
+  --priority-low-fg: #475569;
+
+  --status-new: #2563eb;
+  --status-new-bg: #dbeafe;
+  --status-new-fg: #1d4ed8;
+  --status-assigned: #7d5fd1;
+  --status-assigned-bg: #efe9fb;
+  --status-assigned-fg: #5f3fbe;
+  --status-progress: #ca8a04;
+  --status-progress-bg: #fef9c3;
+  --status-progress-fg: #854d0e;
+  --status-resolved: #16a34a;
+  --status-resolved-bg: #dcfce7;
+  --status-resolved-fg: #166534;
+  --status-closed: #64748b;
+  --status-closed-bg: #f1f5f9;
+  --status-closed-fg: #475569;
+
+  --sla-ontime: #16a34a;
+  --sla-atrisk: #ca8a04;
+  --sla-breached: #dc2626;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: #171717;
+  --foreground: #ededed;
+  --card: #212121;
+  --card-foreground: #ededed;
+  --popover: #212121;
+  --popover-foreground: #ededed;
+  /* บนพื้นมืดใช้ navy สว่างขึ้นเพื่อให้อ่านออก (design system §01 Dark Mode) */
+  --primary: #8b9be8;
+  --primary-foreground: #0a1440;
+  --secondary: #2a2a2a;
+  --secondary-foreground: #ededed;
+  --muted: #2a2a2a;
+  --muted-foreground: #a1a1a1;
+  --accent: #2a2a2a;
+  --accent-foreground: #ededed;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --border: #333333;
+  --input: #3d3d3d;
+  --ring: #8b9be8;
+  --chart-1: #60a5fa;
+  --chart-2: #a78bfa;
+  --chart-3: #34d399;
+  --chart-4: #fbbf24;
+  --chart-5: #f87171;
+  --sidebar: #171717;
+  --sidebar-foreground: #ededed;
+  --sidebar-primary: #8b9be8;
+  --sidebar-primary-foreground: #0a1440;
+  --sidebar-accent: #2a2a2a;
+  --sidebar-accent-foreground: #ededed;
+  --sidebar-border: #333333;
+  --sidebar-ring: #8b9be8;
+
+  /* ── ITSM tokens — Dark ── */
+  --brand: #8b9be8;
+  --brand-dark: #6d7fd6;
+  --brand-tint: #1e2540;
+  --gold: #f0b93a;
+  --gold-bg: #3a2c0a;
+  --gold-fg: #f5d384;
+
+  --priority-critical: #ef4444;
+  --priority-critical-bg: #3f1d1d;
+  --priority-critical-fg: #fca5a5;
+  --priority-high: #f97316;
+  --priority-high-bg: #3d2410;
+  --priority-high-fg: #fdba74;
+  --priority-medium: #eab308;
+  --priority-medium-bg: #3a2e0c;
+  --priority-medium-fg: #fde68a;
+  --priority-low: #94a3b8;
+  --priority-low-bg: #2a2f36;
+  --priority-low-fg: #cbd5e1;
+
+  --status-new: #3b82f6;
+  --status-new-bg: #16233f;
+  --status-new-fg: #93c5fd;
+  --status-assigned: #a78bfa;
+  --status-assigned-bg: #251e3d;
+  --status-assigned-fg: #c4b5fd;
+  --status-progress: #eab308;
+  --status-progress-bg: #3a2e0c;
+  --status-progress-fg: #fde68a;
+  --status-resolved: #22c55e;
+  --status-resolved-bg: #14301e;
+  --status-resolved-fg: #86efac;
+  --status-closed: #94a3b8;
+  --status-closed-bg: #2a2f36;
+  --status-closed-fg: #cbd5e1;
+
+  --sla-ontime: #22c55e;
+  --sla-atrisk: #eab308;
+  --sla-breached: #ef4444;
 }
 
 @layer base {

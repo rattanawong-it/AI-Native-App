@@ -5,7 +5,7 @@ import Link from "next/link"
 import { PanelLeftClose, PanelLeft, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useSession } from "@/lib/auth-client"
-import { sidebarData, bottomNavItems } from "./sidebar-data"
+import { sidebarData, bottomNavItems, filterSectionsByRole } from "./sidebar-data"
 import { NavSection } from "./nav-section"
 import { NavItem } from "./nav-item"
 
@@ -18,10 +18,8 @@ export function Sidebar({ className }: SidebarProps) {
     const { data: session } = useSession()
     const userRoles = ((session?.user as { role?: string })?.role || "user").split(",").map((r) => r.trim())
 
-    // กรอง section ตาม role ของผู้ใช้ (รองรับ multi-role)
-    const filteredSections = sidebarData.filter(
-        (section) => !section.allowedRoles || section.allowedRoles.some((r) => userRoles.includes(r))
-    )
+    // กรอง section + เมนูย่อย ตาม role ของผู้ใช้ (รองรับ multi-role)
+    const filteredSections = filterSectionsByRole(sidebarData, userRoles)
 
     return (
         <aside
