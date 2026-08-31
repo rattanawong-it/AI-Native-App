@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { margin:0; }
+    a { color:#13215E; }
+    a:hover { color:#0A1440; }
+    ::placeholder { color:#A3A3A3; }
+    input { font-family:'Inter','Anuphan',sans-serif; }
+  </style>
+</helmet>
+<div style="display:flex;height:100vh;background:#FFFFFF;font-family:'Inter','Anuphan',sans-serif;color:#252525;overflow:hidden">
+  <!-- SIDEBAR — mirrors app/(main)/_components/sidebar -->
+  <div style="width:256px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid #EBEBEB;background:#FFFFFF;overflow:hidden">
+    <div style="height:56px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #EBEBEB">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#2C4090 0%,#13215E 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(19,33,94,0.3)">{{ logoIcon }}</div>
+        <span style="font-size:18px;font-weight:700;letter-spacing:-0.01em;color:#252525">OIT Service</span>
+      </div>
+      <div style="width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#8E8E8E">{{ panelIcon }}</div>
+    </div>
+    <div style="flex:1;overflow-y:auto">
+      <div style="padding:16px 12px">
+        <div style="display:flex;flex-direction:column;gap:8px">{{ sidebarNav }}</div>
+        <div style="margin-top:24px;border-top:1px solid #EBEBEB;padding-top:16px">{{ sidebarBottom }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+    <!-- HEADER — mirrors app/(main)/_components/header -->
+    <div style="height:56px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #EBEBEB;background:rgba(255,255,255,0.8);backdrop-filter:blur(12px);padding:0 24px">
+      <div style="display:flex;align-items:center;gap:16px">
+        <h1 style="font-size:18px;font-weight:600;color:#252525;margin:0">{{ pageTitle }}</h1>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="padding:8px;border-radius:8px;color:#737373;cursor:pointer;display:flex">{{ moonIcon }}</div>
+        <div style="display:flex;align-items:center;gap:10px;border-radius:999px;padding:6px 6px 6px 12px;cursor:pointer">
+          <span style="font-size:14px;font-weight:500;color:#404040">สมชาย ธนกร</span>
+          <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#2C4090 0%,#13215E 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #EEF1FA">
+            <span style="font-size:12px;font-weight:700;color:#fff">สธ</span>
+          </div>
+          {{ chevronDownIcon }}
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE CONTENT — main p-6 -->
+    <div style="flex:1;overflow-y:auto;padding:24px">
+      {{ pageContent }}
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = { page:'dashboard', myWorkTab:'all', selectedTicket:null, dashRole:'agent', adminTab:'general',
+    openSections:{svc:true, kb:true, manage:true, admin:true}, ticketFilter:'all', kbFilter:'ทั้งหมด', assetFilter:'ทั้งหมด', reportTab:'Ticket' };
+
+  /* tokens lifted from app/globals.css + design system brand */
+  C = {
+    brand:'#13215E', brandDk:'#0A1440', brandTint:'#EEF1FA',
+    fg:'#252525', muted:'#8E8E8E', mutedFg:'#737373', border:'#EBEBEB', accent:'#F7F7F7', card:'#FFFFFF', bg:'#FAFAFA',
+    gold:'#E8A400', goldBg:'#FDF1D6', goldTx:'#946400',
+    teal:'#2FA37A', tealBg:'#DFF4EC', tealTx:'#1F7A5A',
+    violet:'#7D5FD1', violetBg:'#EFE9FB', violetTx:'#5F3FBE',
+    critical:'#DC2626', criticalBg:'#FEE2E2', criticalTx:'#991B1B',
+    high:'#EA580C', highBg:'#FFEDD5', highTx:'#9A3412',
+    medium:'#CA8A04', mediumBg:'#FEF9C3', mediumTx:'#854D0E',
+    low:'#64748B', lowBg:'#F1F5F9', lowTx:'#475569',
+    green:'#16A34A', greenBg:'#DCFCE7', greenTx:'#166534',
+    blue:'#2563EB', blueBg:'#DBEAFE', blueTx:'#1D4ED8',
+  };
+  mono = "'JetBrains Mono','Inter',monospace";
+
+  TICKETS = [
+    {no:'TK-256908-042', title:'เข้าเว็บไซต์คณะไม่ได้', cat:'เว็บไซต์ & ระบบสารสนเทศ', priority:'Critical', status:'New', assignee:'สมชาย ธนกร', sla:'critical', slaText:'เหลือ 12 นาที'},
+    {no:'TK-256908-041', title:'ขอสิทธิ์เข้าระบบ e-learning', cat:'บัญชีผู้ใช้', priority:'Medium', status:'In Progress', assignee:'สมชาย ธนกร', sla:'medium', slaText:'เหลือ 3 ชม.'},
+    {no:'TK-256908-040', title:'ขอย้าย WiFi ห้องประชุม', cat:'เครือข่าย', priority:'Low', status:'Assigned', assignee:'กนกวรรณ ใจดี', sla:'green', slaText:'เหลือ 1 วัน'},
+    {no:'TK-256908-039', title:'เบิกหมึกพิมพ์', cat:'งานธุรการศูนย์', priority:'Low', status:'Resolved', assignee:'นัฐพงษ์ ศรีวงศ์', sla:'green', slaText:'ปิดตรงเวลา'},
+    {no:'TK-256908-038', title:'เครื่องพิมพ์ห้อง 302 กระดาษติด', cat:'ครุภัณฑ์ IT', priority:'High', status:'In Progress', assignee:'สมชาย ธนกร', sla:'medium', slaText:'เหลือ 45 นาที'},
+    {no:'TK-256908-037', title:'ตั้งค่า VPN สำหรับอาจารย์ใหม่', cat:'เครือข่าย', priority:'Medium', status:'Assigned', assignee:'กนกวรรณ ใจดี', sla:'green', slaText:'เหลือ 2 วัน'},
+  ];
+
+  NAV = [
+    {items:[{k:'dashboard', l:'แดชบอร์ด', icon:'dashboard'}]},
+    {key:'svc', title:'งานบริการ', items:[
+      {k:'tickets', l:'Ticket ทั้งหมด', icon:'ticket', badge:'12'},
+      {k:'new-ticket', l:'แจ้งปัญหาใหม่', icon:'plus'},
+      {k:'my-work', l:'My Work', icon:'todo'},
+      {k:'kanban', l:'งานพัฒนาระบบ', icon:'kanban'},
+    ]},
+    {key:'kb', title:'ฐานความรู้', items:[{k:'kb', l:'Knowledge Base', icon:'library'}]},
+    {key:'manage', title:'จัดการ', items:[
+      {k:'assets', l:'ครุภัณฑ์ IT', icon:'package'},
+      {k:'approvals', l:'คำขออนุมัติ', icon:'clipboard'},
+      {k:'reports', l:'รายงาน', icon:'chart'},
+    ]},
+    {key:'admin', title:'ผู้ดูแลระบบ', items:[{k:'admin', l:'ตั้งค่าระบบ', icon:'settings'}]},
+  ];
+  BOTTOM = [{k:'help', l:'ช่วยเหลือ', icon:'help'}];
+
+  ic(name, size, color, sw) {
+    const h = React.createElement;
+    size = size || 20; color = color || 'currentColor'; sw = sw || 2;
+    const P = {
+      dashboard: [["rect",{"x":"3","y":"3","width":"7","height":"7","rx":"1"}],["rect",{"x":"14","y":"3","width":"7","height":"7","rx":"1"}],["rect",{"x":"14","y":"14","width":"7","height":"7","rx":"1"}],["rect",{"x":"3","y":"14","width":"7","height":"7","rx":"1"}]],
+      ticket: [["path",{"d":"M2 9V7a2 2 0 012-2h16a2 2 0 012 2v2a3 3 0 000 6v2a2 2 0 01-2 2H4a2 2 0 01-2-2v-2a3 3 0 000-6z"}],["path",{"d":"M13 5v14","strokeDasharray":"2 3"}]],
+      todo: [["path",{"d":"M9 6h11"}],["path",{"d":"M9 12h11"}],["path",{"d":"M9 18h11"}],["path",{"d":"M3.5 6l1.5 1.5L7.5 5"}],["path",{"d":"M3.5 12l1.5 1.5L7.5 11"}],["path",{"d":"M3.5 18l1.5 1.5L7.5 17"}]],
+      kanban: [["rect",{"x":"3","y":"3","width":"6","height":"13","rx":"1.5"}],["rect",{"x":"15","y":"3","width":"6","height":"8","rx":"1.5"}]],
+      library: [["path",{"d":"M12 7v14"}],["path",{"d":"M4 5a2 2 0 012-2h4a2 2 0 012 2v14a2 2 0 00-2-2H6a2 2 0 01-2-2z"}],["path",{"d":"M20 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v14a2 2 0 012-2h4a2 2 0 002-2z"}]],
+      package: [["path",{"d":"M21 8l-9-5-9 5v8l9 5 9-5z"}],["path",{"d":"M3 8l9 5 9-5"}],["path",{"d":"M12 13v8"}]],
+      clipboard: [["rect",{"x":"8","y":"2","width":"8","height":"4","rx":"1"}],["path",{"d":"M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"}],["path",{"d":"M9 12h6"}],["path",{"d":"M9 16h4"}]],
+      chart: [["path",{"d":"M3 3v18h18"}],["path",{"d":"M7 16v-5"}],["path",{"d":"M12 16V8"}],["path",{"d":"M17 16v-3"}]],
+      settings: [["circle",{"cx":"12","cy":"12","r":"3"}],["path",{"d":"M19.4 15a1.7 1.7 0 00.33 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06A1.7 1.7 0 0015 19.4a1.7 1.7 0 00-1 1.55V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.11-1.55 1.7 1.7 0 00-1.87.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.7 1.7 0 004.6 15a1.7 1.7 0 00-1.55-1H3a2 2 0 110-4h.1A1.7 1.7 0 004.6 8.9a1.7 1.7 0 00-.33-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06A1.7 1.7 0 009 4.6a1.7 1.7 0 001-1.55V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.55 1.7 1.7 0 001.87-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.7 1.7 0 0019.4 9v0c.14.6.63 1.05 1.25 1.1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"}]],
+      help: [["circle",{"cx":"12","cy":"12","r":"10"}],["path",{"d":"M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3"}],["path",{"d":"M12 17h.01"}]],
+      plus: [["path",{"d":"M12 5v14"}],["path",{"d":"M5 12h14"}]],
+      search: [["circle",{"cx":"11","cy":"11","r":"8"}],["path",{"d":"M21 21l-4.3-4.3"}]],
+      chevronUp: [["path",{"d":"M18 15l-6-6-6 6"}]],
+      chevronDown: [["path",{"d":"M6 9l6 6 6-6"}]],
+      chevronRight: [["path",{"d":"M9 18l6-6-6-6"}]],
+      chevronLeft: [["path",{"d":"M15 18l-6-6 6-6"}]],
+      panelLeft: [["rect",{"x":"3","y":"3","width":"18","height":"18","rx":"2"}],["path",{"d":"M9 3v18"}]],
+      moon: [["path",{"d":"M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"}]],
+      sparkles: [["path",{"d":"M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"}],["path",{"d":"M18 15l.7 1.8L20.5 17.5l-1.8.7L18 20l-.7-1.8L15.5 17.5l1.8-.7z"}]],
+      clock: [["circle",{"cx":"12","cy":"12","r":"10"}],["path",{"d":"M12 7v5l3 2"}]],
+      calendar: [["rect",{"x":"3","y":"5","width":"18","height":"16","rx":"2"}],["path",{"d":"M8 3v4"}],["path",{"d":"M16 3v4"}],["path",{"d":"M3 11h18"}]],
+      bell: [["path",{"d":"M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"}],["path",{"d":"M13.7 21a2 2 0 01-3.4 0"}]],
+      user: [["path",{"d":"M20 21a8 8 0 10-16 0"}],["circle",{"cx":"12","cy":"8","r":"4"}]],
+      users: [["path",{"d":"M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"}],["circle",{"cx":"9","cy":"7","r":"4"}],["path",{"d":"M22 21v-2a4 4 0 00-3-3.9"}]],
+      check: [["path",{"d":"M20 6L9 17l-5-5"}]],
+      checkCircle: [["circle",{"cx":"12","cy":"12","r":"10"}],["path",{"d":"M8 12.5l2.5 2.5L16 9.5"}]],
+      alert: [["path",{"d":"M12 9v4"}],["path",{"d":"M12 17h.01"}],["circle",{"cx":"12","cy":"12","r":"10"}]],
+      flag: [["path",{"d":"M4 15s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2-4 1-4 1z"}],["path",{"d":"M4 22V15"}]],
+      arrowUpRight: [["path",{"d":"M7 17L17 7"}],["path",{"d":"M8 7h9v9"}]],
+      paperclip: [["path",{"d":"M21.4 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 014.95 4.95l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"}]],
+      download: [["path",{"d":"M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"}],["path",{"d":"M7 10l5 5 5-5"}],["path",{"d":"M12 15V3"}]],
+      upload: [["path",{"d":"M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"}],["path",{"d":"M17 8l-5-5-5 5"}],["path",{"d":"M12 3v12"}]],
+      folder: [["path",{"d":"M4 20h16a2 2 0 002-2V8a2 2 0 00-2-2h-7l-2-2H4a2 2 0 00-2 2v12a2 2 0 002 2z"}]],
+      qr: [["rect",{"x":"3","y":"3","width":"7","height":"7","rx":"1"}],["rect",{"x":"14","y":"3","width":"7","height":"7","rx":"1"}],["rect",{"x":"3","y":"14","width":"7","height":"7","rx":"1"}],["path",{"d":"M14 14h3v3h-3z"}],["path",{"d":"M20 20h1"}]],
+      mail: [["rect",{"x":"2","y":"4","width":"20","height":"16","rx":"2"}],["path",{"d":"M2 7l10 6 10-6"}]],
+      message: [["path",{"d":"M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"}]],
+      more: [["circle",{"cx":"5","cy":"12","r":"1"}],["circle",{"cx":"12","cy":"12","r":"1"}],["circle",{"cx":"19","cy":"12","r":"1"}]],
+      shield: [["path",{"d":"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"}]],
+      database: [["ellipse",{"cx":"12","cy":"5","rx":"9","ry":"3"}],["path",{"d":"M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"}],["path",{"d":"M3 12c0 1.7 4 3 9 3s9-1.3 9-3"}]],
+    };
+    return h('svg', {viewBox:'0 0 24 24', width:size, height:size, fill:'none', stroke:color, strokeWidth:sw, strokeLinecap:'round', strokeLinejoin:'round', style:{display:'block',flexShrink:0}},
+      (P[name]||[]).map((p,i) => h(p[0], {key:i, ...p[1]})));
+  }
+
+  goto(page, ticket){ this.setState({page, selectedTicket: ticket || null}); }
+  toggleSection(k){ this.setState(s=>({openSections:{...s.openSections,[k]:!s.openSections[k]}})); }
+
+  /* ─── primitives, mirroring components/ui + page conventions ─── */
+  card(children, style){
+    const h=React.createElement;
+    return h('div',{style:{background:this.C.card,borderRadius:12,boxShadow:'0 1px 2px rgba(0,0,0,0.05), 0 0 0 1px rgba(37,37,37,0.10)',overflow:'hidden',display:'flex',flexDirection:'column',gap:24,padding:'24px 0',...style}}, children);
+  }
+  /* plain table container: rounded-xl border border-border bg-card shadow-sm (UsersManagement) */
+  tableCard(children, style, min){
+    const h=React.createElement;
+    const inner = min===0 ? children : h('div',{style:{overflowX:'auto'}}, h('div',{style:{minWidth:min||900}}, children));
+    return h('div',{style:{background:this.C.card,borderRadius:12,border:`1px solid ${this.C.border}`,boxShadow:'0 1px 2px rgba(0,0,0,0.05)',overflow:'hidden',...style}}, inner);
+  }
+  /* CardHeader / CardContent = px-6 */
+  cardHead(title, desc){
+    const h=React.createElement; const C=this.C;
+    return h('div',{key:'ch',style:{padding:'0 24px',display:'grid',gap:4}},
+      h('div',{style:{fontSize:16,fontWeight:500,lineHeight:1.5,color:C.fg}},title),
+      desc?h('div',{style:{fontSize:14,color:C.muted}},desc):null);
+  }
+  cardBody(children, style){
+    const h=React.createElement;
+    return h('div',{key:'cb',style:{padding:'0 24px',minWidth:0,...style}}, children);
+  }
+  btn(label, variant, icon, onClick){
+    const h=React.createElement; const C=this.C;
+    const base={borderRadius:8,padding:'10px 16px',fontSize:14,fontWeight:500,cursor:'pointer',fontFamily:"'Inter','Anuphan',sans-serif",display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,whiteSpace:'nowrap',flexShrink:0,border:'1px solid transparent',transition:'all .15s'};
+    const map={
+      default:{background:C.brand,color:'#fff',boxShadow:'0 1px 2px rgba(0,0,0,0.05)'},
+      outline:{background:C.card,color:'#404040',border:'1px solid #D1D5DB',padding:'8px 16px'},
+      ghost:{background:'transparent',color:C.mutedFg},
+      destructive:{background:'#FEF2F2',color:C.critical},
+    };
+    const v = map[variant] || map.default;
+    return h('button',{onClick,style:{...base,...v}}, icon?this.ic(icon,16,variant&&variant!=='default'?'currentColor':'#fff',2):null, label);
+  }
+  pill(label,bg,tx,icon){
+    const h=React.createElement;
+    return h('span',{style:{display:'inline-flex',alignItems:'center',gap:6,background:bg,color:tx,fontSize:12,fontWeight:500,padding:'4px 10px',borderRadius:999,whiteSpace:'nowrap'}},
+      icon?this.ic(icon,12,tx,2.2):null, label);
+  }
+  priorityPill(p){
+    const C=this.C; const m={Critical:[C.criticalBg,C.criticalTx],High:[C.highBg,C.highTx],Medium:[C.mediumBg,C.mediumTx],Low:[C.lowBg,C.lowTx]}[p]||[C.lowBg,C.lowTx];
+    return this.pill(p,m[0],m[1]);
+  }
+  statusPill(s){
+    const C=this.C; const m={New:[C.blueBg,C.blueTx,'alert'],Assigned:[C.violetBg,C.violetTx,'user'],'In Progress':[C.mediumBg,C.mediumTx,'clock'],Resolved:[C.greenBg,C.greenTx,'checkCircle'],Closed:[C.lowBg,C.lowTx,'check']}[s]||[C.blueBg,C.blueTx,'alert'];
+    return this.pill(s,m[0],m[1],m[2]);
+  }
+  statusBadge(active, label){
+    const h=React.createElement; const C=this.C;
+    const bg = active?C.greenBg:'#F5F5F5', tx = active?C.greenTx:C.muted, dot = active?'#10B981':'#A3A3A3';
+    return h('span',{style:{display:'inline-flex',alignItems:'center',gap:6,background:bg,color:tx,fontSize:12,fontWeight:500,padding:'4px 10px',borderRadius:999,whiteSpace:'nowrap'}},
+      h('span',{style:{width:6,height:6,borderRadius:999,background:dot,display:'block',flexShrink:0}}),
+      label || (active?'เชื่อมต่อแล้ว':'ยังไม่เชื่อมต่อ'));
+  }
+  dotLabel(color,label){
+    const h=React.createElement;
+    return h('span',{style:{display:'inline-flex',alignItems:'center',gap:6,fontSize:12,color:this.C.muted,whiteSpace:'nowrap'}},
+      h('span',{style:{width:8,height:8,borderRadius:999,background:color,display:'block',flexShrink:0}}), label);
+  }
+  avatar(initials,size){
+    const h=React.createElement; size=size||32;
+    return h('div',{style:{width:size,height:size,borderRadius:999,background:'linear-gradient(135deg,#2C4090 0%,#13215E 100%)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:size<30?11:12,fontWeight:700,flexShrink:0}},initials);
+  }
+  pageHeader(title, subtitle, action){
+    const h=React.createElement; const C=this.C;
+    return h('div',{style:{display:'flex',flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:16,flexWrap:'wrap'}},
+      h('div',{style:{minWidth:0}},
+        h('h2',{style:{fontSize:24,fontWeight:700,letterSpacing:'-0.02em',color:C.fg,margin:0}},title),
+        subtitle?h('p',{style:{fontSize:16,color:C.muted,margin:'4px 0 0'}},subtitle):null),
+      action||null);
+  }
+  statCards(stats){
+    const h=React.createElement; const C=this.C;
+    return h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:16}},
+      stats.map((s,i)=>this.card(
+        h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'0 20px'}},
+          h('div',{style:{minWidth:0}},
+            h('div',{style:{fontSize:14,color:C.muted}},s.label),
+            h('div',{style:{fontSize:24,fontWeight:700,letterSpacing:'-0.01em',color:C.fg,marginTop:4}},s.value)),
+          h('div',{style:{padding:12,borderRadius:12,background:s.bg,flexShrink:0,display:'flex'}}, this.ic(s.icon,20,s.color,2))),
+        {key:i, padding:'20px 0'})));
+  }
+  searchInput(placeholder, width){
+    const h=React.createElement; const C=this.C;
+    return h('div',{style:{position:'relative',flex:width?'none':'1 1 240px',width:width||'auto',minWidth:0}},
+      h('div',{style:{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',display:'flex'}}, this.ic('search',16,C.muted,2)),
+      h('input',{placeholder, style:{width:'100%',boxSizing:'border-box',padding:'10px 16px 10px 40px',borderRadius:8,border:'1px solid #D1D5DB',background:C.card,fontSize:14,color:C.fg,outline:'none'}}));
+  }
+  filterBtn(label, active, onClick){
+    const h=React.createElement; const C=this.C;
+    return h('button',{key:label,onClick,style:{padding:'8px 14px',borderRadius:8,fontSize:14,fontWeight:500,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0,fontFamily:"'Inter','Anuphan',sans-serif",transition:'all .15s',
+      background:active?C.brand:C.card, color:active?'#fff':C.mutedFg, border:active?`1px solid ${C.brand}`:`1px solid ${C.border}`, boxShadow:active?'0 1px 2px rgba(0,0,0,0.05)':'none'}},label);
+  }
+  tableHead(cols, grid){
+    const h=React.createElement; const C=this.C;
+    return h('div',{style:{display:'grid',gridTemplateColumns:grid,gap:12,padding:'12px 24px',background:'#FAFAFA',borderBottom:`1px solid ${C.border}`}},
+      cols.map((c,i)=>h('span',{key:i,style:{fontSize:12,fontWeight:600,color:C.muted,letterSpacing:'0.02em'}},c)));
+  }
+  fieldBox(label, value, width){
+    const h=React.createElement; const C=this.C;
+    return h('div',{style:{flex:width?'0 1 '+width+'px':'1 1 200px',minWidth:0,maxWidth:'100%'}},
+      h('div',{style:{fontSize:14,fontWeight:500,color:'#404040',marginBottom:6}},label),
+      h('div',{style:{padding:'10px 12px',borderRadius:8,border:'1px solid #D1D5DB',background:C.card,fontSize:14,color:value?'#111827':'#A3A3A3',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},value||'—'));
+  }
+  toggle(on){
+    const h=React.createElement; const C=this.C;
+    return h('div',{style:{width:44,height:24,borderRadius:999,background:on?C.brand:'#D1D5DB',position:'relative',flexShrink:0,cursor:'pointer',transition:'background .15s'}},
+      h('div',{style:{position:'absolute',top:2,left:on?22:2,width:20,height:20,borderRadius:999,background:'#fff',boxShadow:'0 1px 2px rgba(0,0,0,0.15)',transition:'left .15s'}}));
+  }
+  settingRow(title, desc, right, last){
+    const h=React.createElement; const C=this.C;
+    return h('div',{key:title,style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:16,padding:12,borderRadius:8,border:'1px solid #E5E7EB',marginBottom:last?0:8}},
+      h('div',{style:{minWidth:0}},
+        h('div',{style:{fontSize:14,fontWeight:500,color:'#111827'}},title),
+        h('div',{style:{fontSize:12,color:C.muted,marginTop:1}},desc)),
+      right);
+  }
+  sectionStack(children){
+    const h=React.createElement;
+    return h('div',{style:{display:'flex',flexDirection:'column',gap:24}}, children);
+  }
+
+  /* ─── SIDEBAR ─── */
+  navItem(item){
+    const h=React.createElement; const C=this.C;
+    const active = this.state.page===item.k;
+    return h('div',{key:item.k, onClick:()=>this.goto(item.k),
+      style:{display:'flex',alignItems:'center',gap:12,padding:'8px 12px',borderRadius:8,fontSize:14,fontWeight:500,cursor:'pointer',transition:'background .15s',
+        background:active?C.accent:'transparent', color:active?C.fg:C.mutedFg, whiteSpace:'nowrap'}},
+      this.ic(item.icon,20,active?C.fg:C.mutedFg,2),
+      h('span',{style:{flex:1,overflow:'hidden',textOverflow:'ellipsis'}},item.l),
+      item.badge?h('span',{style:{background:C.brand,color:'#fff',fontSize:11,fontWeight:600,borderRadius:999,padding:'1px 8px'}},item.badge):null);
+  }
+  renderSidebar(){
+    const h=React.createElement; const C=this.C;
+    return this.NAV.map((sec,i)=>{
+      if (!sec.title) return h('div',{key:i,style:{display:'flex',flexDirection:'column',gap:4}}, sec.items.map(it=>this.navItem(it)));
+      const open = !!this.state.openSections[sec.key];
+      return h('div',{key:i},
+        h('button',{onClick:()=>this.toggleSection(sec.key),
+          style:{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 12px',borderRadius:8,fontSize:14,fontWeight:500,color:C.mutedFg,background:'transparent',border:'none',cursor:'pointer',fontFamily:"'Inter','Anuphan',sans-serif"}},
+          h('span',{},sec.title),
+          h('span',{style:{display:'flex',transform:open?'rotate(0deg)':'rotate(180deg)',transition:'transform .2s'}}, this.ic('chevronUp',16,C.mutedFg,2))),
+        open?h('div',{style:{marginTop:4,display:'flex',flexDirection:'column',gap:4}}, sec.items.map(it=>this.navItem(it))):null);
+    });
+  }
+
+  /* ─── DASHBOARD ─── */
+  pageDashboard(){
+    const h=React.createElement; const C=this.C;
+    const role = this.state.dashRole;
+    const roleLabel={student:'ผู้ใช้ / นักศึกษา',agent:'เจ้าหน้าที่ IT',manager:'ผู้บริหาร / Admin'};
+    const stats = role==='student'
+      ? [{label:'Ticket ของฉัน',value:'3',icon:'ticket',color:C.blue,bg:C.blueBg},{label:'กำลังดำเนินการ',value:'1',icon:'clock',color:C.medium,bg:C.mediumBg},{label:'ปิดแล้ว',value:'8',icon:'checkCircle',color:C.green,bg:C.greenBg},{label:'บทความ KB ที่อ่าน',value:'5',icon:'library',color:C.violet,bg:C.violetBg}]
+      : role==='agent'
+      ? [{label:'งานที่รับผิดชอบ',value:'12',icon:'ticket',color:C.blue,bg:C.blueBg},{label:'ใกล้ครบ SLA',value:'3',icon:'alert',color:C.critical,bg:C.criticalBg},{label:'งานวันนี้',value:'5',icon:'todo',color:C.medium,bg:C.mediumBg},{label:'ชั่วโมงสัปดาห์นี้',value:'18.5',icon:'clock',color:C.teal,bg:C.tealBg}]
+      : [{label:'Ticket เปิดอยู่',value:'47',icon:'ticket',color:C.blue,bg:C.blueBg},{label:'SLA ตรงเวลา',value:'92%',icon:'checkCircle',color:C.green,bg:C.greenBg},{label:'รออนุมัติ',value:'4',icon:'clipboard',color:C.medium,bg:C.mediumBg},{label:'โครงการ Active',value:'3',icon:'kanban',color:C.violet,bg:C.violetBg}];
+    const roleSwitch = h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+      ['student','agent','manager'].map(r=>this.filterBtn(roleLabel[r], role===r, ()=>this.setState({dashRole:r}))));
+    return this.sectionStack([
+      h('div',{key:'hd'}, this.pageHeader('แดชบอร์ด','ภาพรวมงานบริการของศูนย์ไอที', roleSwitch)),
+      h('div',{key:'st'}, this.statCards(stats)),
+      h('div',{key:'gr',style:{display:'grid',gridTemplateColumns:'minmax(0,2fr) minmax(0,1fr)',gap:16}},
+        this.card([
+          h('div',{key:'h',style:{padding:'0 24px'}},
+            h('div',{style:{fontSize:16,fontWeight:500,color:C.fg}},'แนวโน้ม Ticket 30 วัน'),
+            h('div',{style:{fontSize:14,color:C.muted,marginTop:2}},'จำนวน Ticket เข้าและปิดต่อวัน')),
+          h('div',{key:'b',style:{padding:'0 24px'}},
+            h('div',{style:{height:180,borderRadius:10,background:C.accent,display:'flex',alignItems:'center',justifyContent:'center',color:C.muted,fontSize:13}},'[ กราฟแนวโน้ม Ticket ]'))
+        ]),
+        this.card([
+          h('div',{key:'h',style:{padding:'0 24px'}},
+            h('div',{style:{fontSize:16,fontWeight:500,color:C.fg}},'งานเลยกำหนด'),
+            h('div',{style:{fontSize:14,color:C.muted,marginTop:2}},'ต้องจัดการทันที')),
+          h('div',{key:'b',style:{padding:'0 24px',display:'flex',flexDirection:'column',gap:12}},
+            ['ซ่อมเครื่องพิมพ์ห้อง 302','ตั้งค่า VPN อาจารย์ใหม่'].map((t,i)=>h('div',{key:i,style:{display:'flex',alignItems:'center',gap:10,fontSize:14,color:C.fg}},
+              h('span',{style:{width:8,height:8,borderRadius:999,background:C.critical,flexShrink:0}}), t)))
+        ])),
+      this.card([
+        h('div',{key:'h',style:{padding:'0 24px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap'}},
+          h('div',{},
+            h('div',{style:{fontSize:16,fontWeight:500,color:C.fg}},'Ticket ล่าสุด'),
+            h('div',{style:{fontSize:14,color:C.muted,marginTop:2}},'อัปเดต 5 นาทีที่แล้ว')),
+          this.btn('ดูทั้งหมด','outline','arrowUpRight',()=>this.goto('tickets'))),
+        h('div',{key:'b'}, this.TICKETS.slice(0,4).map((t,i)=>h('div',{key:i,onClick:()=>this.goto('ticket-detail',t),
+          style:{display:'flex',alignItems:'center',gap:16,padding:'14px 24px',cursor:'pointer',borderTop:`1px solid ${C.border}`}},
+          h('span',{style:{fontFamily:this.mono,fontSize:12,color:C.muted,width:130,flexShrink:0}},t.no),
+          h('span',{style:{flex:1,minWidth:0,fontSize:14,fontWeight:500,color:C.fg,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},t.title),
+          this.priorityPill(t.priority), this.statusPill(t.status))))
+      ], {key:'rec'})
+    ]);
+  }
+
+  /* ─── TICKET LIST ─── */
+  pageTickets(){
+    const h=React.createElement; const C=this.C;
+    const grid='130px minmax(0,2.2fr) minmax(0,1.4fr) 110px 140px minmax(0,1.3fr) 130px 32px';
+    const filters=['all','New','Assigned','In Progress','Resolved'];
+    const labels={all:'ทั้งหมด',New:'New',Assigned:'Assigned','In Progress':'In Progress',Resolved:'Resolved'};
+    const rows = this.state.ticketFilter==='all' ? this.TICKETS : this.TICKETS.filter(t=>t.status===this.state.ticketFilter);
+    return this.sectionStack([
+      h('div',{key:'hd'}, this.pageHeader('Ticket ทั้งหมด','จัดการและติดตาม Helpdesk Ticket ทั้งหมดในระบบ', this.btn('สร้าง Ticket','default','plus',()=>this.goto('new-ticket')))),
+      h('div',{key:'st'}, this.statCards([
+        {label:'ทั้งหมด',value:'128',icon:'ticket',color:C.blue,bg:C.blueBg},
+        {label:'รอรับเรื่อง',value:'9',icon:'alert',color:C.medium,bg:C.mediumBg},
+        {label:'กำลังดำเนินการ',value:'23',icon:'clock',color:C.violet,bg:C.violetBg},
+        {label:'SLA ตรงเวลา',value:'92%',icon:'checkCircle',color:C.green,bg:C.greenBg}])),
+      h('div',{key:'flt',style:{display:'flex',gap:12,flexWrap:'wrap',alignItems:'center'}},
+        this.searchInput('ค้นหา Ticket, ผู้แจ้ง, หมวดหมู่...'),
+        h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}}, filters.map(f=>this.filterBtn(labels[f], this.state.ticketFilter===f, ()=>this.setState({ticketFilter:f}))))),
+      this.tableCard([
+        this.tableHead(['เลขที่','หัวข้อ','หมวดหมู่','Priority','สถานะ','ผู้รับผิดชอบ','SLA',''], grid),
+        h('div',{key:'rows'}, rows.map((t,i)=>h('div',{key:i,onClick:()=>this.goto('ticket-detail',t),
+          style:{display:'grid',gridTemplateColumns:grid,gap:12,padding:'14px 24px',alignItems:'center',cursor:'pointer',borderTop:i>0?`1px solid ${C.border}`:'none'}},
+          h('span',{style:{fontFamily:this.mono,fontSize:12,color:C.muted}},t.no),
+          h('span',{style:{fontSize:14,fontWeight:500,color:C.fg,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},t.title),
+          h('span',{style:{fontSize:13,color:C.mutedFg,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},t.cat),
+          this.priorityPill(t.priority),
+          this.statusPill(t.status),
+          h('div',{style:{display:'flex',alignItems:'center',gap:8,minWidth:0}}, this.avatar(t.assignee.slice(0,2),28), h('span',{style:{fontSize:13,color:C.mutedFg,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},t.assignee)),
+          this.dotLabel(C[t.sla]||C.low, t.slaText),
+          this.ic('chevronRight',16,C.muted,2))))
+      ], {key:'tbl'}, 1180),
+      h('div',{key:'pg',style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12}},
+        h('span',{style:{fontSize:13,color:C.muted}},'แสดง 1–'+rows.length+' จาก 128 รายการ'),
+        h('div',{style:{display:'flex',gap:6}}, ['‹','1','2','3','›'].map((p,i)=>h('div',{key:i,
+          style:{width:36,height:36,borderRadius:8,border:`1px solid ${C.border}`,background:p==='1'?C.brand:C.card,color:p==='1'?'#fff':C.mutedFg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:500,cursor:'pointer'}},p))))
+    ]);
+  }
+
+  /* ─── TICKET DETAIL ─── */
+  pageTicketDetail(){
+    const h=React.createElement; const C=this.C;
+    const t = this.state.selectedTicket || this.TICKETS[0];
+    const meta=(label,children)=>h('div',{key:label,style:{marginBottom:16}},
+      h('div',{style:{fontSize:12.5,fontWeight:500,color:C.muted,marginBottom:6}},label), children);
+    const event=(icon,title,time,last)=>h('div',{key:title,style:{display:'flex',gap:12,paddingBottom:last?0:18,position:'relative'}},
+      last?null:h('div',{style:{position:'absolute',left:14,top:30,bottom:0,width:1,background:C.border}}),
+      h('div',{style:{width:28,height:28,borderRadius:999,background:C.accent,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,zIndex:1}}, this.ic(icon,14,C.mutedFg,2)),
+      h('div',{style:{flex:1,minWidth:0,paddingTop:3}},
+        h('div',{style:{fontSize:14,color:C.fg}},title),
+        h('div',{style:{fontSize:12.5,color:C.muted,marginTop:2}},time)));
+    return this.sectionStack([
+      h('div',{key:'bc',onClick:()=>this.goto('tickets'),style:{display:'flex',alignItems:'center',gap:6,fontSize:13,color:C.muted,cursor:'pointer'}},
+        this.ic('chevronLeft',15,C.muted,2),'กลับไป Ticket ทั้งหมด'),
+      h('div',{key:'hd'}, this.pageHeader(t.title, t.no+' · แจ้งเมื่อ 29 ส.ค. 2569 08:16',
+        h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}}, this.btn('มอบหมายใหม่','outline','user'), this.btn('แปลงเป็น Task','outline','arrowUpRight'), this.btn('ปิด Ticket','default','check')))),
+      h('div',{key:'bd',style:{display:'grid',gridTemplateColumns:'minmax(0,2fr) minmax(0,1fr)',gap:16,alignItems:'start'}},
+        h('div',{style:{display:'flex',flexDirection:'column',gap:16,minWidth:0}},
+          this.card([
+            h('div',{key:'h',style:{padding:'0 24px',fontSize:16,fontWeight:500,color:C.fg}},'รายละเอียดปัญหา'),
+            h('div',{key:'b',style:{padding:'0 24px'}},
+              h('p',{style:{fontSize:14,color:C.mutedFg,lineHeight:1.7,margin:0}},'ผู้ใช้งานรายงานว่าไม่สามารถเข้าถึงเว็บไซต์คณะได้ตั้งแต่เวลาประมาณ 08:15 น. เบราว์เซอร์แสดงข้อผิดพลาด This site can not be reached ทดสอบแล้วทั้ง WiFi และเครือข่ายมือถือให้ผลเหมือนกัน คาดว่าอาจเป็นปัญหาที่ DNS หรือ Web Server'),
+              h('div',{style:{display:'flex',alignItems:'center',gap:10,marginTop:16,padding:'10px 14px',borderRadius:10,border:`1px solid ${C.border}`,width:'fit-content'}},
+                this.ic('paperclip',16,C.muted,2), h('span',{style:{fontSize:13,color:C.mutedFg}},'screenshot-error.png'), h('span',{style:{fontSize:12,color:C.muted}},'248 KB')))
+          ]),
+          this.card([
+            h('div',{key:'h',style:{padding:'0 24px',fontSize:16,fontWeight:500,color:C.fg}},'Timeline / กิจกรรม'),
+            h('div',{key:'b',style:{padding:'0 24px'}},
+              event('ticket','สร้าง Ticket โดย นักศึกษา คณะวิศวกรรมศาสตร์','29 ส.ค. 2569 · 08:16'),
+              event('user','ระบบ Auto-assign มอบหมายให้ สมชาย ธนกร','29 ส.ค. 2569 · 08:17'),
+              event('clock','สมชาย ธนกร เริ่มดำเนินการ · สถานะเป็น In Progress','29 ส.ค. 2569 · 08:24', true))
+          ]),
+          this.card([
+            h('div',{key:'h',style:{padding:'0 24px',fontSize:16,fontWeight:500,color:C.fg}},'ความเห็น'),
+            h('div',{key:'b',style:{padding:'0 24px'}},
+              h('div',{style:{display:'flex',gap:12,marginBottom:16}},
+                this.avatar('สธ',32),
+                h('div',{style:{flex:1,minWidth:0,background:C.accent,borderRadius:10,padding:'12px 14px'}},
+                  h('div',{style:{fontSize:13,fontWeight:500,color:C.fg,marginBottom:4}},'สมชาย ธนกร · 08:30'),
+                  h('div',{style:{fontSize:14,color:C.mutedFg,lineHeight:1.6}},'กำลังตรวจสอบ DNS record กับทีมเครือข่าย คาดว่าจะทราบผลภายใน 15 นาที'))),
+              h('div',{style:{display:'flex',gap:12,alignItems:'center'}},
+                this.avatar('สธ',32),
+                h('input',{placeholder:'เขียนความเห็น...', style:{flex:1,minWidth:0,padding:'10px 14px',borderRadius:8,border:`1px solid ${C.border}`,fontSize:14,outline:'none'}}),
+                this.btn('ส่ง','default')))
+          ])),
+        h('div',{style:{display:'flex',flexDirection:'column',gap:16,minWidth:0}},
+          this.card(h('div',{style:{padding:'0 24px'}},
+            meta('สถานะ', this.statusPill(t.status)),
+            meta('Priority', h('div',{}, this.priorityPill(t.priority), h('div',{style:{fontSize:12.5,color:C.muted,marginTop:8}},'Impact: สูง · Urgency: สูง'))),
+            meta('SLA Response', h('div',{},
+              h('div',{style:{height:8,background:'#E5E5E5',borderRadius:999,overflow:'hidden',marginBottom:8}}, h('div',{style:{width:'85%',height:'100%',background:C.critical,borderRadius:999}})),
+              h('div',{style:{fontSize:13,color:C.critical,fontWeight:500}},t.slaText+' — ใกล้ครบกำหนด'))))),
+          this.card(h('div',{style:{padding:'0 24px'}},
+            meta('ผู้รับผิดชอบ', h('div',{style:{display:'flex',alignItems:'center',gap:10}}, this.avatar(t.assignee.slice(0,2),32), h('span',{style:{fontSize:14,fontWeight:500,color:C.fg}},t.assignee))),
+            meta('ผู้แจ้ง', h('div',{style:{display:'flex',alignItems:'center',gap:10}}, this.avatar('นศ',32), h('span',{style:{fontSize:14,color:C.fg}},'นักศึกษา คณะวิศวกรรมศาสตร์'))),
+            meta('หมวดหมู่บริการ', h('span',{style:{fontSize:14,color:C.mutedFg}},t.cat)),
+            meta('บทความ KB ที่เกี่ยวข้อง', h('span',{style:{fontSize:14,color:C.brand,cursor:'pointer'}},'วิธีตรวจสอบสถานะเว็บไซต์')))))
+      )
+    ]);
+  }
+
+  /* ─── NEW TICKET ─── */
+  pageNewTicket(){
+    const h=React.createElement; const C=this.C;
+    const levels=['ต่ำ','กลาง','สูง'];
+    const impact = this.state.ntImpact ?? 2, urgency = this.state.ntUrgency ?? 2;
+    const score = impact + urgency;
+    const priority = score>=4 ? 'Critical' : score===3 ? 'High' : score===2 ? 'Medium' : 'Low';
+    const picker=(current,onPick)=>h('div',{style:{display:'flex',gap:8}},
+      levels.map((l,i)=>h('button',{key:i,onClick:()=>onPick(i),
+        style:{flex:1,padding:'10px 8px',borderRadius:8,fontSize:14,fontWeight:current===i?600:500,cursor:'pointer',fontFamily:"'Inter','Anuphan',sans-serif",
+          background:current===i?C.brand:C.card, color:current===i?'#fff':C.mutedFg, border:`1px solid ${current===i?C.brand:C.border}`}},l)));
+    const label=(t)=>h('div',{style:{fontSize:14,fontWeight:500,color:'#404040',marginBottom:6}},t);
+    return h('div',{style:{maxWidth:760}}, this.sectionStack([
+      h('div',{key:'hd'}, this.pageHeader('แจ้งปัญหา / คำขอบริการใหม่','กรอกรายละเอียด ทีม IT จะติดต่อกลับตาม SLA ที่กำหนด')),
+      this.card(h('div',{style:{padding:'0 24px',display:'flex',flexDirection:'column',gap:20}},
+        h('div',{}, label('หัวข้อ'), h('input',{placeholder:'เช่น เข้าเว็บไซต์คณะไม่ได้', style:{width:'100%',boxSizing:'border-box',padding:'10px 14px',borderRadius:8,border:`1px solid ${C.border}`,fontSize:14,outline:'none'}})),
+        h('div',{}, label('รายละเอียด'), h('div',{style:{padding:'12px 14px',borderRadius:8,border:`1px solid ${C.border}`,fontSize:14,color:'#A3A3A3',minHeight:90}},'อธิบายปัญหาที่พบ อาการ และเวลาที่เกิดขึ้น...')),
+        h('div',{style:{display:'flex',gap:16,flexWrap:'wrap'}},
+          this.fieldBox('หมวดหมู่บริการ','เว็บไซต์ & ระบบสารสนเทศ'),
+          this.fieldBox('หน่วยงานผู้แจ้ง','คณะบริหารธุรกิจ')),
+        h('div',{style:{padding:16,borderRadius:10,background:C.accent}},
+          h('div',{style:{fontSize:14,fontWeight:500,color:C.fg,marginBottom:14}},'ระดับผลกระทบและความเร่งด่วน'),
+          h('div',{style:{display:'flex',gap:16,flexWrap:'wrap',marginBottom:16}},
+            h('div',{style:{flex:'1 1 220px',minWidth:0}}, label('Impact (ผลกระทบ)'), picker(impact,(i)=>this.setState({ntImpact:i}))),
+            h('div',{style:{flex:'1 1 220px',minWidth:0}}, label('Urgency (ความเร่งด่วน)'), picker(urgency,(i)=>this.setState({ntUrgency:i})))),
+          h('div',{style:{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderRadius:10,background:C.card,border:`1px solid ${C.border}`}},
+            this.ic('flag',16,C.mutedFg,2), h('span',{style:{fontSize:14,color:C.mutedFg}},'Priority ที่คำนวณได้'), this.priorityPill(priority))),
+        h('div',{}, label('ไฟล์แนบ'),
+          h('div',{style:{border:`1.5px dashed ${C.border}`,borderRadius:10,padding:'24px 16px',textAlign:'center'}},
+            h('div',{style:{display:'flex',justifyContent:'center',marginBottom:8}}, this.ic('upload',20,C.muted,2)),
+            h('div',{style:{fontSize:13,color:C.muted}},'ลากไฟล์มาวาง หรือคลิกเพื่อเลือก'))),
+        h('div',{style:{display:'flex',gap:10,justifyContent:'flex-end'}}, this.btn('ยกเลิก','outline'), this.btn('ส่งคำขอ','default','check'))
+      ), {key:'form'})
+    ]));
+  }
+
+  /* ─── MY WORK ─── */
+  pageMyWork(){
+    const h=React.createElement; const C=this.C;
+    const tabs=[['all','ทั้งหมด'],['ticket','Ticket ของฉัน'],['task','Task โครงการ'],['personal','งานส่วนตัว']];
+    const items=[
+      {type:'ticket',no:'TK-042',title:'เข้าเว็บไซต์คณะไม่ได้',priority:'critical',pl:'Critical',due:'วันนี้ 12:00'},
+      {type:'ticket',no:'TK-038',title:'เครื่องพิมพ์ห้อง 302 กระดาษติด',priority:'high',pl:'High',due:'วันนี้ 16:00'},
+      {type:'task',no:'Task #18',title:'ออกแบบหน้า Login ใหม่',priority:'high',pl:'High',due:'พรุ่งนี้'},
+      {type:'task',no:'Task #21',title:'เขียน API /kb/publish',priority:'medium',pl:'Medium',due:'2 วัน'},
+      {type:'personal',no:'ส่วนตัว',title:'เตรียมสไลด์ประชุมทีม',priority:'low',pl:'Low',due:'ศุกร์นี้'},
+    ];
+    const filtered = this.state.myWorkTab==='all' ? items : items.filter(i=>i.type===this.state.myWorkTab);
+    const typeLabel={ticket:'Ticket',task:'Task',personal:'ส่วนตัว'};
+    return this.sectionStack([
+      h('div',{key:'hd'}, this.pageHeader('My Work','งาน Ticket, Task โครงการ และงานส่วนตัวที่มอบหมายให้คุณ', this.btn('บันทึก Time Log','outline','clock'))),
+      h('div',{key:'st'}, this.statCards([
+        {label:'งานทั้งหมด',value:'5',icon:'todo',color:C.blue,bg:C.blueBg},
+        {label:'ครบกำหนดวันนี้',value:'2',icon:'alert',color:C.critical,bg:C.criticalBg},
+        {label:'Task โครงการ',value:'2',icon:'kanban',color:C.violet,bg:C.violetBg},
+        {label:'ชั่วโมงสัปดาห์นี้',value:'18.5',icon:'clock',color:C.teal,bg:C.tealBg}])),
+      h('div',{key:'tabs',style:{display:'flex',gap:8,flexWrap:'wrap'}},
+        tabs.map(([k,l])=>this.filterBtn(l, this.state.myWorkTab===k, ()=>this.setState({myWorkTab:k})))),
+      h('div',{key:'list',style:{display:'flex',flexDirection:'column',gap:12}},
+        filtered.map((it,i)=>this.tableCard(
+          h('div',{style:{display:'flex',alignItems:'center',gap:16,padding:'14px 20px',minWidth:0}},
+            h('div',{style:{width:20,height:20,borderRadius:6,border:`1.5px solid ${C.border}`,flexShrink:0,cursor:'pointer'}}),
+            h('span',{style:{fontFamily:this.mono,fontSize:12,color:C.muted,width:90,flexShrink:0}},typeLabel[it.type]+' '+it.no),
+            h('span',{style:{flex:1,minWidth:0,fontSize:14,fontWeight:500,color:C.fg,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},it.title),
+            this.priorityPill(it.pl),
+            this.dotLabel(C.muted,'กำหนด '+it.due)),
+          {key:i}, 0))),
+      this.card([
+        h('div',{key:'h',style:{padding:'0 24px'}},
+          h('div',{style:{fontSize:16,fontWeight:500,color:C.fg}},'บันทึก Time Log'),
+          h('div',{style:{fontSize:14,color:C.muted,marginTop:2}},'บันทึกชั่วโมงทำงานสำหรับงานที่ทำวันนี้')),
+        h('div',{key:'b',style:{padding:'0 24px',display:'flex',gap:16,alignItems:'flex-end',flexWrap:'wrap'}},
+          this.fieldBox('วันที่','29/08/2569',150),
+          this.fieldBox('ชั่วโมง','2.5',110),
+          this.fieldBox('สิ่งที่ทำ','แก้ปัญหาเครือข่าย DNS...'),
+          this.btn('บันทึก','default','plus'))
+      ], {key:'tl'})
+    ]);
+  }
+
+  /* ─── PROJECTS / งานพัฒนา — โครงสร้างตาม management/projects/ProjectContent.tsx ─── */
+  pageKanban(){
+    const h=React.createElement; const C=this.C;
+    const view = this.state.projView || 'cards';
+    const filters=['ทั้งหมด','Active','Completed','On Hold','Planning'];
+    const f = this.state.projFilter || 'ทั้งหมด';
+    const stMap={Active:[C.greenBg,C.greenTx,'arrowUpRight'],Planning:[C.violetBg,C.violetTx,'clock'],'On Hold':[C.mediumBg,C.mediumTx,'clock'],Completed:[C.blueBg,C.blueTx,'checkCircle']};
+    const priDot={High:C.critical,Medium:C.medium,Low:C.green};
+    const projects=[
+      {name:'ระบบ Helpdesk & SLA', desc:'พัฒนาระบบรับแจ้งปัญหา มอบหมายงาน และคำนวณ SLA ตามเวลาราชการ', st:'Active', pri:'High', pct:65, bar:C.green, done:16, all:24, people:4, due:'15 เม.ย. 2569', tags:['Next.js','Prisma']},
+      {name:'Knowledge Base ศูนย์ไอที', desc:'ระบบจัดการบทความช่วยเหลือและคู่มือการใช้งานสำหรับผู้ใช้', st:'Active', pri:'Medium', pct:80, bar:C.green, done:14, all:18, people:3, due:'20 มี.ค. 2569', tags:['Vector DB','Prisma']},
+      {name:'LINE Notify Integration', desc:'เชื่อมต่อการแจ้งเตือน Ticket และ SLA เข้ากลุ่ม LINE ของศูนย์', st:'Planning', pri:'High', pct:10, bar:C.violet, done:1, all:12, people:2, due:'1 พ.ค. 2569', tags:['LINE','Webhook']},
+      {name:'ทะเบียนครุภัณฑ์ IT', desc:'ระบบติดตามครุภัณฑ์คอมพิวเตอร์ พร้อม QR Code สำหรับตรวจนับ', st:'On Hold', pri:'Low', pct:35, bar:C.medium, done:7, all:20, people:2, due:'30 มิ.ย. 2569', tags:['QR','Report']},
+      {name:'Dashboard ผู้บริหาร', desc:'รายงานสรุป Ticket, SLA Compliance และภาระงานรายบุคคล', st:'Completed', pri:'Medium', pct:100, bar:C.blue, done:15, all:15, people:3, due:'10 ก.พ. 2569', tags:['Chart','Export']},
+      {name:'ระบบคำขออนุมัติ', desc:'คำขอจัดซื้อและเบิกวัสดุ พร้อมสายอนุมัติหลายระดับ', st:'Planning', pri:'Medium', pct:5, bar:C.violet, done:0, all:16, people:2, due:'1 ก.ค. 2569', tags:['Workflow']},
+    ];
+    const list = f==='ทั้งหมด' ? projects : projects.filter(p=>p.st===f);
+
+    const projectCard=(p,i)=>h('div',{key:i,style:{background:C.card,borderRadius:12,boxShadow:'0 1px 2px rgba(0,0,0,0.05), 0 0 0 1px rgba(37,37,37,0.10)',display:'flex',flexDirection:'column',overflow:'hidden'}},
+      h('div',{style:{padding:'20px 20px 16px',display:'flex',flexDirection:'column',gap:12,flex:1}},
+        h('div',{style:{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}},
+          this.pill(p.st,stMap[p.st][0],stMap[p.st][1],stMap[p.st][2]),
+          h('span',{style:{display:'inline-flex',alignItems:'center',gap:6,fontSize:12,color:C.mutedFg}},
+            h('span',{style:{width:6,height:6,borderRadius:999,background:priDot[p.pri],display:'block'}}), p.pri)),
+        h('div',{},
+          h('div',{style:{fontSize:17,fontWeight:600,color:C.fg,letterSpacing:'-0.01em'}},p.name),
+          h('div',{style:{fontSize:14,color:C.muted,marginTop:6,lineHeight:1.55}},p.desc)),
+        h('div',{style:{marginTop:'auto'}},
+          h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
+            h('span',{style:{fontSize:14,color:C.mutedFg}},'Progress'),
+            h('span',{style:{fontSize:14,fontWeight:600,color:C.fg}},p.pct+'%')),
+          h('div',{style:{height:8,background:'#EFEFEF',borderRadius:999,overflow:'hidden'}},
+            h('div',{style:{width:p.pct+'%',height:'100%',background:p.bar,borderRadius:999}}))),
+        h('div',{style:{display:'flex',alignItems:'center',gap:18}},
+          h('span',{style:{display:'inline-flex',alignItems:'center',gap:6,fontSize:13,color:C.mutedFg}}, this.ic('checkCircle',15,C.muted,2), p.done+'/'+p.all+' Tasks'),
+          h('span',{style:{display:'inline-flex',alignItems:'center',gap:6,fontSize:13,color:C.mutedFg}}, this.ic('users',15,C.muted,2), p.people+' คน'))),
+      h('div',{style:{padding:'12px 20px',borderTop:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}},
+        h('span',{style:{display:'inline-flex',alignItems:'center',gap:6,fontSize:12.5,color:C.muted}}, this.ic('calendar',14,C.muted,2), 'กำหนด '+p.due),
+        h('div',{style:{display:'flex',gap:6}}, p.tags.map((t,j)=>h('span',{key:j,style:{fontSize:11.5,color:C.mutedFg,background:C.accent,borderRadius:6,padding:'3px 8px'}},t)))));
+
+    const cols=[
+      {name:'Backlog', cards:[{t:'ปรับปรุง UI Dashboard',p:'High',a:'สธ'},{t:'เพิ่ม export Excel',p:'Medium',a:'กว'}]},
+      {name:'To Do', cards:[{t:'สร้าง API /kb/publish',p:'Medium',a:'นพ'}]},
+      {name:'Doing', cards:[{t:'Kanban drag & drop',p:'High',a:'สธ'}]},
+      {name:'Review', cards:[{t:'หน้า Login ใหม่',p:'Critical',a:'กว'}]},
+      {name:'Done', cards:[{t:'ตั้งค่า CI/CD',p:'Low',a:'นพ'},{t:'Migrate schema',p:'Low',a:'สธ'}]},
+    ];
+    const board = h('div',{key:'board',style:{display:'grid',gridTemplateColumns:'repeat(5,minmax(0,1fr))',gap:16,alignItems:'start'}},
+      cols.map((col,ci)=>h('div',{key:ci,style:{background:C.accent,borderRadius:12,padding:12,minWidth:0}},
+        h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 8px 12px'}},
+          h('span',{style:{fontSize:13,fontWeight:600,color:C.fg}},col.name),
+          h('span',{style:{fontSize:12,color:C.muted}},col.cards.length)),
+        h('div',{style:{display:'flex',flexDirection:'column',gap:10}},
+          col.cards.map((c,i)=>h('div',{key:i,style:{background:C.card,borderRadius:10,border:`1px solid ${C.border}`,padding:'12px 13px',boxShadow:'0 1px 2px rgba(0,0,0,0.04)',cursor:'pointer'}},
+            h('div',{style:{fontSize:13.5,fontWeight:500,color:C.fg,marginBottom:10,lineHeight:1.45}},c.t),
+            h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}},
+              this.priorityPill(c.p), this.avatar(c.a,26))))))));
+
+    return this.sectionStack([
+      h('div',{key:'hd'}, this.pageHeader('งานพัฒนาระบบ','จัดการโครงการพัฒนาของศูนย์ไอทีทั้งหมด', this.btn('สร้างโครงการใหม่','default','plus'))),
+      h('div',{key:'st'}, this.statCards([
+        {label:'ทั้งหมด',value:'6',icon:'folder',color:C.blue,bg:C.blueBg},
+        {label:'กำลังดำเนินการ',value:'2',icon:'arrowUpRight',color:C.green,bg:C.greenBg},
+        {label:'เสร็จแล้ว',value:'1',icon:'checkCircle',color:C.violet,bg:C.violetBg},
+        {label:'ภาพรวม Progress',value:'48%',icon:'chart',color:C.medium,bg:C.mediumBg}])),
+      h('div',{key:'flt',style:{display:'flex',gap:12,flexWrap:'wrap',alignItems:'center'}},
+        this.searchInput('ค้นหาโครงการ...'),
+        h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}}, filters.map(x=>this.filterBtn(x, f===x, ()=>this.setState({projFilter:x})))),
+        h('div',{style:{marginLeft:'auto',display:'flex',gap:8}},
+          this.filterBtn('การ์ด', view==='cards', ()=>this.setState({projView:'cards'})),
+          this.filterBtn('บอร์ด Kanban', view==='board', ()=>this.setState({projView:'board'})))),
+      view==='board' ? board :
+        h('div',{key:'grid',style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:16,alignItems:'stretch'}}, list.map(projectCard))
+    ]);
+  }
+
+  /* ─── KNOWLEDGE BASE ─── */
+  pageKB(){
+    const h=React.createElement; const C=this.C;
+    const cats=['ทั้งหมด','เว็บไซต์','เครือข่าย','งานธุรการ','ครุภัณฑ์'];
+    const arts=[
+      {title:'วิธีเชื่อมต่อ WiFi มหาวิทยาลัย', desc:'ขั้นตอนตั้งค่า WiFi สำหรับ Windows, macOS, iOS และ Android', cat:'เครือข่าย', views:128},
+      {title:'ขั้นตอนขอสิทธิ์เข้าระบบ e-learning', desc:'สำหรับอาจารย์และเจ้าหน้าที่ที่ต้องการเปิดคอร์สใหม่', cat:'เว็บไซต์', views:94},
+      {title:'แบบฟอร์มขอเบิกวัสดุสำนักงาน', desc:'ดาวน์โหลดแบบฟอร์มและดูขั้นตอนการอนุมัติ', cat:'งานธุรการ', views:61},
+      {title:'วิธีรีเซ็ตรหัสผ่านอีเมลมหาวิทยาลัย', desc:'รีเซ็ตด้วยตัวเองผ่านระบบ Self-service ภายใน 5 นาที', cat:'เว็บไซต์', views:203},
+      {title:'การขอสิทธิ์ใช้งาน VPN นอกสถานที่', desc:'เงื่อนไขการใช้งานและขั้นตอนติดตั้ง client', cat:'เครือข่าย', views:77},
+      {title:'ขั้นตอนแจ้งซ่อมครุภัณฑ์คอมพิวเตอร์', desc:'เตรียมข้อมูลรหัสครุภัณฑ์ก่อนแจ้งซ่อมเพื่อความรวดเร็ว', cat:'ครุภัณฑ์', views:145},
+    ];
+    const list = this.state.kbFilter==='ทั้งหมด' ? arts : arts.filter(a=>a.cat===this.state.kbFilter);
+    return this.sectionStack([
+      h('div',{key:'hd'}, this.pageHeader('Knowledge Base','บทความช่วยเหลือและคู่มือการใช้งานระบบ', this.btn('เขียนบทความ','default','plus'))),
+      h('div',{key:'flt',style:{display:'flex',gap:12,flexWrap:'wrap',alignItems:'center'}},
+        this.searchInput('ค้นหาบทความ...'),
+        h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}}, cats.map(c=>this.filterBtn(c, this.state.kbFilter===c, ()=>this.setState({kbFilter:c}))))),
+      h('div',{key:'grid',style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:16}},
+        list.map((a,i)=>this.card(
+          h('div',{style:{padding:'0 24px',display:'flex',flexDirection:'column',gap:12,height:'100%',boxSizing:'border-box'}},
+            h('div',{style:{padding:10,borderRadius:12,background:C.brandTint,width:'fit-content'}}, this.ic('library',18,C.brand,2)),
+            h('div',{},
+              h('div',{style:{fontSize:16,fontWeight:500,color:C.fg,lineHeight:1.4}},a.title),
+              h('div',{style:{fontSize:14,color:C.muted,marginTop:6,lineHeight:1.55}},a.desc)),
+            h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginTop:'auto',paddingTop:6}},
+              this.pill(a.cat,C.accent,C.mutedFg),
+              h('span',{style:{fontSize:12,color:C.muted}},'อ่าน '+a.views+' ครั้ง'))),
+          {key:i})))
+    ]);
+  }
+
+  /* ─── ASSETS ─── */
+  pageAssets(){
+    const h=React.createElement; const C=this.C;
+    const grid='minmax(0,1.2fr) minmax(0,2fr) minmax(0,1.3fr) 110px minmax(0,1.6fr) 40px';
+    const rows=[
+      {code:'AS-2569-011',name:'โน้ตบุ๊ก Dell Latitude 5420',type:'คอมพิวเตอร์',status:'ใช้งาน',owner:'สมชาย ธนกร'},
+      {code:'AS-2569-012',name:'โปรเจกเตอร์ Epson EB-X05',type:'โสตทัศนูปกรณ์',status:'ในคลัง',owner:'—'},
+      {code:'AS-2569-013',name:'จอมอนิเตอร์ Dell 24 นิ้ว',type:'คอมพิวเตอร์',status:'ส่งซ่อม',owner:'กนกวรรณ ใจดี'},
+      {code:'AS-2569-014',name:'เครื่องพิมพ์ HP LaserJet Pro',type:'โสตทัศนูปกรณ์',status:'ใช้งาน',owner:'งานธุรการศูนย์'},
+    ];
+    const statusMap={'ใช้งาน':[C.greenBg,C.greenTx],'ในคลัง':[C.lowBg,C.lowTx],'ส่งซ่อม':[C.mediumBg,C.mediumTx]};
+    const filters=['ทั้งหมด','คอมพิวเตอร์','โสตทัศนูปกรณ์'];
+    const list = this.state.assetFilter==='ทั้งหมด' ? rows : rows.filter(r=>r.type===this.state.assetFilter);
+    return this.sectionStack([
+      h('div',{key:'hd'}, this.pageHeader('ครุภัณฑ์ IT','ทะเบียนครุภัณฑ์คอมพิวเตอร์และอุปกรณ์ของศูนย์ไอที',
+        h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}}, this.btn('นำเข้า/ส่งออก CSV','outline','download'), this.btn('เพิ่มครุภัณฑ์','default','plus')))),
+      h('div',{key:'st'}, this.statCards([
+        {label:'ทั้งหมด',value:'214',icon:'package',color:C.blue,bg:C.blueBg},
+        {label:'ใช้งาน',value:'186',icon:'checkCircle',color:C.green,bg:C.greenBg},
+        {label:'ในคลัง',value:'21',icon:'folder',color:C.violet,bg:C.violetBg},
+        {label:'ส่งซ่อม',value:'7',icon:'alert',color:C.medium,bg:C.mediumBg}])),
+      h('div',{key:'flt',style:{display:'flex',gap:12,flexWrap:'wrap',alignItems:'center'}},
+        this.searchInput('ค้นหารหัสครุภัณฑ์ หรือชื่อ...'),
+        h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}}, filters.map(f=>this.filterBtn(f, this.state.assetFilter===f, ()=>this.setState({assetFilter:f}))))),
+      this.tableCard([
+        this.tableHead(['รหัสครุภัณฑ์','ชื่อ','ประเภท','สถานะ','ผู้ครอบครอง',''], grid),
+        h('div',{key:'rows'}, list.map((r,i)=>h('div',{key:i,style:{display:'grid',gridTemplateColumns:grid,gap:12,padding:'14px 24px',alignItems:'center',borderTop:i>0?`1px solid ${C.border}`:'none'}},
+          h('span',{style:{fontFamily:this.mono,fontSize:12,color:C.muted}},r.code),
+          h('span',{style:{fontSize:14,fontWeight:500,color:C.fg,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},r.name),
+          h('span',{style:{fontSize:13,color:C.mutedFg}},r.type),
+          this.pill(r.status,statusMap[r.status][0],statusMap[r.status][1]),
+          h('span',{style:{fontSize:13,color:C.mutedFg,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},r.owner),
+          h('div',{style:{display:'flex',justifyContent:'center',cursor:'pointer'}}, this.ic('qr',18,C.muted,2)))))
+      ], {key:'tbl'}, 1000)
+    ]);
+  }
+
+  /* ─── APPROVALS ─── */
+  pageApprovals(){
+    const h=React.createElement; const C=this.C;
+    const grid='minmax(0,1.3fr) minmax(0,1fr) minmax(0,1.5fr) 110px 110px';
+    const rows=[
+      {no:'RQ-2569-004',type:'จัดซื้อ',by:'สมชาย ธนกร',amt:'฿12,000',st:'Pending'},
+      {no:'RQ-2569-003',type:'เบิกวัสดุ',by:'กนกวรรณ ใจดี',amt:'฿850',st:'Approved'},
+      {no:'RQ-2569-002',type:'งบประมาณ',by:'นัฐพงษ์ ศรีวงศ์',amt:'฿45,000',st:'Rejected'},
+    ];
+    const stMap={Pending:[C.mediumBg,C.mediumTx,'clock'],Approved:[C.greenBg,C.greenTx,'checkCircle'],Rejected:[C.criticalBg,C.criticalTx,'alert']};
+    return this.sectionStack([
+      h('div',{key:'hd'}, this.pageHeader('คำขออนุมัติ','คำขอจัดซื้อ เบิกวัสดุ และงบประมาณของศูนย์ไอที', this.btn('สร้างคำขอ','default','plus'))),
+      h('div',{key:'st'}, this.statCards([
+        {label:'รออนุมัติ',value:'4',icon:'clock',color:C.medium,bg:C.mediumBg},
+        {label:'อนุมัติแล้วเดือนนี้',value:'12',icon:'checkCircle',color:C.green,bg:C.greenBg},
+        {label:'ยอดรวมรออนุมัติ',value:'฿58,000',icon:'clipboard',color:C.blue,bg:C.blueBg},
+        {label:'ไม่อนุมัติ',value:'1',icon:'alert',color:C.critical,bg:C.criticalBg}])),
+      h('div',{key:'bd',style:{display:'grid',gridTemplateColumns:'minmax(0,1.6fr) minmax(0,1fr)',gap:16,alignItems:'start'}},
+        this.tableCard([
+          this.tableHead(['เลขที่คำขอ','ประเภท','ผู้ขอ','จำนวนเงิน','สถานะ'], grid),
+          h('div',{key:'rows'}, rows.map((r,i)=>h('div',{key:i,style:{display:'grid',gridTemplateColumns:grid,gap:12,padding:'14px 24px',alignItems:'center',borderTop:i>0?`1px solid ${C.border}`:'none'}},
+            h('span',{style:{fontFamily:this.mono,fontSize:12,color:C.muted}},r.no),
+            h('span',{style:{fontSize:14,color:C.fg}},r.type),
+            h('span',{style:{fontSize:13,color:C.mutedFg,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},r.by),
+            h('span',{style:{fontSize:14,fontWeight:500,color:C.fg}},r.amt),
+            this.pill(r.st,stMap[r.st][0],stMap[r.st][1],stMap[r.st][2]))))
+        ], null, 640),
+        this.card([
+          h('div',{key:'h',style:{padding:'0 24px'}},
+            h('div',{style:{fontSize:16,fontWeight:500,color:C.fg}},'ขั้นตอนอนุมัติ'),
+            h('div',{style:{fontSize:14,color:C.muted,marginTop:2}},'RQ-2569-004 · จัดซื้อ ฿12,000')),
+          h('div',{key:'b',style:{padding:'0 24px'}},
+            h('div',{style:{display:'flex',flexDirection:'column',gap:14,marginBottom:16}},
+              [['หัวหน้าศูนย์',true],['ผู้อำนวยการ',false]].map((s,i)=>h('div',{key:i,style:{display:'flex',alignItems:'center',gap:12}},
+                h('div',{style:{width:28,height:28,borderRadius:999,background:s[1]?C.greenBg:C.mediumBg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},
+                  this.ic(s[1]?'check':'clock',14,s[1]?C.greenTx:C.mediumTx,2.4)),
+                h('span',{style:{fontSize:14,color:C.fg,flex:1,minWidth:0}},s[0]),
+                s[1]?this.pill('Approved',C.greenBg,C.greenTx):this.pill('Pending',C.mediumBg,C.mediumTx)))),
+            h('div',{style:{padding:'10px 14px',borderRadius:8,border:`1px solid ${C.border}`,fontSize:13,color:C.mutedFg}},'ความเห็น: อนุมัติตามที่เสนอ'),
+            h('div',{style:{display:'flex',gap:8,marginTop:16}}, this.btn('ไม่อนุมัติ','outline'), this.btn('อนุมัติ','default','check')))
+        ]))
+    ]);
+  }
+
+  /* ─── REPORTS ─── */
+  pageReports(){
+    const h=React.createElement; const C=this.C;
+    const tabs=['Ticket','SLA','ภาระงาน','โครงการ'];
+    const charts=[['สัดส่วน Ticket ตามหมวดหมู่','[ Donut chart ]'],['SLA Compliance Trend','[ Line chart ]'],['ภาระงานรายคน','[ Bar chart ]']];
+    const grid='120px minmax(0,2.5fr) 110px minmax(0,1.5fr)';
+    return this.sectionStack([
+      h('div',{key:'hd'}, this.pageHeader('รายงาน','สรุปผลการดำเนินงานประจำเดือนสิงหาคม 2569',
+        h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}}, this.btn('เลือกช่วงเวลา','outline','calendar'), this.btn('Export PDF/Excel','default','download')))),
+      h('div',{key:'tabs',style:{display:'flex',gap:8,flexWrap:'wrap'}},
+        tabs.map(t=>this.filterBtn(t, this.state.reportTab===t, ()=>this.setState({reportTab:t})))),
+      h('div',{key:'ch',style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:16}},
+        charts.map((c,i)=>this.card([
+          h('div',{key:'h',style:{padding:'0 24px',fontSize:16,fontWeight:500,color:C.fg}},c[0]),
+          h('div',{key:'b',style:{padding:'0 24px'}}, h('div',{style:{height:150,borderRadius:10,background:C.accent,display:'flex',alignItems:'center',justifyContent:'center',color:C.muted,fontSize:13}},c[1]))
+        ],{key:i}))),
+      this.card([
+        h('div',{key:'h',style:{padding:'0 24px'}},
+          h('div',{style:{fontSize:16,fontWeight:500,color:C.fg}},'รายการที่เกินกำหนด SLA'),
+          h('div',{style:{fontSize:14,color:C.muted,marginTop:2}},'เดือนสิงหาคม 2569 · 1 รายการ')),
+        this.tableHead(['เลขที่','หัวข้อ','เกินไป','เหตุผล'], grid),
+        h('div',{key:'r',style:{display:'grid',gridTemplateColumns:grid,gap:12,padding:'14px 24px',alignItems:'center'}},
+          h('span',{style:{fontFamily:this.mono,fontSize:12,color:C.muted}},'TK-036'),
+          h('span',{style:{fontSize:14,color:C.fg}},'เครื่องพิมพ์ห้อง 210 เสีย'),
+          h('span',{style:{fontSize:14,fontWeight:500,color:C.critical}},'2 ชม.'),
+          h('span',{style:{fontSize:13,color:C.mutedFg}},'รออะไหล่จากผู้ขาย'))
+      ], {key:'br'})
+    ]);
+  }
+
+  /* ─── SETTINGS ─── */
+  pageAdmin(){
+    const h=React.createElement; const C=this.C;
+    const secs=[
+      {k:'general', l:'ทั่วไป', icon:'settings'},
+      {k:'catalog', l:'Service Catalog', icon:'package'},
+      {k:'sla', l:'SLA Policy', icon:'clock'},
+      {k:'calendar', l:'เวลาทำการ & วันหยุด', icon:'calendar'},
+      {k:'notify', l:'การแจ้งเตือน', icon:'bell'},
+    ];
+    const tab = this.state.adminTab;
+    const navItem=(s)=>h('button',{key:s.k,onClick:()=>this.setState({adminTab:s.k}),
+      style:{width:'100%',display:'flex',alignItems:'center',gap:12,padding:'10px 12px',borderRadius:8,cursor:'pointer',fontSize:14,fontWeight:tab===s.k?500:400,whiteSpace:'nowrap',textAlign:'left',
+        border:'none',fontFamily:"'Inter','Anuphan',sans-serif",transition:'background .15s',
+        background:tab===s.k?C.brandTint:'transparent', color:tab===s.k?C.brand:C.mutedFg}},
+      this.ic(s.icon,16,tab===s.k?C.brand:'currentColor',2), s.l);
+    const secHead=(icon,title,desc)=>h('div',{style:{marginBottom:20}},
+      h('h3',{style:{display:'flex',alignItems:'center',gap:8,fontSize:18,fontWeight:600,color:C.fg,margin:0}}, this.ic(icon,20,C.brand,2), title),
+      h('p',{style:{fontSize:14,color:C.muted,margin:'2px 0 0'}},desc));
+    let body;
+    if (tab==='notify') {
+      body = h('div',{},
+        secHead('bell','การแจ้งเตือน','จัดการการแจ้งเตือนของระบบ Helpdesk'),
+        this.card([this.cardHead('การแจ้งเตือนของเจ้าหน้าที่','เลือกเหตุการณ์ที่ต้องการรับแจ้งเตือน'), this.cardBody([
+          this.settingRow('Ticket ใหม่เข้าระบบ','แจ้งเตือนเมื่อมีผู้ใช้แจ้งปัญหาใหม่', this.toggle(true)),
+          this.settingRow('Ticket ใกล้ครบ SLA','แจ้งเตือนเมื่อเหลือเวลาน้อยกว่า 25% ของกำหนด', this.toggle(true)),
+          this.settingRow('มีการมอบหมายงานให้ฉัน','แจ้งเตือนเมื่อได้รับ Ticket หรือ Task ใหม่', this.toggle(true)),
+          this.settingRow('สรุปงานรายวัน','สรุปจำนวน Ticket และงานค้างทุกเช้า', this.toggle(false), true)])], {marginBottom:20}),
+        this.card([this.cardHead('ช่องทางการแจ้งเตือน'), this.cardBody([
+          this.settingRow('อีเมล','ส่งไปที่อีเมลของเจ้าหน้าที่', this.statusBadge(true,'เปิด')),
+          this.settingRow('LINE Notify','แจ้งเตือนเข้ากลุ่ม LINE ของศูนย์ไอที', this.statusBadge(true,'เปิด')),
+          this.settingRow('ในระบบ (In-app)','แสดงในกระดิ่งแจ้งเตือนบนแถบด้านบน', this.statusBadge(true,'เปิด'), true)])]));
+    } else if (tab==='sla') {
+      const grid='minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)';
+      body = h('div',{},
+        secHead('clock','SLA Policy','กำหนดเวลาตอบกลับและเวลาแก้ไขตามระดับความสำคัญ'),
+        this.tableCard([
+          this.tableHead(['Priority','Response','Resolution'], grid),
+          h('div',{key:'r'}, [['Critical','30 นาที','4 ชม.ทำการ'],['High','1 ชม.','1 วันทำการ'],['Medium','4 ชม.','3 วันทำการ'],['Low','1 วัน','7 วันทำการ']].map((r,i)=>h('div',{key:i,
+            style:{display:'grid',gridTemplateColumns:grid,gap:12,padding:'14px 24px',alignItems:'center',borderTop:i>0?`1px solid ${C.border}`:'none'}},
+            this.priorityPill(r[0]), h('span',{style:{fontSize:14,color:C.fg}},r[1]), h('span',{style:{fontSize:14,color:C.fg}},r[2]))))
+        ], null, 0));
+    } else if (tab==='calendar') {
+      body = h('div',{},
+        secHead('calendar','เวลาทำการ & วันหยุด','ใช้คำนวณ SLA เฉพาะช่วงเวลาทำการ'),
+        this.card([this.cardHead('เวลาทำการ','ใช้คำนวณ SLA เฉพาะช่วงเวลาราชการ'), this.cardBody([
+          h('div',{key:'f',style:{display:'flex',gap:16,flexWrap:'wrap',marginBottom:16}},
+            this.fieldBox('เวลาเริ่ม','08:30',140), this.fieldBox('เวลาเลิก','16:30',140), this.fieldBox('เขตเวลา','Asia/Bangkok (GMT+7)',220)),
+          this.settingRow('นับ SLA เฉพาะเวลาทำการ','ไม่นับเวลานอกเวลาราชการและวันหยุด', this.toggle(true), true),
+          h('div',{key:'c',style:{height:130,borderRadius:8,background:'#FAFAFA',border:'1px solid #F0F0F0',display:'flex',alignItems:'center',justifyContent:'center',color:C.muted,fontSize:13,marginTop:16}},'[ ปฏิทินวันหยุดราชการ ]')])]));
+    } else if (tab==='catalog') {
+      body = h('div',{},
+        secHead('package','Service Catalog','หมวดหมู่บริการและผู้รับผิดชอบเริ่มต้น'),
+        this.card([
+          h('div',{key:'ch',style:{padding:'0 24px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap'}},
+            h('div',{style:{display:'grid',gap:4}},
+              h('div',{style:{fontSize:16,fontWeight:500,color:C.fg}},'หมวดหมู่บริการ'),
+              h('div',{style:{fontSize:14,color:C.muted}},'ผู้รับผิดชอบเริ่มต้นของแต่ละหมวด')),
+            this.btn('เพิ่มหมวด','outline','plus')),
+          this.cardBody(['เว็บไซต์ & ระบบสารสนเทศ','เครือข่าย & บัญชีผู้ใช้','งานธุรการศูนย์','ครุภัณฑ์ IT'].map((c,i,arr)=>
+            this.settingRow(c,'ผู้รับผิดชอบเริ่มต้น: ทีม Helpdesk', h('span',{style:{fontSize:13,color:C.brand,cursor:'pointer'}},'แก้ไข'), i===arr.length-1)))]));
+    } else {
+      body = h('div',{},
+        secHead('settings','ทั่วไป','ข้อมูลหน่วยงานและค่าเริ่มต้นของระบบ'),
+        h('div',{style:{display:'flex',flexDirection:'column',gap:20}},
+          this.card([this.cardHead('ข้อมูลหน่วยงาน','ตั้งค่าชื่อและข้อมูลติดต่อพื้นฐาน'), this.cardBody([
+            h('div',{key:'a',style:{display:'flex',gap:16,flexWrap:'wrap',marginBottom:16}},
+              this.fieldBox('ชื่อหน่วยงาน','ศูนย์ไอที มหาวิทยาลัย'), this.fieldBox('อีเมลติดต่อ','helpdesk@oit.ac.th')),
+            h('div',{key:'b',style:{display:'flex',gap:16,flexWrap:'wrap'}},
+              this.fieldBox('เบอร์ภายใน','1234',150), this.fieldBox('รูปแบบเลข Ticket','TK-ปีเดือน-ลำดับ',240))])]),
+          this.card([this.cardHead('ค่าเริ่มต้นของระบบ Helpdesk'), this.cardBody([
+            this.settingRow('เปิดรับ Ticket จากผู้ใช้ภายนอก','อนุญาตให้นักศึกษาแจ้งปัญหาผ่านเว็บ', this.toggle(true)),
+            this.settingRow('Auto-assign ตามหมวดหมู่','มอบหมายเจ้าหน้าที่อัตโนมัติเมื่อ Ticket เข้า', this.toggle(true), true)])])));
+    }
+    return this.sectionStack([
+      h('div',{key:'hd'}, this.pageHeader('ตั้งค่าระบบ','จัดการการตั้งค่าระบบทั้งหมด', this.btn('บันทึกการตั้งค่า','default','check'))),
+      h('div',{key:'bd',style:{display:'flex',gap:24,alignItems:'flex-start'}},
+        h('nav',{style:{width:256,flexShrink:0,display:'flex',flexDirection:'column',gap:4}}, secs.map(navItem)),
+        h('div',{style:{flex:1,minWidth:0}}, body))
+    ]);
+  }
+
+  /* ─── HELP ─── */
+  pageHelp(){
+    const h=React.createElement; const C=this.C;
+    const topics=[
+      {icon:'ticket',t:'การแจ้งปัญหา',d:'วิธีสร้าง Ticket และติดตามสถานะ'},
+      {icon:'clock',t:'SLA และเวลาตอบกลับ',d:'ทำความเข้าใจระดับความสำคัญและกำหนดเวลา'},
+      {icon:'library',t:'ใช้งาน Knowledge Base',d:'ค้นหาวิธีแก้ปัญหาด้วยตัวเอง'},
+      {icon:'message',t:'ติดต่อเจ้าหน้าที่',d:'ช่องทางติดต่อศูนย์ไอทีในเวลาราชการ'},
+    ];
+    return this.sectionStack([
+      h('div',{key:'hd'}, this.pageHeader('ศูนย์ช่วยเหลือ','คำถามที่พบบ่อยและวิธีใช้งานระบบบริการศูนย์ไอที')),
+      h('div',{key:'s'}, this.searchInput('ค้นหาคำถามหรือหัวข้อช่วยเหลือ...')),
+      h('div',{key:'g',style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:16}},
+        topics.map((t,i)=>this.card(
+          h('div',{style:{padding:'0 24px',display:'flex',gap:14}},
+            h('div',{style:{padding:10,borderRadius:12,background:C.brandTint,height:'fit-content'}}, this.ic(t.icon,18,C.brand,2)),
+            h('div',{style:{minWidth:0}},
+              h('div',{style:{fontSize:16,fontWeight:500,color:C.fg}},t.t),
+              h('div',{style:{fontSize:14,color:C.muted,marginTop:4,lineHeight:1.55}},t.d))),
+          {key:i})))
+    ]);
+  }
+
+  pageMap(){
+    return {dashboard:'pageDashboard', tickets:'pageTickets', 'ticket-detail':'pageTicketDetail', 'new-ticket':'pageNewTicket',
+      'my-work':'pageMyWork', kanban:'pageKanban', kb:'pageKB', assets:'pageAssets', approvals:'pageApprovals',
+      reports:'pageReports', admin:'pageAdmin', help:'pageHelp'};
+  }
+  currentTitle(){
+    const all = this.NAV.reduce((acc,s)=>acc.concat(s.items),[]).concat(this.BOTTOM);
+    if (this.state.page==='ticket-detail') return 'รายละเอียด Ticket';
+    const found = all.find(i=>i.k===this.state.page);
+    return found ? found.l : 'แดชบอร์ด';
+  }
+
+  renderVals(){
+    const fn = this.pageMap()[this.state.page] || 'pageDashboard';
+    return {
+      logoIcon: this.ic('sparkles',16,'#fff',2),
+      panelIcon: this.ic('panelLeft',16,'#8E8E8E',2),
+      moonIcon: this.ic('moon',20,'#737373',2),
+      chevronDownIcon: this.ic('chevronDown',16,'#A3A3A3',2),
+      sidebarNav: this.renderSidebar(),
+      sidebarBottom: this.BOTTOM.map(it=>this.navItem(it)),
+      pageTitle: this.currentTitle(),
+      pageContent: this[fn](),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

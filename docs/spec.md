@@ -1,0 +1,679 @@
+# Requirements Specification — ระบบบริหารงานบริการศูนย์ไอที (IT Service Management)
+
+> **หน่วยงาน:** ศูนย์ไอที — ฝ่ายพัฒนาระบบสารสนเทศและเว็บไซต์
+> **จัดทำโดย:** Product Manager / System Analyst / Software Architect
+> **วันที่:** 29 สิงหาคม 2569
+> **โครงการฐาน:** `ai-native/` (Next.js 16 + TypeScript + Prisma + PostgreSQL + Tailwind v4 + shadcn/ui)
+> **สถานะเอกสาร:** Draft v1.0 — ผ่านการสัมภาษณ์เก็บ requirements แล้ว 18 ข้อ
+
+---
+
+## สารบัญ
+
+1. [Context — ทำไมต้องพัฒนาระบบนี้](#1-context)
+2. [As-Is — สรุประบบเดิม](#2-as-is)
+3. [ผลการสัมภาษณ์ — สรุปข้อตกลง 18 ข้อ](#3-ผลการสัมภาษณ์)
+4. [รายการที่ต้องแจ้งก่อนแก้ไข (M1–M13)](#4-รายการที่ต้องแจ้งก่อนแก้)
+5. [Data Model ที่ออกแบบ](#5-data-model)
+6. [โครงสร้าง Route ใหม่](#6-โครงสร้าง-route-ใหม่)
+7. [RBAC Matrix (5 Roles)](#7-rbac-matrix)
+8. [Checklist ฟีเจอร์](#8-checklist-ฟีเจอร์)
+9. [Dependencies ที่ต้องเพิ่ม](#9-dependencies)
+10. [Environment Variables](#10-environment-variables)
+11. [ลำดับการพัฒนา](#11-ลำดับการพัฒนา)
+12. [Non-Functional Requirements](#12-non-functional-requirements)
+13. [Out of Scope](#13-out-of-scope)
+14. [คำถามที่ยังค้าง](#14-คำถามที่ยังค้าง)
+15. [Verification Plan](#15-verification-plan)
+
+---
+
+<a id="1-context"></a>
+
+## 1. Context — ทำไมต้องพัฒนาระบบนี้
+
+**ปัญหาปัจจุบัน:** ศูนย์ไอที (ฝ่ายพัฒนาระบบสารสนเทศและเว็บไซต์) รับแจ้งปัญหาและคำขอบริการกระจัดกระจายหลายช่องทาง (LINE / อีเมล / โทรศัพท์ / เดินมาบอก) ไม่มีระบบกลางที่บันทึกงาน จึงเกิดปัญหา:
+
+- งานตกหล่น ไม่มีใครรับผิดชอบชัดเจน
+- ไม่รู้ว่างานไหนควรทำก่อน–หลัง (ไม่มีเกณฑ์ Priority)
+- ไม่มีตัวชี้วัดว่าศูนย์ให้บริการได้ตามเวลาที่สัญญาไว้หรือไม่ (ไม่มี SLA)
+- งานพัฒนาซอฟต์แวร์ (SDLC) กับงานบริการปนกัน มองภาระงานรวมของเจ้าหน้าที่ไม่ออก
+- ความรู้/วิธีแก้ปัญหาอยู่ในตัวบุคคล ไม่ถูกบันทึกเป็นคลังความรู้
+- งานธุรการศูนย์ (ครุภัณฑ์ คำขออนุมัติ รายงาน) ยังทำด้วยกระดาษ/Excel
+
+**ผลลัพธ์ที่ต้องการ:** ระบบเดียวที่รวม Helpdesk + Priority + To-do + SLA + SDLC + Knowledge Base + งานธุรการ ทำงานต่อยอดบนแอปเดิม โดยไม่ทำลายโครงสร้างเดิม
+
+**ขอบเขตระบบที่ร้องขอ 6 ระบบ:**
+
+1. ระบบรับแจ้งปัญหาและคำขอบริการ (IT Service Request / Helpdesk)
+2. ระบบจัดลำดับความสำคัญของงาน (Priority & Incident Management)
+3. บันทึกการทำงาน (To-do List) ของเจ้าหน้าที่
+4. SLA (Service Level Agreement) ของหน่วยงาน
+5. ระบบบริหารโครงการพัฒนาซอฟต์แวร์ SDLC
+6. ระบบ Knowledge Base
+
+*(+ งานธุรการของศูนย์ และระบบสนับสนุน: Notification, Dashboard, รายงาน)*
+
+---
+
+<a id="2-as-is"></a>
+
+## 2. As-Is — สรุประบบเดิม
+
+### 2.1 Tech Stack ปัจจุบัน (ตรงกับที่ต้องการอยู่แล้ว ✅)
+
+| ชั้น | เทคโนโลยี | เวอร์ชัน |
+|---|---|---|
+| Framework | Next.js (App Router) | **16.1.6** ✅ |
+| Runtime | React | 19.2.3 |
+| ภาษา | TypeScript (strict, alias `@/*`) | ^5 ✅ |
+| ORM | Prisma (`@prisma/adapter-pg`) | ^7.5.0 ✅ |
+| Database | PostgreSQL + `pgvector` extension | Neon ✅ |
+| CSS | Tailwind CSS | ^4 ✅ |
+| UI | shadcn/ui + radix-ui | ^4.0.8 ✅ |
+| Icons | lucide-react | ^0.577.0 |
+| Auth | Better Auth (Email/Pass, Google, GitHub, 2FA, admin plugin) | 1.5.5 |
+| AI/RAG | OpenAI SDK + pgvector | ^6.42.0 |
+| Notification | LINE Messaging API + Nodemailer (Gmail SMTP) | — |
+| Package Manager | pnpm | ✅ |
+| Deploy | Docker + docker-compose / Vercel | — |
+
+> **สรุป: ไม่ต้องเปลี่ยน Tech Stack ใดๆ** — ของเดิมตรงกับที่ต้องการทั้งหมด
+
+### 2.2 โครงสร้างโฟลเดอร์เดิม
+
+```
+ai-native/
+├── app/
+│   ├── (auth)/auth/          signin, signup, forgot-password, reset-password,
+│   │                         verify-2fa, verify-email
+│   ├── (landing)/            Hero, Features, About, Team, TechStack, Testimonial,
+│   │                         ContactForm, LeadForm, Navbar, Footer
+│   ├── (main)/
+│   │   ├── layout.tsx        ← guard session → redirect /auth/signin
+│   │   ├── _components/
+│   │   │   ├── header/       header, UserMenu, impersonation-banner
+│   │   │   └── sidebar/      sidebar, nav-item, nav-section, sidebar-data.ts
+│   │   ├── dashboard/  chat/  profile/  help/
+│   │   ├── management/       projects/  teams/  lead/
+│   │   └── admin/            users/  knowledge/  line-groups/  settings/
+│   ├── api/                  auth/ chat/ knowledge/ leads/ line/ search/
+│   │                         users/ admin/change-role/ contact/
+│   └── generated/prisma/
+├── components/ui/            button, card, input, label  ← มีแค่ 4 ตัว
+├── components/chat/          ChatButton, ChatWindow
+├── components/knowledge/     FileUpload
+├── lib/                      auth, auth-client, permissions, prisma, openai,
+│                             rag-service, vector-search, ingestion, text-splitter,
+│                             document-loader, context-builder, chat-client,
+│                             line-push, theme-store, utils
+└── prisma/                   schema.prisma, seed.ts, migrations/
+```
+
+### 2.3 Prisma Models เดิม (10 ตัว)
+
+| กลุ่ม | Models |
+|---|---|
+| Better Auth | `User`, `Session`, `Account`, `Verification`, `TwoFactor` |
+| RAG / Vector | `Document` (pgvector 1536), `KnowledgeDocument` |
+| Chat | `ChatSession`, `ChatMessage` |
+| อื่นๆ | `Lead`, `LineGroup` |
+
+### 2.4 Coding Conventions เดิม (ต้องรักษาไว้ทุกจุด)
+
+| หัวข้อ | รูปแบบเดิม |
+|---|---|
+| หน้าเว็บ | `page.tsx` (Server Component + เช็ค session) + `XxxContent.tsx` (`"use client"`) |
+| API Route | `app/api/<resource>/route.ts` + `[id]/route.ts` |
+| Auth Guard | `await auth.api.getSession({ headers: await headers() })` → 401 |
+| Response | `NextResponse.json({ resource })` / `{ error }` + status code |
+| เมนู | รวมศูนย์ที่ `sidebar-data.ts` มี `allowedRoles?: string[]` |
+| คอมเมนต์ | ภาษาไทย |
+| Import | alias `@/lib/...`, `@/components/...` |
+| Prisma | `@@map("snake_case")` ทุก model |
+
+### 2.5 ⚠️ Gap ที่พบ
+
+1. `management/projects` และ `management/teams` เป็น **mock data ทั้งหมด** (`SAMPLE_PROJECTS` hardcode ใน component) — ไม่มี Prisma model, ไม่มี API route
+2. ยังไม่มี model/หน้าใดๆ สำหรับ Ticket, SLA, Task, Sprint, KB Article, Asset, Approval
+3. `KnowledgeDocument` เดิมเป็น **คลังเอกสารดิบสำหรับ RAG** ไม่ใช่บทความให้คนอ่าน
+4. `components/ui/` มีแค่ 4 ตัว — ต้องเพิ่มอีกมาก
+5. `lib/rag-service.ts` → `SYSTEM_PROMPT` ตั้งบริบทเป็น "ผู้ช่วยตอบคำถามนักศึกษา ม.เกริก" ไม่ใช่บริบท Helpdesk
+6. `lib/permissions.ts` มี statement เดียวคือ `project` และมี 3 roles
+
+---
+
+<a id="3-ผลการสัมภาษณ์"></a>
+
+## 3. ผลการสัมภาษณ์ — สรุปข้อตกลง 18 ข้อ
+
+| # | ประเด็น | ข้อสรุป |
+|---|---|---|
+| 1 | ผู้ใช้งาน | 4 กลุ่ม: บุคลากร, นักศึกษา, เจ้าหน้าที่ IT (Agent), หัวหน้า/ผู้บริหาร |
+| 2 | ช่องทางแจ้ง | เว็บ (ต้อง login) + LINE + อีเมล/โทร/Walk-in (ไม่มีฟอร์มสาธารณะ) |
+| 3 | Service Catalog | 3 หมวด: เว็บไซต์ & ระบบสารสนเทศ / เครือข่าย & บัญชีผู้ใช้ / งานธุรการศูนย์ (**ไม่รวมงานซ่อมฮาร์ดแวร์**) |
+| 4 | Priority | **Impact × Urgency Matrix (ITIL)** — คำนวณอัตโนมัติ |
+| 5 | SLA Clock | **นับเฉพาะเวลาทำการ** (Business Hours) + ต้องมี Holiday Calendar |
+| 6 | SLA Metrics | Response Time + Resolution Time (**ไม่ทำ** Warning / Auto-escalation ในเฟสนี้) |
+| 7 | Assignment | **Auto-assign ตามหมวดหมู่** + หัวหน้า/เจ้าหน้าที่โยกย้าย (reassign) ได้ |
+| 8 | Ticket Workflow | **5 สถานะ**: New → Assigned → In Progress → Resolved → Closed |
+| 9 | To-do List | **My Work รวม**: Ticket ที่ได้รับมอบหมาย + SDLC Task + Personal Task |
+| 10 | Time Log | **Manual** — กรอกชั่วโมง + สิ่งที่ทำ เมื่อปิดงาน |
+| 11 | SDLC Model | **Agile / Sprint + Kanban Board** (Backlog → To Do → Doing → Review → Done) |
+| 12 | Helpdesk ↔ SDLC | **แปลง Ticket → Backlog Task** ได้ พร้อมเก็บลิงก์อ้างอิงกลับ |
+| 13 | Knowledge Base | สร้าง **`KbArticle` model ใหม่** + เมื่อ Publish ให้ sync เข้า RAG (pgvector) |
+| 14 | งานธุรการ | 3 โมดูล: **ทะเบียนครุภัณฑ์ IT** / **คำขออนุมัติ-เบิกจ่าย (มี workflow)** / **รายงานประจำเดือน-ไตรมาส** (ไม่ทำระบบหนังสือเข้า-ออก) |
+| 15 | Notification | **LINE + Email + In-app ครบ 3 ช่องทาง** |
+| 16 | Roles | **5 roles**: `student` / `user` / `agent` / `manager` / `admin` |
+| 17 | โครงสร้าง URL | กลุ่มใหม่ `(main)/service/*` + ต่อยอด `management/` และ `admin/` |
+| 18 | Deliverable | เอกสาร Requirements + Checklist (ยังไม่เขียนโค้ด) |
+
+---
+
+<a id="4-รายการที่ต้องแจ้งก่อนแก้"></a>
+
+## 4. ⚠️ รายการที่ต้อง "แจ้งก่อนแก้" — ตามข้อกำหนดของผู้ใช้
+
+> ผู้ใช้ระบุว่า *"ให้ใช้รูปแบบโครงสร้างเดิม ถ้ามีการแก้ไขต้องแจ้งก่อนทุกครั้ง"*
+> ต่อไปนี้คือ **ทุกไฟล์เดิมที่จะถูกแตะ** ต้องขอความเห็นชอบก่อนลงมือทุกครั้ง
+
+| # | ไฟล์เดิม | การเปลี่ยนแปลง | ระดับผลกระทบ |
+|---|---|---|---|
+| M1 | `prisma/schema.prisma` | เพิ่ม model ใหม่ ~24 ตัว (additive) | 🟢 ต่ำ |
+| M2 | `prisma/schema.prisma` → model `User` | **เพิ่ม field**: `departmentId`, `position`, `phone`, `employeeCode`, `lineUserId`, `isAgent` (nullable ทั้งหมด) | 🟡 กลาง — กระทบ Better Auth adapter |
+| M3 | `lib/permissions.ts` | เพิ่ม statement ใหม่ (`ticket`, `task`, `kb`, `asset`, `approval`, `report`, `sla`) + role `student`, `agent` | 🟡 กลาง |
+| M4 | `lib/auth.ts` | ลงทะเบียน role ใหม่เข้า `adminPlugin({ ac, roles })` | 🟡 กลาง |
+| M5 | `app/(main)/_components/sidebar/sidebar-data.ts` | เพิ่ม section `Service` + item ใน `Management` / `Admin` + `allowedRoles` ใหม่ | 🟢 ต่ำ |
+| M6 | `app/(main)/management/projects/ProjectContent.tsx` | **เขียนใหม่** — เปลี่ยนจาก mock `SAMPLE_PROJECTS` → เรียก API จริง + Kanban | 🔴 สูง (rewrite) |
+| M7 | `app/(main)/management/teams/TeamContent.tsx` | **เขียนใหม่** — เปลี่ยนจาก mock → API จริง | 🔴 สูง (rewrite) |
+| M8 | `app/(main)/dashboard/DashboardContent.tsx` | ปรับ widget เป็น KPI ของ ITSM (Ticket, SLA, ภาระงาน) | 🟡 กลาง |
+| M9 | `app/api/line/webhook/route.ts` | เพิ่ม handler รับข้อความ → สร้าง Ticket + ผูก `lineUserId` | 🟡 กลาง |
+| M10 | `lib/rag-service.ts` | `SYSTEM_PROMPT` เดิมเป็นบริบท "นักศึกษา ม.เกริก" — ต้องเพิ่มโหมด/บริบท Helpdesk | 🟡 กลาง |
+| M11 | `package.json` | เพิ่ม dependencies (ดูข้อ 9) | 🟢 ต่ำ |
+| M12 | `components/ui/` | เพิ่ม shadcn components (ดูข้อ 8 — F0.7) | 🟢 ต่ำ (เพิ่มไฟล์ใหม่) |
+| M13 | `.env` / `.env.production` | เพิ่ม env ใหม่ (ดูข้อ 10) | 🟢 ต่ำ |
+
+**ไฟล์เดิมที่ไม่แตะเลย:** `(auth)/*`, `(landing)/*`, `admin/users`, `admin/knowledge`, `admin/line-groups`, `admin/settings`, `chat/*`, `profile/*`, `help/*`, `management/lead`, `lib/prisma.ts`, `lib/openai.ts`, `lib/vector-search.ts`, `lib/ingestion.ts`, `lib/text-splitter.ts`, `lib/line-push.ts`, `lib/utils.ts`
+
+---
+
+<a id="5-data-model"></a>
+
+## 5. Data Model ที่ออกแบบ (Prisma — ~24 models ใหม่)
+
+### 5.1 กลุ่ม Master Data / ตั้งค่า
+
+| Model | Fields หลัก |
+|---|---|
+| `Department` | `id, name, code @unique, active` |
+| `ServiceCategory` | `id, name, slug @unique, parentId?` (self-relation หมวดย่อย), `description, defaultTeamId?, defaultAssigneeId?, active, sortOrder` |
+| `SlaPolicy` | `id, name, priority (critical/high/medium/low), categoryId?, responseMinutes, resolutionMinutes, active` |
+| `BusinessHour` | `id, dayOfWeek (0–6), startTime "08:30", endTime "16:30", isWorkingDay` |
+| `Holiday` | `id, date @unique, name, isRecurring` |
+| `AppSetting` | `id, key @unique, value Json, description` |
+
+### 5.2 กลุ่ม Helpdesk
+
+| Model | Fields หลัก |
+|---|---|
+| `Ticket` | `id, ticketNo @unique (TK-YYYYMM-00001), title, description, categoryId, requesterId, departmentId?, channel (web/line/email/phone/walkin), impact (high/medium/low), urgency (high/medium/low), priority (critical/high/medium/low — computed), status (new/assigned/in_progress/resolved/closed), assigneeId?, teamId?, respondedAt?, resolvedAt?, closedAt?, responseDueAt, resolutionDueAt, responseBreached, resolutionBreached, resolutionNote?, convertedTaskId?, createdAt, updatedAt` |
+| `TicketComment` | `id, ticketId, authorId, body, isInternal` (บันทึกภายใน ผู้แจ้งไม่เห็น)`, createdAt` |
+| `TicketAttachment` | `id, ticketId, fileName, filePath, fileType, fileSize, uploadedBy, createdAt` |
+| `TicketActivity` | `id, ticketId, actorId, action, fromValue?, toValue?, note?, createdAt` — audit log |
+
+**Priority Matrix (คำนวณอัตโนมัติ):**
+
+|  | Urgency สูง | Urgency กลาง | Urgency ต่ำ |
+|---|---|---|---|
+| **Impact สูง** | Critical | High | Medium |
+| **Impact กลาง** | High | Medium | Low |
+| **Impact ต่ำ** | Medium | Low | Low |
+
+**SLA เริ่มต้น (Business Hours — ปรับได้ในหน้า `admin/sla`):**
+
+| Priority | Response | Resolution |
+|---|---|---|
+| Critical | 30 นาที | 4 ชม.ทำการ |
+| High | 1 ชม.ทำการ | 1 วันทำการ |
+| Medium | 4 ชม.ทำการ | 3 วันทำการ |
+| Low | 1 วันทำการ | 7 วันทำการ |
+
+### 5.3 กลุ่ม My Work / To-do
+
+| Model | Fields หลัก |
+|---|---|
+| `TodoItem` | `id, ownerId, title, note?, dueDate?, priority, isDone, doneAt?, createdAt` |
+| `WorkLog` | `id, userId, workDate, hours Decimal(5,2), description, refType (ticket/task/todo/other), ticketId?, taskId?, todoId?, createdAt` |
+
+> **My Work** = union query ของ `Ticket` (assigneeId = me) + `Task` (assigneeId = me) + `TodoItem` (ownerId = me)
+
+### 5.4 กลุ่ม SDLC / Project (Agile)
+
+| Model | Fields หลัก |
+|---|---|
+| `Project` | `id, code @unique, name, description, status (planning/active/on_hold/completed/cancelled), ownerId, teamId?, startDate?, endDate?, progress Int, createdAt, updatedAt` |
+| `Sprint` | `id, projectId, name, goal?, startDate, endDate, status (planned/active/completed), sortOrder` |
+| `Task` | `id, projectId, sprintId?, title, description?, boardStatus (backlog/todo/doing/review/done), priority, assigneeId?, estimateHours?, dueDate?, sortOrder Int, sourceTicketId?, createdBy, createdAt, updatedAt` |
+| `TaskComment` | `id, taskId, authorId, body, createdAt` |
+| `Team` | `id, name, description?, leaderId?, active, createdAt` |
+| `TeamMember` | `id, teamId, userId, roleInTeam, joinedAt` + `@@unique([teamId, userId])` |
+
+### 5.5 กลุ่ม Knowledge Base
+
+| Model | Fields หลัก |
+|---|---|
+| `KbArticle` | `id, title, slug @unique, summary?, content Text, categoryId?, tags String[], status (draft/pending_review/published/archived), visibility (all/agent_only), authorId, reviewerId?, publishedAt?, viewCount, helpfulCount, notHelpfulCount, isIndexed, knowledgeDocumentId?` (← ลิงก์ไป `KnowledgeDocument` เดิมเมื่อ sync RAG)`, createdAt, updatedAt` |
+| `KbFeedback` | `id, articleId, userId?, isHelpful, comment?, createdAt` |
+
+> **RAG Sync flow:** `Publish` → สร้าง/อัปเดต `KnowledgeDocument` → เรียก `lib/ingestion.ts` เดิม → chunk + embed ลง `Document` (pgvector) → ตั้ง `isIndexed = true`
+
+### 5.6 กลุ่มงานธุรการศูนย์
+
+| Model | Fields หลัก |
+|---|---|
+| `Asset` | `id, assetCode @unique, name, type, brand?, model?, serialNumber?, purchaseDate?, price Decimal?, warrantyEndDate?, location?, status (in_use/in_stock/repair/disposed), custodianId?, departmentId?, note?, createdAt, updatedAt` |
+| `AssetHistory` | `id, assetId, action (assign/transfer/repair/dispose/return), fromUserId?, toUserId?, note?, actorId, createdAt` |
+| `ApprovalRequest` | `id, requestNo @unique (RQ-YYYYMM-0001), type (purchase/supply/budget/other), title, description, amount Decimal?, requesterId, status (draft/pending/approved/rejected/cancelled), currentStep Int, createdAt, updatedAt` |
+| `ApprovalStep` | `id, requestId, stepOrder, approverId, status (pending/approved/rejected), comment?, decidedAt?` |
+| `ApprovalAttachment` | `id, requestId, fileName, filePath, fileType, fileSize, uploadedBy, createdAt` |
+| `ReportSnapshot` | `id, type (monthly/quarterly), periodStart, periodEnd, dataJson Json, generatedBy, createdAt` |
+
+### 5.7 กลุ่ม Notification
+
+| Model | Fields หลัก |
+|---|---|
+| `Notification` | `id, userId, type, title, body, linkUrl?, isRead, readAt?, createdAt` |
+| `NotificationDelivery` | `id, notificationId, channel (inapp/email/line), status (pending/sent/failed), error?, sentAt?` |
+
+---
+
+<a id="6-โครงสร้าง-route-ใหม่"></a>
+
+## 6. โครงสร้าง Route ใหม่
+
+```
+app/(main)/
+├── dashboard/                    [M8 — ปรับเนื้อหาเป็น ITSM KPI]
+├── chat/                         [เดิม — ไม่แตะ]
+├── service/                      ★ กลุ่มใหม่
+│   ├── tickets/                  รายการ Ticket + ฟิลเตอร์
+│   │   ├── new/                  ฟอร์มแจ้งปัญหา
+│   │   └── [id]/                 รายละเอียด + timeline + comment + attachment
+│   ├── my-work/                  To-do รวม (Ticket + Task + Personal) + Time Log
+│   └── kb/                       Knowledge Base (อ่าน/ค้นหา)
+│       ├── new/                  เขียนบทความ (agent+)
+│       └── [slug]/               อ่านบทความ + ให้ feedback
+├── management/                   [เดิม + ต่อยอด]
+│   ├── projects/                 [M6 — rewrite] รายการโครงการ
+│   │   └── [id]/                 Sprint + Kanban Board
+│   ├── teams/                    [M7 — rewrite] ทีมงาน + สมาชิก
+│   ├── lead/                     [เดิม — ไม่แตะ]
+│   ├── assets/                   ★ ทะเบียนครุภัณฑ์ IT
+│   ├── requests/                 ★ คำขออนุมัติ/เบิกจ่าย
+│   └── reports/                  ★ รายงานประจำเดือน/ไตรมาส
+└── admin/                        [เดิม + เพิ่ม]
+    ├── users/  knowledge/  line-groups/  settings/    [เดิม — ไม่แตะ]
+    ├── catalog/                  ★ จัดการ Service Catalog
+    ├── sla/                      ★ ตั้งค่า SLA Policy
+    └── calendar/                 ★ Business Hours + วันหยุด
+```
+
+**API Routes ใหม่** (ตาม pattern เดิม `route.ts` + `[id]/route.ts`):
+
+```
+api/tickets/           [id]/  [id]/comments/  [id]/assign/  [id]/status/
+                       [id]/attachments/  [id]/convert-to-task/
+api/categories/        [id]/
+api/sla-policies/      [id]/
+api/business-hours/    api/holidays/  [id]/
+api/todos/             [id]/
+api/worklogs/          [id]/
+api/projects/          [id]/  [id]/sprints/  [id]/tasks/
+api/tasks/             [id]/  [id]/move/  [id]/comments/
+api/teams/             [id]/  [id]/members/
+api/kb/                [id]/  [id]/publish/  [id]/feedback/
+api/assets/            [id]/  [id]/history/
+api/approvals/         [id]/  [id]/decide/
+api/reports/           summary/  sla/  workload/  export/
+api/notifications/     [id]/read/  read-all/
+api/my-work/
+```
+
+---
+
+<a id="7-rbac-matrix"></a>
+
+## 7. RBAC Matrix (5 Roles)
+
+| Action | student | user | agent | manager | admin |
+|---|:---:|:---:|:---:|:---:|:---:|
+| สร้าง Ticket | ✅ | ✅ | ✅ | ✅ | ✅ |
+| ดู Ticket ของตัวเอง | ✅ | ✅ | ✅ | ✅ | ✅ |
+| ดู Ticket ทั้งหมด | ❌ | ❌ | ✅ | ✅ | ✅ |
+| รับงาน / เปลี่ยนสถานะ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| มอบหมาย / โยกย้ายงาน | ❌ | ❌ | ⚠️ ของตัวเอง | ✅ | ✅ |
+| My Work / Time Log | ❌ | ❌ | ✅ | ✅ | ✅ |
+| อ่าน KB (visibility = all) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| เขียน/แก้ KB | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Publish KB | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Project / Sprint / Task | ❌ | ❌ | ⚠️ อ่าน + แก้ task ตัวเอง | ✅ | ✅ |
+| ครุภัณฑ์ | ❌ | ❌ | ⚠️ อ่าน | ✅ | ✅ |
+| สร้างคำขออนุมัติ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| อนุมัติคำขอ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| รายงาน / Dashboard รวม | ❌ | ❌ | ⚠️ ของตัวเอง | ✅ | ✅ |
+| ตั้งค่า SLA / Catalog / ปฏิทิน | ❌ | ❌ | ❌ | ❌ | ✅ |
+| จัดการผู้ใช้ | ❌ | ❌ | ❌ | ❌ | ✅ |
+
+---
+
+<a id="8-checklist-ฟีเจอร์"></a>
+
+## 8. ✅ Checklist ฟีเจอร์ (แยกตามระบบที่ร้องขอ)
+
+### Phase 0 — Foundation (ต้องทำก่อน ทุกเฟสพึ่งพา)
+
+- [x] **F0.1** ขยาย `prisma/schema.prisma` เพิ่ม ~24 models ใหม่ **[M1]**
+- [x] **F0.2** เพิ่ม field ใน model `User`: `departmentId`, `position`, `phone`, `employeeCode`, `lineUserId`, `isAgent` **[M2]**
+- [x] **F0.3** สร้าง migration + ทดสอบ `pnpm prisma migrate dev` — *apply `20260831120000_itsm_phase0` ลง Neon สำเร็จ + seed แล้ว ข้อมูลเดิมครบ*
+- [x] **F0.4** ขยาย `lib/permissions.ts` — statement ใหม่ + role `student`, `agent` **[M3]**
+- [x] **F0.5** ลงทะเบียน role ใหม่ใน `lib/auth.ts` **[M4]**
+- [x] **F0.6** สร้าง `lib/rbac.ts` — helper `requireRole()`, `canAccessTicket()` ใช้ร่วมทุก API
+- [x] **F0.7** เพิ่ม shadcn components: `table`, `dialog`, `select`, `badge`, `tabs`, `textarea`, `dropdown-menu`, `avatar`, `separator`, `sheet`, `popover`, `calendar`, `checkbox`, `switch`, `sonner`, `skeleton`, `alert-dialog`, `progress`, `tooltip` **[M12]**
+- [x] **F0.8** อัปเดต `sidebar-data.ts` เพิ่ม section `Service` + item ใหม่ + `allowedRoles` **[M5]**
+- [x] **F0.9** สร้าง `lib/business-hours.ts` — คำนวณ due date ตามเวลาทำการ + วันหยุด
+- [x] **F0.10** สร้าง `lib/priority.ts` — Impact × Urgency Matrix
+- [x] **F0.11** สร้าง `lib/running-number.ts` — generate `TK-YYYYMM-00001`, `RQ-YYYYMM-0001`
+- [x] **F0.12** ขยาย `prisma/seed.ts` — Service Catalog, SLA Policy, Business Hours, วันหยุดราชการไทย, ทีมตัวอย่าง
+- [x] **F0.13** เพิ่ม dependencies ใน `package.json` **[M11]**
+
+---
+
+### ① ระบบรับแจ้งปัญหาและคำขอบริการ (IT Service Request / Helpdesk)
+
+- [ ] **F1.1** หน้า `service/tickets/new` — ฟอร์มแจ้งปัญหา (หัวข้อ, รายละเอียด, หมวดหมู่, Impact, Urgency, แนบไฟล์)
+- [ ] **F1.2** API `POST /api/tickets` — สร้าง Ticket + gen `ticketNo` + คำนวณ priority + คำนวณ due date + auto-assign
+- [ ] **F1.3** หน้า `service/tickets` — ตารางรายการ + ฟิลเตอร์ (สถานะ / หมวด / Priority / ผู้รับผิดชอบ / ช่วงวันที่) + ค้นหา + pagination
+- [ ] **F1.4** View mode ตาม role — `student`/`user` เห็นเฉพาะของตัวเอง, `agent`+ เห็นทั้งหมด
+- [ ] **F1.5** หน้า `service/tickets/[id]` — รายละเอียด + Timeline (Activity log) + สถานะ SLA
+- [ ] **F1.6** ระบบ Comment — `POST /api/tickets/[id]/comments` + toggle "บันทึกภายใน" (`isInternal`)
+- [ ] **F1.7** ระบบแนบไฟล์ — upload/download/ลบ (จำกัดชนิด + ขนาดไฟล์)
+- [ ] **F1.8** Service Catalog CRUD — หน้า `admin/catalog` (หมวดหลัก + หมวดย่อย + ผู้รับผิดชอบเริ่มต้น)
+- [ ] **F1.9** รับแจ้งผ่าน **LINE** — ขยาย `api/line/webhook` สร้าง Ticket จากข้อความ + ผูก `lineUserId` **[M9]**
+- [ ] **F1.10** สร้าง Ticket แทนผู้อื่น (อีเมล/โทร/Walk-in) — เจ้าหน้าที่เลือก requester + ระบุ `channel`
+- [ ] **F1.11** ค้นหา Ticket แบบ full-text (title + description)
+- [ ] **F1.12** Export รายการ Ticket เป็น Excel/CSV
+
+---
+
+### ② ระบบจัดลำดับความสำคัญของงาน (Priority & Incident Management)
+
+- [ ] **F2.1** `lib/priority.ts` — Matrix 3×3 → Critical / High / Medium / Low
+- [ ] **F2.2** UI เลือก Impact × Urgency พร้อม **แสดง Priority ที่คำนวณได้แบบ realtime** ในฟอร์ม
+- [ ] **F2.3** Badge สี Priority ทั่วระบบ (Critical = แดง, High = ส้ม, Medium = เหลือง, Low = เทา)
+- [ ] **F2.4** เจ้าหน้าที่/หัวหน้าปรับ Impact/Urgency ได้ → priority + due date คำนวณใหม่ + บันทึกเหตุผลลง `TicketActivity`
+- [ ] **F2.5** เรียงลำดับคิวงานอัตโนมัติ: Priority DESC → `resolutionDueAt` ASC
+- [ ] **F2.6** Workflow 5 สถานะ + validation การเปลี่ยนสถานะที่ถูกต้อง
+  - `new → assigned` (เมื่อมอบหมาย)
+  - `assigned → in_progress` (เจ้าหน้าที่เริ่มงาน → บันทึก `respondedAt`)
+  - `in_progress → resolved` (ต้องกรอก `resolutionNote` + Time Log)
+  - `resolved → closed`
+- [ ] **F2.7** Auto-assign engine — ตาม `ServiceCategory.defaultAssigneeId` / `defaultTeamId`
+- [ ] **F2.8** Reassign — หัวหน้าโยกย้ายงาน + บันทึก activity log
+- [ ] **F2.9** หน้า "คิวงานทีม" — จัดกลุ่มตาม Priority + แสดงภาระงานรายคน
+
+---
+
+### ③ บันทึกการทำงาน (To-do List) ของเจ้าหน้าที่
+
+- [ ] **F3.1** หน้า `service/my-work` — 3 แท็บ: Ticket ของฉัน / Task โครงการ / งานส่วนตัว
+- [ ] **F3.2** มุมมองรวม (All) — เรียงตาม due date + priority ข้ามทั้ง 3 ประเภท
+- [ ] **F3.3** CRUD `TodoItem` — งานส่วนตัว (หัวข้อ, บันทึก, กำหนดส่ง, priority, ติ๊กเสร็จ)
+- [ ] **F3.4** ติ๊กเสร็จ / ยกเลิกติ๊ก + บันทึก `doneAt`
+- [ ] **F3.5** ฟอร์มบันทึก **Time Log** (Manual) — วันที่, จำนวนชั่วโมง, สิ่งที่ทำ, ผูกกับ Ticket/Task/Todo
+- [ ] **F3.6** บังคับบันทึก Time Log เมื่อเปลี่ยนสถานะ Ticket เป็น `resolved`
+- [ ] **F3.7** สรุปชั่วโมงทำงานรายวัน/สัปดาห์/เดือนของตัวเอง
+- [ ] **F3.8** หัวหน้าดู Time Log ของทีม — รายงานภาระงานรายคน
+- [ ] **F3.9** Widget "งานวันนี้" + "งานเลยกำหนด" บน Dashboard
+
+---
+
+### ④ SLA (Service Level Agreement) ของหน่วยงาน
+
+- [ ] **F4.1** CRUD `SlaPolicy` — หน้า `admin/sla` (ตั้ง Response/Resolution นาที ต่อ Priority และ/หรือต่อหมวดหมู่)
+- [ ] **F4.2** CRUD `BusinessHour` — หน้า `admin/calendar` (จ.–ศ. 08:30–16:30 ปรับได้)
+- [ ] **F4.3** CRUD `Holiday` — ปฏิทินวันหยุดราชการ + import วันหยุดประจำปี
+- [ ] **F4.4** `lib/business-hours.ts` — ฟังก์ชัน `addBusinessMinutes(from, minutes)` ข้ามวันหยุด/นอกเวลาทำการ
+- [ ] **F4.5** คำนวณ `responseDueAt` / `resolutionDueAt` ตอนสร้าง Ticket + คำนวณใหม่เมื่อ Priority เปลี่ยน
+- [ ] **F4.6** บันทึก `respondedAt` (ครั้งแรกที่ agent ตอบ/รับงาน) และ `resolvedAt`
+- [ ] **F4.7** ตั้งธง `responseBreached` / `resolutionBreached` เมื่อเกินกำหนด
+- [ ] **F4.8** SLA Indicator ในหน้ารายการ + รายละเอียด — 🟢 On-time / 🟡 At-risk (> 75%) / 🔴 Breached
+- [ ] **F4.9** นับถอยหลังเวลาคงเหลือ (แสดงเป็นชั่วโมงทำการ)
+- [ ] **F4.10** รายงาน SLA Compliance — % ตรงเวลา แยกตาม Priority / หมวดหมู่ / เจ้าหน้าที่ / ช่วงเวลา
+- [ ] **F4.11** รายการ Ticket ที่ Breach — ตารางพร้อมเหตุผล
+- [ ] ~~Warning notification ก่อนครบกำหนด~~ — **ตัดออกตามข้อ 6** (เก็บไว้เฟสถัดไป)
+- [ ] ~~Auto-escalation เมื่อ breach~~ — **ตัดออกตามข้อ 6** (เก็บไว้เฟสถัดไป)
+
+---
+
+### ⑤ ระบบบริหารโครงการพัฒนาซอฟต์แวร์ SDLC (Agile / Sprint)
+
+- [ ] **F5.1** CRUD `Project` — หน้า `management/projects` (แทน mock เดิม) **[M6]**
+- [ ] **F5.2** หน้า `management/projects/[id]` — ภาพรวมโครงการ + progress + สมาชิก
+- [ ] **F5.3** CRUD `Sprint` — สร้าง/แก้ไข/ปิด Sprint (ชื่อ, เป้าหมาย, ช่วงวันที่)
+- [ ] **F5.4** **Kanban Board** 5 คอลัมน์: Backlog → To Do → Doing → Review → Done
+- [ ] **F5.5** Drag & drop ย้ายการ์ดข้ามคอลัมน์ (`@dnd-kit`) + `PATCH /api/tasks/[id]/move`
+- [ ] **F5.6** CRUD `Task` — หัวข้อ, รายละเอียด, ผู้รับผิดชอบ, priority, ประมาณชั่วโมง, กำหนดส่ง
+- [ ] **F5.7** Task detail modal + comment
+- [ ] **F5.8** **แปลง Ticket → Backlog Task** — ปุ่มในหน้า Ticket, เลือกโครงการ/Sprint, เก็บ `sourceTicketId` + `convertedTaskId` สองทาง
+- [ ] **F5.9** แสดงลิงก์อ้างอิงกลับ — Ticket แสดง "งานพัฒนาที่เกี่ยวข้อง", Task แสดง "มาจาก Ticket #..."
+- [ ] **F5.10** คำนวณ progress โครงการอัตโนมัติจากสัดส่วน Task ที่ Done
+- [ ] **F5.11** CRUD `Team` + `TeamMember` — หน้า `management/teams` (แทน mock เดิม) **[M7]**
+- [ ] **F5.12** Sprint Burndown / สรุป Sprint (จำนวน Task ตามสถานะ)
+- [ ] **F5.13** Backlog view — รายการ Task ที่ยังไม่เข้า Sprint + ลาก/มอบเข้า Sprint
+
+---
+
+### ⑥ ระบบ Knowledge Base
+
+- [ ] **F6.1** CRUD `KbArticle` — หน้า `service/kb` + `service/kb/new`
+- [ ] **F6.2** Markdown editor + preview (ใช้ `react-markdown` + `remark-gfm` ที่มีอยู่แล้ว)
+- [ ] **F6.3** หมวดหมู่ + Tags + ค้นหา + ฟิลเตอร์
+- [ ] **F6.4** สถานะบทความ: Draft → Pending Review → Published → Archived
+- [ ] **F6.5** Workflow การเผยแพร่: `agent` เขียน → `manager`/`admin` Publish
+- [ ] **F6.6** Visibility: `all` (ทุกคนอ่านได้) / `agent_only` (เฉพาะเจ้าหน้าที่)
+- [ ] **F6.7** หน้าอ่าน `service/kb/[slug]` + นับ `viewCount`
+- [ ] **F6.8** ปุ่ม "มีประโยชน์ / ไม่มีประโยชน์" → `KbFeedback` + นับสถิติ
+- [ ] **F6.9** **Sync เข้า RAG** — Publish → สร้าง/อัปเดต `KnowledgeDocument` → เรียก `lib/ingestion.ts` เดิม → embed ลง pgvector → `isIndexed = true`
+- [ ] **F6.10** Un-publish / Archive → ลบ vector ที่เกี่ยวข้องออก
+- [ ] **F6.11** ปรับ `SYSTEM_PROMPT` ใน `lib/rag-service.ts` ให้รองรับบริบท Helpdesk **[M10]**
+- [ ] **F6.12** แนะนำบทความ KB ที่เกี่ยวข้องในหน้า Ticket (vector search จาก title + description)
+- [ ] **F6.13** สร้างบทความ KB จาก Ticket ที่แก้แล้ว — ปุ่ม "บันทึกเป็นองค์ความรู้" (prefill จาก `resolutionNote`)
+
+---
+
+### ⑦ งานธุรการศูนย์
+
+#### 7A. ทะเบียนครุภัณฑ์ / ทรัพย์สิน IT
+
+- [ ] **F7.1** CRUD `Asset` — หน้า `management/assets`
+- [ ] **F7.2** ฟิลด์: รหัสครุภัณฑ์, ชื่อ, ประเภท, ยี่ห้อ/รุ่น, S/N, วันที่ซื้อ, ราคา, วันหมดประกัน, สถานที่, สถานะ, ผู้ครอบครอง, หน่วยงาน
+- [ ] **F7.3** สถานะ: ใช้งาน / ในคลัง / ส่งซ่อม / จำหน่ายแล้ว
+- [ ] **F7.4** `AssetHistory` — ประวัติการโอน/ซ่อม/คืน/จำหน่าย
+- [ ] **F7.5** สร้าง **QR Code** ของครุภัณฑ์ (ใช้ `qrcode` ที่มีอยู่แล้ว) + หน้าพิมพ์ป้าย
+- [ ] **F7.6** แจ้งเตือนครุภัณฑ์ใกล้หมดประกัน
+- [ ] **F7.7** Import/Export ครุภัณฑ์ (CSV — ใช้ `csv-parse` ที่มีอยู่แล้ว)
+
+#### 7B. คำขออนุมัติ / เบิกจ่าย
+
+- [ ] **F7.8** CRUD `ApprovalRequest` — หน้า `management/requests`
+- [ ] **F7.9** ประเภทคำขอ: จัดซื้อ / เบิกวัสดุ / งบประมาณ / อื่นๆ
+- [ ] **F7.10** `ApprovalStep` — กำหนดผู้อนุมัติหลายขั้นตามลำดับ
+- [ ] **F7.11** Workflow: Draft → Pending → Approved / Rejected (+ Cancelled)
+- [ ] **F7.12** หน้า "รออนุมัติของฉัน" สำหรับ `manager`/`admin` + ปุ่มอนุมัติ/ไม่อนุมัติ + ความเห็น
+- [ ] **F7.13** แนบไฟล์ประกอบคำขอ (ใบเสนอราคา ฯลฯ)
+- [ ] **F7.14** Timeline การอนุมัติ + ประวัติ
+
+#### 7C. รายงานประจำเดือน / ไตรมาส
+
+- [ ] **F7.15** หน้า `management/reports` เลือกช่วงเวลา (เดือน / ไตรมาส / กำหนดเอง)
+- [ ] **F7.16** รายงานสรุป Ticket — จำนวนรับ/ปิด/ค้าง แยกตามหมวด/Priority/ช่องทาง
+- [ ] **F7.17** รายงาน SLA Compliance — % ตรงเวลา + รายการ Breach
+- [ ] **F7.18** รายงานภาระงานเจ้าหน้าที่ — จำนวนงาน + ชั่วโมงจาก Time Log
+- [ ] **F7.19** รายงานความคืบหน้าโครงการ SDLC
+- [ ] **F7.20** รายงานครุภัณฑ์ + คำขออนุมัติ
+- [ ] **F7.21** กราฟ (`recharts`) — แนวโน้มรายเดือน, สัดส่วนตามหมวด, SLA trend
+- [ ] **F7.22** **Export PDF / Excel** สำหรับส่งผู้บริหาร
+- [ ] **F7.23** บันทึก `ReportSnapshot` เพื่อเปรียบเทียบย้อนหลัง
+
+---
+
+### ⑧ Notification (LINE + Email + In-app)
+
+- [ ] **F8.1** `lib/notification.ts` — service กลาง `notify({ userId, type, title, body, linkUrl, channels })`
+- [ ] **F8.2** In-app — model `Notification` + กระดิ่งใน Header + dropdown + mark as read
+- [ ] **F8.3** Email — ใช้ `nodemailer` เดิม + template (Ticket ใหม่ / เปลี่ยนสถานะ / มีคอมเมนต์ / แก้เสร็จ)
+- [ ] **F8.4** LINE — ใช้ `lib/line-push.ts` เดิม push เข้ากลุ่มทีมเมื่อมี Ticket ใหม่/มอบหมาย
+- [ ] **F8.5** LINE ตอบกลับผู้แจ้งรายบุคคล (ถ้ามี `lineUserId`)
+- [ ] **F8.6** Event ที่ต้องแจ้ง: Ticket ใหม่ / มอบหมายงาน / เปลี่ยนสถานะ / คอมเมนต์ใหม่ / คำขอรออนุมัติ / ผลการอนุมัติ / Task ถูกมอบหมาย
+- [ ] **F8.7** ตั้งค่าเปิด/ปิดช่องทางรายบุคคล (หน้า `profile`)
+- [ ] **F8.8** `NotificationDelivery` — บันทึกผลส่ง + retry เมื่อ fail
+
+---
+
+### ⑨ Dashboard & ภาพรวม
+
+- [ ] **F9.1** Dashboard แยกตาม role **[M8]**
+- [ ] **F9.2** `student`/`user` — Ticket ของฉัน + สถานะ + ลิงก์แจ้งใหม่
+- [ ] **F9.3** `agent` — งานที่รับผิดชอบ, ใกล้ครบ SLA, งานวันนี้, ชั่วโมงสัปดาห์นี้
+- [ ] **F9.4** `manager`/`admin` — KPI รวม: Ticket เข้า/ปิด/ค้าง, % SLA, ภาระงานรายคน, ความคืบหน้าโครงการ, คำขอรออนุมัติ
+- [ ] **F9.5** กราฟแนวโน้ม 7/30 วัน
+- [ ] **F9.6** Global search — ค้นหาข้าม Ticket / KB / Project / Asset
+
+---
+
+<a id="9-dependencies"></a>
+
+## 9. Dependencies ที่ต้องเพิ่ม **[M11]**
+
+| Package | ใช้ทำอะไร |
+|---|---|
+| `zod` | Validate input ฝั่ง API + form |
+| `react-hook-form` + `@hookform/resolvers` | จัดการฟอร์ม (มีฟอร์มเยอะมาก) |
+| `date-fns` | คำนวณวันเวลา + business hours + format ภาษาไทย |
+| `@dnd-kit/core` + `@dnd-kit/sortable` | Kanban drag & drop |
+| `recharts` | กราฟใน Dashboard และรายงาน |
+| `@tanstack/react-table` | ตารางที่มี sort/filter/pagination |
+| `exceljs` | Export Excel |
+| `@react-pdf/renderer` หรือ `puppeteer` | Export PDF รายงาน |
+| `nanoid` | Generate slug / รหัสสั้น |
+
+**ที่มีอยู่แล้วและจะ reuse:** `qrcode` (ป้ายครุภัณฑ์), `csv-parse` (import), `react-markdown` + `remark-gfm` (KB), `nodemailer` (email), `openai` + pgvector (RAG), `lucide-react`
+
+---
+
+<a id="10-environment-variables"></a>
+
+## 10. Environment Variables ที่ต้องเพิ่ม **[M13]**
+
+```env
+# File upload
+UPLOAD_DIR=./uploads              # หรือใช้ S3 / Vercel Blob
+MAX_UPLOAD_SIZE=10485760          # 10 MB
+
+# Business hours default
+DEFAULT_WORK_START=08:30
+DEFAULT_WORK_END=16:30
+DEFAULT_TIMEZONE=Asia/Bangkok
+
+# Ticket numbering
+TICKET_PREFIX=TK
+REQUEST_PREFIX=RQ
+```
+
+> **ที่มีอยู่แล้ว:** `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `OPENAI_API_KEY`, `OPENAI_EMBEDDING_MODEL`, `SMTP_HOST`, `SMTP_PORT`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_CHANNEL_SECRET`
+
+---
+
+<a id="11-ลำดับการพัฒนา"></a>
+
+## 11. ลำดับการพัฒนาที่แนะนำ
+
+| เฟส | เนื้อหา | พึ่งพา |
+|---|---|---|
+| **0** | Foundation: Schema, RBAC, shadcn, sidebar, helper libs, seed | — |
+| **1** | Helpdesk + Priority + Workflow (①②) | 0 |
+| **2** | SLA Engine + Business Hours + SLA Report (④) | 1 |
+| **3** | My Work + To-do + Time Log (③) | 1 |
+| **4** | Notification 3 ช่องทาง (⑧) | 1 |
+| **5** | SDLC: Project/Sprint/Kanban + Convert Ticket → Task (⑤) | 1, 3 |
+| **6** | Knowledge Base + RAG Sync (⑥) | 1 |
+| **7** | งานธุรการ: ครุภัณฑ์ + คำขออนุมัติ (⑦A, ⑦B) | 0, 4 |
+| **8** | Dashboard + รายงาน + Export (⑦C, ⑨) | ทุกเฟส |
+
+---
+
+<a id="12-non-functional-requirements"></a>
+
+## 12. Non-Functional Requirements
+
+- [ ] **NFR1** ทุก API route ตรวจ session ตาม pattern เดิม + ตรวจ role ผ่าน `lib/rbac.ts`
+- [ ] **NFR2** Validate input ทุก endpoint ด้วย `zod`
+- [ ] **NFR3** ผู้ใช้ทั่วไปต้องเห็นเฉพาะ Ticket ของตัวเอง (row-level check ทุก query)
+- [ ] **NFR4** UI ภาษาไทยทั้งหมด, วันที่รูปแบบไทย (พ.ศ.), timezone `Asia/Bangkok`
+- [ ] **NFR5** Responsive — ใช้งานบนมือถือได้ (เจ้าหน้าที่อัปเดตงานนอกสถานที่)
+- [ ] **NFR6** รองรับ Dark mode ตาม `lib/theme-store.ts` เดิม
+- [ ] **NFR7** Audit trail ทุกการเปลี่ยนสถานะ/มอบหมาย (`TicketActivity`)
+- [ ] **NFR8** Index ที่จำเป็น: `Ticket(status, priority, assigneeId, createdAt)`, `Task(projectId, boardStatus)`, `WorkLog(userId, workDate)`
+- [ ] **NFR9** Pagination ทุกตาราง (default 20 แถว)
+- [ ] **NFR10** ไฟล์แนบ: จำกัดชนิด (jpg/png/pdf/docx/xlsx/zip) + ขนาด ≤ 10 MB + ตรวจ MIME
+
+---
+
+<a id="13-out-of-scope"></a>
+
+## 13. Out of Scope (ตกลงว่าไม่ทำในเฟสนี้)
+
+- ❌ งานซ่อมฮาร์ดแวร์ / คอมพิวเตอร์ (ไม่อยู่ใน Service Catalog ตามข้อ 3)
+- ❌ ระบบหนังสือเข้า-ออก / สารบรรณ (ตามข้อ 14)
+- ❌ ฟอร์มแจ้งปัญหาสาธารณะแบบไม่ต้อง login (ตามข้อ 2)
+- ❌ SLA Warning notification ก่อนครบกำหนด (ตามข้อ 6)
+- ❌ Auto-escalation เมื่อ SLA breach (ตามข้อ 6)
+- ❌ สถานะ Pending / Reopened / Approval ใน Ticket workflow (ตามข้อ 8)
+- ❌ Timer จับเวลาอัตโนมัติ (ตามข้อ 10)
+- ❌ Problem Management / Change Management / CMDB (ITIL ขั้นสูง)
+- ❌ CSAT survey หลังปิดงาน (เสนอไว้พิจารณาเฟสถัดไป)
+- ❌ Mobile app native
+
+---
+
+<a id="14-คำถามที่ยังค้าง"></a>
+
+## 14. คำถามที่ยังค้าง (ควรตอบก่อนเริ่ม Phase 0)
+
+1. **File storage** — เก็บไฟล์แนบที่ไหน? local `./uploads` (ต้อง mount volume ใน Docker) หรือ Vercel Blob / S3?
+2. **แหล่งข้อมูลผู้ใช้** — บุคลากร/นักศึกษาสมัครเองผ่าน Better Auth หรือ import จากระบบ HR / ทะเบียนนักศึกษา?
+3. **รายชื่อหน่วยงาน (Department)** — มีรายชื่อจริงให้ seed หรือให้ admin กรอกเอง?
+4. **หมวดย่อยของ Service Catalog** — มีรายการหมวดย่อยจริงที่ต้องการ seed หรือไม่?
+5. **ค่า SLA จริงของหน่วยงาน** — ใช้ค่าเริ่มต้นที่เสนอในข้อ 5.2 หรือมีประกาศ SLA ของศูนย์อยู่แล้ว?
+6. **จำนวนเจ้าหน้าที่ในศูนย์** — มีกี่คน แบ่งเป็นกี่ทีม? (มีผลกับ auto-assign)
+
+---
+
+<a id="15-verification-plan"></a>
+
+## 15. Verification Plan (เมื่อเริ่มพัฒนาจริง)
+
+1. `pnpm prisma migrate dev` — schema ใหม่ migrate สำเร็จ, ไม่กระทบ 10 models เดิม
+2. `pnpm prisma db seed` — Catalog / SLA / Business Hours / Holiday ถูก seed
+3. `pnpm dev` → ทดสอบ login ด้วย 5 roles → sidebar แสดงเมนูถูกต้องตาม role
+4. **E2E flow:** แจ้ง Ticket (Impact สูง × Urgency สูง) → priority = Critical → auto-assign → due date ตรงตามเวลาทำการ (ข้ามวันหยุด) → agent รับงาน → comment → resolved + Time Log → closed
+5. ทดสอบ SLA breach: สร้าง Ticket ย้อนหลัง → ตรวจว่าธง `resolutionBreached` ถูกตั้ง + รายงานแสดงถูก
+6. ทดสอบ convert Ticket → Task → ตรวจลิงก์สองทาง + การ์ดปรากฏใน Backlog
+7. ทดสอบ KB Publish → ตรวจว่ามี record ใน `Document` (pgvector) → ถาม chatbot แล้วตอบจากบทความได้
+8. ทดสอบ notification 3 ช่องทาง: กระดิ่งใน UI + อีเมลเข้าจริง + LINE เข้ากลุ่ม
+9. ทดสอบ RBAC: login เป็น `student` → เรียก `GET /api/tickets` ของคนอื่น → ต้องได้ 403
+10. `pnpm build` + `pnpm lint` ผ่าน
+
+---
+
+*เอกสารนี้จัดทำจากการสัมภาษณ์เก็บ requirements 18 ข้อ เมื่อ 29 สิงหาคม 2569 — ทุกการแก้ไขไฟล์เดิมในตาราง M1–M13 ต้องแจ้งและได้รับความเห็นชอบก่อนลงมือทุกครั้ง*

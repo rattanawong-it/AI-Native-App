@@ -2,13 +2,13 @@
 // Better Auth + PostgreSQL (Neon)
 
 generator client {
-  provider = "prisma-client"
+  provider        = "prisma-client"
   previewFeatures = ["postgresqlExtensions"]
-  output   = "../app/generated/prisma"
+  output          = "../app/generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
   extensions = [pgvector(map: "vector")]
 }
 
@@ -17,36 +17,68 @@ datasource db {
 // ==========================================
 
 model User {
-  id            String    @id @default(cuid())
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
-  role          String    @default("user") // "user" | "admin"
-  banned        Boolean?
-  banReason     String?
-  banExpires    DateTime?
-  twoFactorEnabled Boolean? @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  name             String
+  email            String    @unique
+  emailVerified    Boolean   @default(false)
+  image            String?
+  role             String    @default("user") // "student" | "user" | "agent" | "manager" | "admin"
+  banned           Boolean?
+  banReason        String?
+  banExpires       DateTime?
+  twoFactorEnabled Boolean?  @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  sessions Session[]
-  accounts Account[]
+  // ── ITSM: ข้อมูลบุคลากร (เพิ่มใหม่ทั้งหมดเป็น nullable เพื่อไม่กระทบ Better Auth adapter) ──
+  departmentId String? // หน่วยงานต้นสังกัด
+  position     String? // ตำแหน่ง
+  phone        String? // เบอร์ติดต่อภายใน
+  employeeCode String? // รหัสบุคลากร / รหัสนักศึกษา
+  lineUserId   String?  @unique // ผูกกับ LINE เพื่อแจ้งเตือนรายบุคคล
+  isAgent      Boolean? @default(false) // เป็นเจ้าหน้าที่ศูนย์ไอทีหรือไม่ (ใช้กับ auto-assign)
+
+  sessions   Session[]
+  accounts   Account[]
   twoFactors TwoFactor[]
 
+  // ── ITSM relations ──
+  department         Department?       @relation(fields: [departmentId], references: [id])
+  categoriesAssigned ServiceCategory[] @relation("CategoryDefaultAssignee")
+  ticketsRequested   Ticket[]          @relation("TicketRequester")
+  ticketsAssigned    Ticket[]          @relation("TicketAssignee")
+  ticketComments     TicketComment[]
+  ticketActivities   TicketActivity[]
+  todoItems          TodoItem[]
+  workLogs           WorkLog[]
+  projectsOwned      Project[]         @relation("ProjectOwner")
+  tasksAssigned      Task[]            @relation("TaskAssignee")
+  taskComments       TaskComment[]
+  teamsLed           Team[]            @relation("TeamLeader")
+  teamMemberships    TeamMember[]
+  kbArticlesAuthored KbArticle[]       @relation("KbAuthor")
+  kbArticlesReviewed KbArticle[]       @relation("KbReviewer")
+  kbFeedbacks        KbFeedback[]
+  assetsHeld         Asset[]           @relation("AssetCustodian")
+  approvalRequests   ApprovalRequest[] @relation("ApprovalRequester")
+  approvalSteps      ApprovalStep[]    @relation("ApprovalApprover")
+  notifications      Notification[]
+
+  @@index([role])
+  @@index([departmentId])
   @@map("user")
 }
 
 model Session {
-  id              String   @id @default(cuid())
-  userId          String
-  token           String   @unique
-  expiresAt       DateTime
-  ipAddress       String?
-  userAgent       String?
-  impersonatedBy  String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  userId         String
+  token          String   @unique
+  expiresAt      DateTime
+  ipAddress      String?
+  userAgent      String?
+  impersonatedBy String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -89,7 +121,7 @@ model Verification {
 // ==========================================
 
 model TwoFactor {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   userId      String
   secret      String
   backupCodes String
@@ -102,12 +134,12 @@ model TwoFactor {
 }
 
 model Document {
-  id        String   @id @default(cuid())
-  content   String   // เนื้อหาข้อความ
-  metadata  Json?    // ข้อมูลเพิ่มเติม (เช่น ชื่อไฟล์, หน้า)
+  id        String                       @id @default(cuid())
+  content   String // เนื้อหาข้อความ
+  metadata  Json? // ข้อมูลเพิ่มเติม (เช่น ชื่อไฟล์, หน้า)
   embedding Unsupported("vector(1536)")? // เวกเตอร์จาก OpenAI (1536 มิติ)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime                     @default(now())
+  updatedAt DateTime                     @updatedAt
 
   @@map("document")
 }
@@ -127,12 +159,12 @@ model ChatSession {
 }
 
 model ChatMessage {
-  id        String      @id @default(cuid())
+  id        String   @id @default(cuid())
   sessionId String
-  role      String      // "user" | "assistant"
+  role      String // "user" | "assistant"
   content   String
-  sources   Json?       // แหล่งข้อมูลอ้างอิง
-  createdAt DateTime    @default(now())
+  sources   Json? // แหล่งข้อมูลอ้างอิง
+  createdAt DateTime @default(now())
 
   session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
@@ -146,11 +178,11 @@ model KnowledgeDocument {
   id        String   @id @default(cuid())
   title     String
   content   String   @db.Text
-  source    String?              // ชื่อไฟล์ต้นฉบับ (ถ้าอัปโหลด)
-  fileType  String?              // "pdf" | "csv" | "txt" | "manual"
-  fileSize  Int?                 // ขนาดไฟล์ (bytes)
+  source    String? // ชื่อไฟล์ต้นฉบับ (ถ้าอัปโหลด)
+  fileType  String? // "pdf" | "csv" | "txt" | "manual"
+  fileSize  Int? // ขนาดไฟล์ (bytes)
   isIndexed Boolean  @default(false) // ถูก process เข้า Vector DB แล้วหรือยัง
-  createdBy String               // userId ของผู้สร้าง
+  createdBy String // userId ของผู้สร้าง
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -168,7 +200,7 @@ model Lead {
   company   String?
   interest  String?
   source    String   @default("website")
-  status    String   @default("new")  // new, contacted, qualified, converted
+  status    String   @default("new") // new, contacted, qualified, converted
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -180,11 +212,658 @@ model Lead {
 // ==========================================
 model LineGroup {
   id        String   @id @default(cuid())
-  groupId   String   @unique          // LINE Group ID (เช่น Cf224170d...)
-  groupName String?                   // ชื่อกลุ่ม (ดึงจาก LINE API)
-  active    Boolean  @default(true)   // true = ส่งแจ้งเตือน, false = หยุดส่ง
-  joinedAt  DateTime @default(now())  // วันที่ Bot เข้ากลุ่ม
+  groupId   String   @unique // LINE Group ID (เช่น Cf224170d...)
+  groupName String? // ชื่อกลุ่ม (ดึงจาก LINE API)
+  active    Boolean  @default(true) // true = ส่งแจ้งเตือน, false = หยุดส่ง
+  joinedAt  DateTime @default(now()) // วันที่ Bot เข้ากลุ่ม
   updatedAt DateTime @updatedAt
 
   @@map("line_group")
+}
+
+// ==========================================================================
+// ITSM — ระบบบริหารงานบริการศูนย์ไอที
+// อ้างอิง docs/spec.md §5 (Data Model) — เพิ่มใหม่ทั้งหมด ไม่แก้ 10 models เดิม
+// ==========================================================================
+
+// ------------------------------------------------------------------
+// 5.1 Master Data / ตั้งค่า
+// ------------------------------------------------------------------
+
+/// หน่วยงาน / คณะ / สำนัก ที่ผู้ใช้สังกัด
+model Department {
+  id     String  @id @default(cuid())
+  name   String
+  code   String  @unique // รหัสหน่วยงาน เช่น "OIT"
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users   User[]
+  tickets Ticket[]
+  assets  Asset[]
+
+  @@map("department")
+}
+
+/// หมวดหมู่บริการ (Service Catalog) — รองรับหมวดย่อยด้วย self-relation
+model ServiceCategory {
+  id                String  @id @default(cuid())
+  name              String
+  slug              String  @unique
+  parentId          String? // null = หมวดหลัก
+  description       String?
+  defaultTeamId     String? // ทีมที่รับผิดชอบเริ่มต้น
+  defaultAssigneeId String? // เจ้าหน้าที่ที่รับผิดชอบเริ่มต้น (auto-assign)
+  active            Boolean @default(true)
+  sortOrder         Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent          ServiceCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children        ServiceCategory[] @relation("CategoryTree")
+  defaultTeam     Team?             @relation("CategoryDefaultTeam", fields: [defaultTeamId], references: [id])
+  defaultAssignee User?             @relation("CategoryDefaultAssignee", fields: [defaultAssigneeId], references: [id])
+
+  tickets     Ticket[]
+  slaPolicies SlaPolicy[]
+  kbArticles  KbArticle[]
+
+  @@index([parentId])
+  @@index([active, sortOrder])
+  @@map("service_category")
+}
+
+/// นโยบาย SLA — กำหนดเวลาตอบกลับ/แก้ไข ต่อ priority (และ/หรือต่อหมวดหมู่)
+model SlaPolicy {
+  id                String  @id @default(cuid())
+  name              String
+  priority          String // critical | high | medium | low
+  categoryId        String? // null = ใช้กับทุกหมวดหมู่
+  responseMinutes   Int // นาทีทำการ
+  resolutionMinutes Int // นาทีทำการ
+  active            Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  category ServiceCategory? @relation(fields: [categoryId], references: [id])
+
+  @@unique([priority, categoryId])
+  @@index([active])
+  @@map("sla_policy")
+}
+
+/// เวลาทำการรายวัน — ใช้คำนวณ SLA แบบ business hours
+model BusinessHour {
+  id           String  @id @default(cuid())
+  dayOfWeek    Int     @unique // 0 = อาทิตย์ ... 6 = เสาร์
+  startTime    String // "08:30"
+  endTime      String // "16:30"
+  isWorkingDay Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("business_hour")
+}
+
+/// วันหยุดราชการ / วันหยุดของหน่วยงาน
+model Holiday {
+  id          String   @id @default(cuid())
+  date        DateTime @unique @db.Date
+  name        String
+  isRecurring Boolean  @default(false) // true = หยุดทุกปีในวันเดียวกัน
+
+  createdAt DateTime @default(now())
+
+  @@map("holiday")
+}
+
+/// ค่าตั้งค่าระบบแบบ key-value
+model AppSetting {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  value       Json
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("app_setting")
+}
+
+// ------------------------------------------------------------------
+// 5.2 Helpdesk
+// ------------------------------------------------------------------
+
+/// ใบแจ้งปัญหา / คำขอบริการ
+model Ticket {
+  id          String @id @default(cuid())
+  ticketNo    String @unique // TK-YYYYMM-00001
+  title       String
+  description String @db.Text
+
+  categoryId   String
+  requesterId  String
+  departmentId String?
+  channel      String  @default("web") // web | line | email | phone | walkin
+
+  impact   String // high | medium | low
+  urgency  String // high | medium | low
+  priority String // critical | high | medium | low (คำนวณจาก matrix)
+  status   String @default("new") // new | assigned | in_progress | resolved | closed
+
+  assigneeId String?
+  teamId     String?
+
+  // ── SLA ──
+  respondedAt        DateTime?
+  resolvedAt         DateTime?
+  closedAt           DateTime?
+  responseDueAt      DateTime?
+  resolutionDueAt    DateTime?
+  responseBreached   Boolean   @default(false)
+  resolutionBreached Boolean   @default(false)
+
+  resolutionNote  String? @db.Text
+  convertedTaskId String? @unique // ลิงก์ไป Task ที่แปลงไป (SDLC)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  category   ServiceCategory @relation(fields: [categoryId], references: [id])
+  requester  User            @relation("TicketRequester", fields: [requesterId], references: [id])
+  assignee   User?           @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  department Department?     @relation(fields: [departmentId], references: [id])
+  team       Team?           @relation(fields: [teamId], references: [id])
+
+  comments      TicketComment[]
+  attachments   TicketAttachment[]
+  activities    TicketActivity[]
+  workLogs      WorkLog[]
+  convertedTask Task?              @relation("TicketConvertedTask", fields: [convertedTaskId], references: [id])
+  sourceOfTasks Task[]             @relation("TaskSourceTicket")
+
+  @@index([status, priority, assigneeId, createdAt])
+  @@index([requesterId])
+  @@index([categoryId])
+  @@index([resolutionDueAt])
+  @@map("ticket")
+}
+
+/// ความเห็นใน Ticket — isInternal = บันทึกภายใน ผู้แจ้งไม่เห็น
+model TicketComment {
+  id         String  @id @default(cuid())
+  ticketId   String
+  authorId   String
+  body       String  @db.Text
+  isInternal Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_comment")
+}
+
+/// ไฟล์แนบของ Ticket
+model TicketAttachment {
+  id         String @id @default(cuid())
+  ticketId   String
+  fileName   String
+  filePath   String
+  fileType   String
+  fileSize   Int
+  uploadedBy String // userId ผู้อัปโหลด
+
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("ticket_attachment")
+}
+
+/// Audit log ของ Ticket — ทุกการเปลี่ยนสถานะ/มอบหมาย (NFR7)
+model TicketActivity {
+  id        String  @id @default(cuid())
+  ticketId  String
+  actorId   String
+  action    String // created | assigned | status_changed | priority_changed | commented | ...
+  fromValue String?
+  toValue   String?
+  note      String?
+
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actor  User   @relation(fields: [actorId], references: [id])
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_activity")
+}
+
+// ------------------------------------------------------------------
+// 5.3 My Work / To-do
+// ------------------------------------------------------------------
+
+/// งานส่วนตัวของเจ้าหน้าที่
+model TodoItem {
+  id       String    @id @default(cuid())
+  ownerId  String
+  title    String
+  note     String?
+  dueDate  DateTime?
+  priority String    @default("medium") // critical | high | medium | low
+  isDone   Boolean   @default(false)
+  doneAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner    User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  workLogs WorkLog[]
+
+  @@index([ownerId, isDone, dueDate])
+  @@map("todo_item")
+}
+
+/// บันทึกชั่วโมงทำงาน (Manual time log)
+model WorkLog {
+  id          String   @id @default(cuid())
+  userId      String
+  workDate    DateTime @db.Date
+  hours       Decimal  @db.Decimal(5, 2)
+  description String
+  refType     String // ticket | task | todo | other
+  ticketId    String?
+  taskId      String?
+  todoId      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticket Ticket?   @relation(fields: [ticketId], references: [id])
+  task   Task?     @relation(fields: [taskId], references: [id])
+  todo   TodoItem? @relation(fields: [todoId], references: [id])
+
+  @@index([userId, workDate])
+  @@map("work_log")
+}
+
+// ------------------------------------------------------------------
+// 5.4 SDLC / Project (Agile)
+// ------------------------------------------------------------------
+
+/// โครงการพัฒนาซอฟต์แวร์
+model Project {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  name        String
+  description String?   @db.Text
+  status      String    @default("planning") // planning | active | on_hold | completed | cancelled
+  ownerId     String
+  teamId      String?
+  startDate   DateTime?
+  endDate     DateTime?
+  progress    Int       @default(0) // 0–100 คำนวณจากสัดส่วน Task ที่ done
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner User  @relation("ProjectOwner", fields: [ownerId], references: [id])
+  team  Team? @relation(fields: [teamId], references: [id])
+
+  sprints Sprint[]
+  tasks   Task[]
+
+  @@index([status])
+  @@map("project")
+}
+
+/// รอบการพัฒนา (Sprint)
+model Sprint {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  goal      String?
+  startDate DateTime
+  endDate   DateTime
+  status    String   @default("planned") // planned | active | completed
+  sortOrder Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+
+  @@index([projectId, sortOrder])
+  @@map("sprint")
+}
+
+/// งานพัฒนาบน Kanban Board
+model Task {
+  id             String    @id @default(cuid())
+  projectId      String
+  sprintId       String?
+  title          String
+  description    String?   @db.Text
+  boardStatus    String    @default("backlog") // backlog | todo | doing | review | done
+  priority       String    @default("medium") // critical | high | medium | low
+  assigneeId     String?
+  estimateHours  Decimal?  @db.Decimal(6, 2)
+  dueDate        DateTime?
+  sortOrder      Int       @default(0)
+  sourceTicketId String? // มาจาก Ticket ใบไหน
+  createdBy      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprint       Sprint? @relation(fields: [sprintId], references: [id])
+  assignee     User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  sourceTicket Ticket? @relation("TaskSourceTicket", fields: [sourceTicketId], references: [id])
+
+  comments      TaskComment[]
+  workLogs      WorkLog[]
+  convertedFrom Ticket?       @relation("TicketConvertedTask")
+
+  @@index([projectId, boardStatus])
+  @@index([sprintId, sortOrder])
+  @@index([assigneeId])
+  @@map("task")
+}
+
+/// ความเห็นใน Task
+model TaskComment {
+  id       String @id @default(cuid())
+  taskId   String
+  authorId String
+  body     String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id])
+
+  @@index([taskId, createdAt])
+  @@map("task_comment")
+}
+
+/// ทีมงานของศูนย์ไอที
+model Team {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  leaderId    String?
+  active      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leader User? @relation("TeamLeader", fields: [leaderId], references: [id])
+
+  members    TeamMember[]
+  tickets    Ticket[]
+  projects   Project[]
+  categories ServiceCategory[] @relation("CategoryDefaultTeam")
+
+  @@map("team")
+}
+
+/// สมาชิกในทีม
+model TeamMember {
+  id         String @id @default(cuid())
+  teamId     String
+  userId     String
+  roleInTeam String @default("member") // leader | member
+
+  joinedAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@map("team_member")
+}
+
+// ------------------------------------------------------------------
+// 5.5 Knowledge Base
+// ------------------------------------------------------------------
+
+/// บทความคลังความรู้ (คนอ่าน) — ต่างจาก KnowledgeDocument เดิมที่เป็นเอกสารดิบสำหรับ RAG
+model KbArticle {
+  id      String  @id @default(cuid())
+  title   String
+  slug    String  @unique
+  summary String?
+  content String  @db.Text
+
+  categoryId String?
+  tags       String[] @default([])
+  status     String   @default("draft") // draft | pending_review | published | archived
+  visibility String   @default("all") // all | agent_only
+
+  authorId    String
+  reviewerId  String?
+  publishedAt DateTime?
+
+  viewCount       Int @default(0)
+  helpfulCount    Int @default(0)
+  notHelpfulCount Int @default(0)
+
+  isIndexed           Boolean @default(false) // sync เข้า pgvector แล้วหรือยัง
+  knowledgeDocumentId String? // ลิงก์ไป KnowledgeDocument เดิม
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  category ServiceCategory? @relation(fields: [categoryId], references: [id])
+  author   User             @relation("KbAuthor", fields: [authorId], references: [id])
+  reviewer User?            @relation("KbReviewer", fields: [reviewerId], references: [id])
+
+  feedbacks KbFeedback[]
+
+  @@index([status, visibility])
+  @@index([categoryId])
+  @@map("kb_article")
+}
+
+/// ผลโหวต "มีประโยชน์ / ไม่มีประโยชน์"
+model KbFeedback {
+  id        String  @id @default(cuid())
+  articleId String
+  userId    String?
+  isHelpful Boolean
+  comment   String?
+
+  createdAt DateTime @default(now())
+
+  article KbArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User?     @relation(fields: [userId], references: [id])
+
+  @@index([articleId])
+  @@map("kb_feedback")
+}
+
+// ------------------------------------------------------------------
+// 5.6 งานธุรการศูนย์
+// ------------------------------------------------------------------
+
+/// ทะเบียนครุภัณฑ์ / ทรัพย์สิน IT
+model Asset {
+  id              String    @id @default(cuid())
+  assetCode       String    @unique
+  name            String
+  type            String
+  brand           String?
+  model           String?
+  serialNumber    String?
+  purchaseDate    DateTime?
+  price           Decimal?  @db.Decimal(12, 2)
+  warrantyEndDate DateTime?
+  location        String?
+  status          String    @default("in_stock") // in_use | in_stock | repair | disposed
+  custodianId     String?
+  departmentId    String?
+  note            String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  custodian  User?       @relation("AssetCustodian", fields: [custodianId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  histories AssetHistory[]
+
+  @@index([status])
+  @@index([warrantyEndDate])
+  @@map("asset")
+}
+
+/// ประวัติการโอน / ซ่อม / คืน / จำหน่ายครุภัณฑ์
+model AssetHistory {
+  id         String  @id @default(cuid())
+  assetId    String
+  action     String // assign | transfer | repair | dispose | return
+  fromUserId String?
+  toUserId   String?
+  note       String?
+  actorId    String
+
+  createdAt DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, createdAt])
+  @@map("asset_history")
+}
+
+/// คำขออนุมัติ / เบิกจ่าย
+model ApprovalRequest {
+  id          String   @id @default(cuid())
+  requestNo   String   @unique // RQ-YYYYMM-0001
+  type        String // purchase | supply | budget | other
+  title       String
+  description String?  @db.Text
+  amount      Decimal? @db.Decimal(12, 2)
+  requesterId String
+  status      String   @default("draft") // draft | pending | approved | rejected | cancelled
+  currentStep Int      @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  requester User @relation("ApprovalRequester", fields: [requesterId], references: [id])
+
+  steps       ApprovalStep[]
+  attachments ApprovalAttachment[]
+
+  @@index([status, requesterId])
+  @@map("approval_request")
+}
+
+/// ขั้นการอนุมัติ (หลายขั้นตามลำดับ)
+model ApprovalStep {
+  id         String    @id @default(cuid())
+  requestId  String
+  stepOrder  Int
+  approverId String
+  status     String    @default("pending") // pending | approved | rejected
+  comment    String?
+  decidedAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  request  ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  approver User            @relation("ApprovalApprover", fields: [approverId], references: [id])
+
+  @@unique([requestId, stepOrder])
+  @@index([approverId, status])
+  @@map("approval_step")
+}
+
+/// ไฟล์แนบของคำขออนุมัติ (ใบเสนอราคา ฯลฯ)
+model ApprovalAttachment {
+  id         String @id @default(cuid())
+  requestId  String
+  fileName   String
+  filePath   String
+  fileType   String
+  fileSize   Int
+  uploadedBy String
+
+  createdAt DateTime @default(now())
+
+  request ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@map("approval_attachment")
+}
+
+/// สแนปช็อตรายงานประจำเดือน / ไตรมาส เพื่อเปรียบเทียบย้อนหลัง
+model ReportSnapshot {
+  id          String   @id @default(cuid())
+  type        String // monthly | quarterly
+  periodStart DateTime @db.Date
+  periodEnd   DateTime @db.Date
+  dataJson    Json
+  generatedBy String
+
+  createdAt DateTime @default(now())
+
+  @@index([type, periodStart])
+  @@map("report_snapshot")
+}
+
+// ------------------------------------------------------------------
+// 5.7 Notification
+// ------------------------------------------------------------------
+
+/// การแจ้งเตือนในระบบ (In-app)
+model Notification {
+  id      String    @id @default(cuid())
+  userId  String
+  type    String // ticket_created | ticket_assigned | ...
+  title   String
+  body    String
+  linkUrl String?
+  isRead  Boolean   @default(false)
+  readAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  deliveries NotificationDelivery[]
+
+  @@index([userId, isRead, createdAt])
+  @@map("notification")
+}
+
+/// ผลการส่งแจ้งเตือนแยกตามช่องทาง (in-app / email / LINE)
+model NotificationDelivery {
+  id             String    @id @default(cuid())
+  notificationId String
+  channel        String // inapp | email | line
+  status         String    @default("pending") // pending | sent | failed
+  error          String?
+  sentAt         DateTime?
+
+  createdAt DateTime @default(now())
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId])
+  @@map("notification_delivery")
 }
