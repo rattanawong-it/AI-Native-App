@@ -176,7 +176,7 @@ export function PersonChip({
         return <span className="text-muted-foreground text-sm">ยังไม่มอบหมาย</span>
     }
     return (
-        <span className={cn("inline-flex min-w-0 items-center gap-2", className)}>
+        <span className={cn("flex min-w-0 max-w-full items-center gap-2", className)}>
             {person.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -195,7 +195,8 @@ export function PersonChip({
                     {initialsOf(person.name)}
                 </span>
             )}
-            {!avatarOnly && <span className="truncate text-sm">{person.name}</span>}
+            {/* min-w-0 จำเป็นสำหรับ truncate — ไม่งั้นชื่อยาวจะดันล้นออกนอกคอลัมน์ */}
+            {!avatarOnly && <span className="min-w-0 truncate text-sm">{person.name}</span>}
         </span>
     )
 }

@@ -138,7 +138,7 @@ export default function QueueContent() {
                             .filter((g) => g.rows.length > 0)
                             .map((g) => (
                                 <Card key={g.priority} className="overflow-hidden py-0">
-                                    <CardHeader className="bg-muted/40 flex-row items-center gap-3 border-b py-3">
+                                    <CardHeader className="bg-muted/40 flex flex-row items-center gap-3 border-b py-3">
                                         <PriorityBadge priority={g.priority} />
                                         <span className="text-muted-foreground text-sm">
                                             {g.rows.length} รายการ
@@ -150,18 +150,19 @@ export default function QueueContent() {
                                                 key={t.id}
                                                 href={`/service/tickets/${t.id}`}
                                                 className={
-                                                    "hover:bg-accent/50 flex flex-wrap items-center gap-3 px-5 py-3 transition-colors" +
+                                                    "hover:bg-accent/50 flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 transition-colors" +
                                                     (i > 0 ? " border-t" : "")
                                                 }
                                             >
                                                 <span className="text-muted-foreground w-[130px] shrink-0 font-mono text-xs">
                                                     {t.ticketNo}
                                                 </span>
-                                                <span className="min-w-[180px] flex-1 truncate text-sm font-medium">
+                                                <span className="min-w-[140px] flex-1 truncate text-sm font-medium">
                                                     {t.title}
                                                 </span>
                                                 <StatusBadge status={t.status} />
-                                                <span className="w-[150px] shrink-0">
+                                                {/* ชื่อคนไทยยาวได้ จึงต้อง min-w-0 + truncate ไม่งั้นล้นไปทับคอลัมน์ SLA */}
+                                                <span className="w-[160px] min-w-0 shrink-0 overflow-hidden">
                                                     <PersonChip person={t.assignee} />
                                                 </span>
                                                 <span className="w-[170px] shrink-0">

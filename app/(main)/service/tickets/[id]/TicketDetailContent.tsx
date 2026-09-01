@@ -179,7 +179,8 @@ export default function TicketDetailContent({ ticketId }: { ticketId: string }) 
     }
 
     const { ticket, comments, activities, can } = data
-    const canAct = isStaff && can.update
+    // ปิดงานแล้วแก้อะไรไม่ได้อีก — ซ่อนปุ่มดำเนินการทั้งหมด (API ก็ปฏิเสธอยู่แล้ว)
+    const canAct = isStaff && can.update && ticket.status !== "closed"
     const transitions = nextStatuses(ticket.status)
 
     return (

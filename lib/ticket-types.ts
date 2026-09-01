@@ -168,13 +168,16 @@ export async function readError(res: Response, fallback = "เกิดข้อ
     }
 }
 
-/// สร้าง slug จากชื่อหมวดหมู่ — ตรรกะเดียวกับ lib/running-number.ts
-/// แยกไว้ที่นี่เพราะ running-number.ts import prisma จึงเรียกจาก client component ไม่ได้
+/// สร้าง slug จากชื่อหมวดหมู่ให้พร้อมใช้กับ API ทันที
+///
+/// API บังคับรูปแบบ `[a-z0-9-]` เท่านั้น จึงต้องตัดอักษรไทยทิ้ง — ต่างจาก
+/// `slugify()` ใน lib/running-number.ts ที่เก็บอักษรไทยไว้ได้เพราะ slug ของ KB ไม่ได้บังคับ
+/// คืนค่าว่างเมื่อชื่อไม่มีตัวอักษรละติน/ตัวเลขเลย ให้ผู้ใช้กรอก slug เองแทนการเดา
 export function slugifyClient(title: string): string {
     return title
         .toLowerCase()
         .trim()
-        .replace(/[^\p{L}\p{N}]+/gu, "-")
+        .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "")
         .slice(0, 80)
 }

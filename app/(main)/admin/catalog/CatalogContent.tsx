@@ -143,6 +143,10 @@ export default function CatalogContent() {
 
     const submit = async () => {
         if (form.name.trim().length < 2) return toast.error("กรุณากรอกชื่อหมวดหมู่")
+        // ชื่อภาษาไทยล้วนจะสร้าง slug อัตโนมัติไม่ได้ ต้องบอกให้ผู้ใช้กรอกเอง
+        if (form.slug.trim().length === 0) {
+            return toast.error("กรุณากรอก slug เป็นภาษาอังกฤษ เช่น network หรือ user-account")
+        }
         if (!/^[a-z0-9-]+$/.test(form.slug)) return toast.error("slug ใช้ได้เฉพาะ a-z, 0-9 และ -")
 
         setBusy(true)
@@ -244,7 +248,7 @@ export default function CatalogContent() {
                 <div className="space-y-4">
                     {tree.map(({ parent, children }) => (
                         <Card key={parent.id} className="overflow-hidden py-0">
-                            <CardHeader className="bg-muted/40 flex-row flex-wrap items-center justify-between gap-3 border-b py-3">
+                            <CardHeader className="bg-muted/40 flex flex-row flex-wrap items-center justify-between gap-3 border-b py-3">
                                 <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <span className="font-medium">{parent.name}</span>
@@ -367,7 +371,8 @@ export default function CatalogContent() {
                                 className="font-mono"
                             />
                             <p className="text-muted-foreground mt-1 text-xs">
-                                ใช้ a-z, 0-9 และ - เท่านั้น ห้ามซ้ำกับหมวดอื่น
+                                ใช้ a-z, 0-9 และ - เท่านั้น ห้ามซ้ำกับหมวดอื่น ·
+                                ชื่อภาษาไทยสร้าง slug ให้อัตโนมัติไม่ได้ กรุณากรอกเอง
                             </p>
                         </div>
 
