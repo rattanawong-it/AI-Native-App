@@ -11,7 +11,13 @@ export function Header() {
     // หน้าที่ไม่อยู่ใน sidebar แต่ต้องแสดง title
     const pageTitles: Record<string, string> = {
         "/profile": "โปรไฟล์ของฉัน",
+        "/service/tickets/queue": "คิวงานทีม",
     }
+
+    // หน้าที่ path เปลี่ยนไปตามข้อมูล (เช่น /service/tickets/<id>) จับด้วย pattern
+    const dynamicTitles: { pattern: RegExp; title: string }[] = [
+        { pattern: /^\/service\/tickets\/[^/]+$/, title: "รายละเอียด Ticket" },
+    ]
 
     // รวม items ทั้งหมดจาก sidebar แล้วหา title ที่ตรงกับ pathname
     const allItems = [
@@ -19,7 +25,19 @@ export function Header() {
         ...bottomNavItems,
     ]
     const matched = allItems.find((item) => pathname === item.href)
-    const title = pageTitles[pathname] ?? matched?.title ?? "Dashboard"
+
+    // ถ้าไม่ตรงแบบเป๊ะ ให้ถอยไปใช้เมนูที่เป็นต้นทางของ path นี้ (href ยาวสุดที่ครอบอยู่)
+    // เพื่อให้หน้าย่อยที่จะเพิ่มในเฟสถัดไปมีหัวข้อโดยไม่ต้องมาแก้ไฟล์นี้ซ้ำ
+    const parent = allItems
+        .filter((item) => item.href !== "/" && pathname.startsWith(`${item.href}/`))
+        .sort((a, b) => b.href.length - a.href.length)[0]
+
+    const title =
+        matched?.title ??
+        pageTitles[pathname] ??
+        dynamicTitles.find((d) => d.pattern.test(pathname))?.title ??
+        parent?.title ??
+        "Dashboard"
 
     return (
         <>
