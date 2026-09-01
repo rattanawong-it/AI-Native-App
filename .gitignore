@@ -42,3 +42,9 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# ITSM — ไฟล์ที่ผู้ใช้อัปโหลด (UPLOAD_DIR) ห้าม commit ตาม spec §16.5 ข้อ 6
+/uploads/
+
+# ไฟล์ทดสอบ curl — เคยถูก track โดยไม่ตั้งใจ
+cookies.txt
