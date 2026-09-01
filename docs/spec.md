@@ -440,17 +440,17 @@ api/my-work/
 
 ### ④ SLA (Service Level Agreement) ของหน่วยงาน
 
-- [ ] **F4.1** CRUD `SlaPolicy` — หน้า `admin/sla` (ตั้ง Response/Resolution นาที ต่อ Priority และ/หรือต่อหมวดหมู่)
-- [ ] **F4.2** CRUD `BusinessHour` — หน้า `admin/calendar` (จ.–ศ. 08:30–16:30 ปรับได้)
-- [ ] **F4.3** CRUD `Holiday` — ปฏิทินวันหยุดราชการ + import วันหยุดประจำปี
-- [ ] **F4.4** `lib/business-hours.ts` — ฟังก์ชัน `addBusinessMinutes(from, minutes)` ข้ามวันหยุด/นอกเวลาทำการ
-- [ ] **F4.5** คำนวณ `responseDueAt` / `resolutionDueAt` ตอนสร้าง Ticket + คำนวณใหม่เมื่อ Priority เปลี่ยน
-- [ ] **F4.6** บันทึก `respondedAt` (ครั้งแรกที่ agent ตอบ/รับงาน) และ `resolvedAt`
-- [ ] **F4.7** ตั้งธง `responseBreached` / `resolutionBreached` เมื่อเกินกำหนด
-- [ ] **F4.8** SLA Indicator ในหน้ารายการ + รายละเอียด — 🟢 On-time / 🟡 At-risk (> 75%) / 🔴 Breached
-- [ ] **F4.9** นับถอยหลังเวลาคงเหลือ (แสดงเป็นชั่วโมงทำการ)
-- [ ] **F4.10** รายงาน SLA Compliance — % ตรงเวลา แยกตาม Priority / หมวดหมู่ / เจ้าหน้าที่ / ช่วงเวลา
-- [ ] **F4.11** รายการ Ticket ที่ Breach — ตารางพร้อมเหตุผล
+- [x] **F4.1** CRUD `SlaPolicy` — หน้า `admin/sla` (ตั้ง Response/Resolution นาที ต่อ Priority และ/หรือต่อหมวดหมู่)
+- [x] **F4.2** CRUD `BusinessHour` — หน้า `admin/calendar` (จ.–ศ. 08:30–16:30 ปรับได้)
+- [x] **F4.3** CRUD `Holiday` — ปฏิทินวันหยุดราชการ + import วันหยุดประจำปี
+- [x] **F4.4** `lib/business-hours.ts` — ฟังก์ชัน `addBusinessMinutes(from, minutes)` ข้ามวันหยุด/นอกเวลาทำการ
+- [x] **F4.5** คำนวณ `responseDueAt` / `resolutionDueAt` ตอนสร้าง Ticket + คำนวณใหม่เมื่อ Priority เปลี่ยน
+- [x] **F4.6** บันทึก `respondedAt` (ครั้งแรกที่ agent ตอบ/รับงาน) และ `resolvedAt`
+- [x] **F4.7** ตั้งธง `responseBreached` / `resolutionBreached` เมื่อเกินกำหนด
+- [x] **F4.8** SLA Indicator ในหน้ารายการ + รายละเอียด — 🟢 On-time / 🟡 At-risk (> 75%) / 🔴 Breached
+- [x] **F4.9** นับถอยหลังเวลาคงเหลือ (แสดงเป็นชั่วโมงทำการ)
+- [x] **F4.10** รายงาน SLA Compliance — % ตรงเวลา แยกตาม Priority / หมวดหมู่ / เจ้าหน้าที่ / ช่วงเวลา
+- [x] **F4.11** รายการ Ticket ที่ Breach — ตารางพร้อมเหตุผล
 - [ ] ~~Warning notification ก่อนครบกำหนด~~ — **ตัดออกตามข้อ 6** (เก็บไว้เฟสถัดไป)
 - [ ] ~~Auto-escalation เมื่อ breach~~ — **ตัดออกตามข้อ 6** (เก็บไว้เฟสถัดไป)
 
