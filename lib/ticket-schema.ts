@@ -5,6 +5,7 @@
 import { z } from "zod"
 import { IMPACT_LEVELS, URGENCY_LEVELS, PRIORITY_LEVELS } from "@/lib/priority"
 import { TICKET_STATUSES, TICKET_CHANNELS } from "@/lib/ticket-workflow"
+import { BREACH_FILTERS } from "@/lib/sla-service"
 
 const impactEnum = z.enum(IMPACT_LEVELS, { message: "ระดับผลกระทบไม่ถูกต้อง" })
 const urgencyEnum = z.enum(URGENCY_LEVELS, { message: "ระดับความเร่งด่วนไม่ถูกต้อง" })
@@ -118,6 +119,8 @@ export const listTicketsQuerySchema = z.object({
     /// ช่วงวันที่สร้าง (ISO date) — from/to แบบรวมปลายทาง
     from: z.string().min(1).optional(),
     to: z.string().min(1).optional(),
+    /// เฉพาะใบที่เกินกำหนด — response | resolution | any (F4.11)
+    breached: z.enum(BREACH_FILTERS).optional(),
     /// เรียงลำดับ — queue = Priority DESC → resolutionDueAt ASC (F2.5)
     sort: z.enum(["queue", "newest", "oldest", "due"]).default("queue"),
     page: z.coerce.number().int().min(1).default(1),

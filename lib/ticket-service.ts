@@ -14,6 +14,7 @@ import type { AuthUser } from "@/lib/rbac"
 import { isStaff } from "@/lib/rbac"
 import type { TicketAction } from "@/lib/ticket-workflow"
 import type { ListTicketsQuery } from "@/lib/ticket-schema"
+import { breachWhere } from "@/lib/sla-service"
 
 /// ตัวรับคำสั่ง Prisma — ใช้ตัวเดียวกันได้ทั้งใน transaction และนอก transaction
 export type Db = Prisma.TransactionClient | typeof prisma
@@ -317,15 +318,16 @@ export function buildTicketWhere(q: ListTicketsQuery, user: AuthUser): Prisma.Ti
         )
     }
 
-    const from = q.from ? new Date(q.from) : null
-    const to = q.to ? new Date(q.to) : null
+    // F4.11 — คิดจากเวลาจริงทุกครั้ง ไม่ได้อ่านธง breached ในตาราง (ดู lib/sla-service.ts)
+    if (q.breached) and.push(breachWhere(q.breached))
+
+    // ช่วงวันที่คิดตามปฏิทินไทยเสมอ — "2026-09-01" คือ 00:00 น. ตามเวลาไทย ไม่ใช่ UTC
+    // (ก่อนหน้านี้ใช้ new Date("YYYY-MM-DD") ซึ่งเป็นเที่ยงคืน UTC = 07:00 น. ของไทย
+    //  ทำให้ Ticket ที่แจ้งช่วงเช้ามืดของวันแรกหลุดออกจากผลลัพธ์)
+    const from = q.from ? new Date(`${q.from}T00:00:00.000+07:00`) : null
+    const to = q.to ? new Date(`${q.to}T23:59:59.999+07:00`) : null
     if (from && !Number.isNaN(from.getTime())) and.push({ createdAt: { gte: from } })
-    if (to && !Number.isNaN(to.getTime())) {
-        // รวมทั้งวันของ to
-        const end = new Date(to)
-        end.setHours(23, 59, 59, 999)
-        and.push({ createdAt: { lte: end } })
-    }
+    if (to && !Number.isNaN(to.getTime())) and.push({ createdAt: { lte: to } })
 
     return and.length > 0 ? { AND: and } : {}
 }
