@@ -181,3 +181,125 @@ export function slugifyClient(title: string): string {
         .replace(/^-+|-+$/g, "")
         .slice(0, 80)
 }
+
+// ── กลุ่ม SLA (Phase 2 — F4.1, F4.2, F4.3, F4.10, F4.11) ─────────────
+
+export interface SlaPolicy {
+    id: string
+    name: string
+    priority: string
+    categoryId: string | null
+    responseMinutes: number
+    resolutionMinutes: number
+    active: boolean
+    category: { id: string; name: string; slug: string } | null
+}
+
+export interface BusinessHourRow {
+    /// null = ยังไม่มีแถวของวันนี้ใน DB (ใช้ค่าเริ่มต้นของระบบอยู่)
+    id: string | null
+    dayOfWeek: number
+    startTime: string
+    endTime: string
+    isWorkingDay: boolean
+}
+
+export interface HolidayRow {
+    id: string
+    date: string
+    name: string
+    isRecurring: boolean
+}
+
+/// สถิติ SLA หนึ่งกลุ่ม — rate เป็น % 0–100 (null = ยังไม่มีใบที่รู้ผล)
+export interface SlaStat {
+    total: number
+    responseMeasured: number
+    responseMet: number
+    responseBreached: number
+    responseRate: number | null
+    resolutionMeasured: number
+    resolutionMet: number
+    resolutionBreached: number
+    resolutionRate: number | null
+}
+
+export interface SlaGroup extends SlaStat {
+    key: string
+    label: string
+}
+
+export interface SlaReport {
+    range: { from: string; to: string }
+    /// own = เห็นเฉพาะงานของตัวเอง (agent) · all = ทั้งระบบ (manager ขึ้นไป)
+    scope: "own" | "all"
+    truncated: boolean
+    summary: SlaStat
+    byPriority: SlaGroup[]
+    byCategory: SlaGroup[]
+    byAssignee: SlaGroup[]
+    byMonth: SlaGroup[]
+}
+
+/// ชื่อวันในสัปดาห์ เรียงตาม `BusinessHour.dayOfWeek` (0 = อาทิตย์)
+export const DAY_NAMES_TH = [
+    "อาทิตย์",
+    "จันทร์",
+    "อังคาร",
+    "พุธ",
+    "พฤหัสบดี",
+    "ศุกร์",
+    "เสาร์",
+] as const
+
+/// 1 วันทำการ = 8 ชั่วโมง ตามค่าเริ่มต้นของระบบ (จ.–ศ. 08:30–16:30)
+const MINUTES_PER_BUSINESS_DAY = 480
+
+/// "240" → "4 ชม.ทำการ" · "1440" → "3 วันทำการ" — ใช้กำกับช่องกรอกนาทีในหน้า admin
+export function formatBusinessMinutes(minutes: number): string {
+    if (!Number.isFinite(minutes) || minutes <= 0) return "-"
+    if (minutes < 60) return `${minutes} นาทีทำการ`
+
+    if (minutes < MINUTES_PER_BUSINESS_DAY) {
+        const h = Math.floor(minutes / 60)
+        const m = minutes % 60
+        return m === 0 ? `${h} ชม.ทำการ` : `${h} ชม. ${m} นาทีทำการ`
+    }
+
+    const days = Math.floor(minutes / MINUTES_PER_BUSINESS_DAY)
+    const rest = minutes % MINUTES_PER_BUSINESS_DAY
+    if (rest === 0) return `${days} วันทำการ`
+    const h = Math.floor(rest / 60)
+    const m = rest % 60
+    return `${days} วันทำการ ${h > 0 ? `${h} ชม.` : ""}${m > 0 ? ` ${m} นาที` : ""}`.trim()
+}
+
+/// เหตุผลที่ใบนี้ถือว่าเกินกำหนด (F4.11)
+///
+/// ใช้นิยามเดียวกับฝั่ง API (`lib/sla-service.ts`) — คิดจากเวลาจริง ไม่ได้อ่านธง breached
+export function describeBreach(t: {
+    respondedAt: string | null
+    resolvedAt: string | null
+    responseDueAt: string | null
+    resolutionDueAt: string | null
+}): string[] {
+    const now = Date.now()
+    const at = (v: string | null) => (v ? new Date(v).getTime() : null)
+    const reasons: string[] = []
+
+    const responseDue = at(t.responseDueAt)
+    const responded = at(t.respondedAt)
+    if (responseDue !== null) {
+        if (responded === null && responseDue < now) reasons.push("ยังไม่ตอบกลับ เลยกำหนดแล้ว")
+        else if (responded !== null && responded > responseDue) reasons.push("ตอบกลับช้ากว่ากำหนด")
+    }
+
+    const resolutionDue = at(t.resolutionDueAt)
+    const resolved = at(t.resolvedAt)
+    if (resolutionDue !== null) {
+        if (resolved === null && resolutionDue < now) reasons.push("ยังแก้ไขไม่เสร็จ เลยกำหนดแล้ว")
+        else if (resolved !== null && resolved > resolutionDue) reasons.push("แก้ไขช้ากว่ากำหนด")
+    }
+
+    return reasons
+}
