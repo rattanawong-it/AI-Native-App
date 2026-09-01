@@ -4,7 +4,7 @@
 > **จัดทำโดย:** Product Manager / System Analyst / Software Architect
 > **วันที่:** 29 สิงหาคม 2569
 > **โครงการฐาน:** `ai-native/` (Next.js 16 + TypeScript + Prisma + PostgreSQL + Tailwind v4 + shadcn/ui)
-> **สถานะเอกสาร:** Draft v1.0 — ผ่านการสัมภาษณ์เก็บ requirements แล้ว 18 ข้อ
+> **สถานะเอกสาร:** v1.1 — ผ่านการสัมภาษณ์เก็บ requirements แล้ว 18 ข้อ · Phase 0 เสร็จ · เพิ่ม §16 มาตรฐาน Git & Commit (1 กันยายน 2569)
 
 ---
 
@@ -25,6 +25,7 @@
 13. [Out of Scope](#13-out-of-scope)
 14. [คำถามที่ยังค้าง](#14-คำถามที่ยังค้าง)
 15. [Verification Plan](#15-verification-plan)
+16. [มาตรฐาน Git & Commit Workflow](#16-git-commit-workflow)
 
 ---
 
@@ -390,36 +391,36 @@ api/my-work/
 
 ### ① ระบบรับแจ้งปัญหาและคำขอบริการ (IT Service Request / Helpdesk)
 
-- [ ] **F1.1** หน้า `service/tickets/new` — ฟอร์มแจ้งปัญหา (หัวข้อ, รายละเอียด, หมวดหมู่, Impact, Urgency, แนบไฟล์)
-- [ ] **F1.2** API `POST /api/tickets` — สร้าง Ticket + gen `ticketNo` + คำนวณ priority + คำนวณ due date + auto-assign
-- [ ] **F1.3** หน้า `service/tickets` — ตารางรายการ + ฟิลเตอร์ (สถานะ / หมวด / Priority / ผู้รับผิดชอบ / ช่วงวันที่) + ค้นหา + pagination
-- [ ] **F1.4** View mode ตาม role — `student`/`user` เห็นเฉพาะของตัวเอง, `agent`+ เห็นทั้งหมด
-- [ ] **F1.5** หน้า `service/tickets/[id]` — รายละเอียด + Timeline (Activity log) + สถานะ SLA
-- [ ] **F1.6** ระบบ Comment — `POST /api/tickets/[id]/comments` + toggle "บันทึกภายใน" (`isInternal`)
-- [ ] **F1.7** ระบบแนบไฟล์ — upload/download/ลบ (จำกัดชนิด + ขนาดไฟล์)
-- [ ] **F1.8** Service Catalog CRUD — หน้า `admin/catalog` (หมวดหลัก + หมวดย่อย + ผู้รับผิดชอบเริ่มต้น)
-- [ ] **F1.9** รับแจ้งผ่าน **LINE** — ขยาย `api/line/webhook` สร้าง Ticket จากข้อความ + ผูก `lineUserId` **[M9]**
-- [ ] **F1.10** สร้าง Ticket แทนผู้อื่น (อีเมล/โทร/Walk-in) — เจ้าหน้าที่เลือก requester + ระบุ `channel`
-- [ ] **F1.11** ค้นหา Ticket แบบ full-text (title + description)
-- [ ] **F1.12** Export รายการ Ticket เป็น Excel/CSV
+- [x] **F1.1** หน้า `service/tickets/new` — ฟอร์มแจ้งปัญหา (หัวข้อ, รายละเอียด, หมวดหมู่, Impact, Urgency, แนบไฟล์)
+- [x] **F1.2** API `POST /api/tickets` — สร้าง Ticket + gen `ticketNo` + คำนวณ priority + คำนวณ due date + auto-assign
+- [x] **F1.3** หน้า `service/tickets` — ตารางรายการ + ฟิลเตอร์ (สถานะ / หมวด / Priority / ผู้รับผิดชอบ / ช่วงวันที่) + ค้นหา + pagination
+- [x] **F1.4** View mode ตาม role — `student`/`user` เห็นเฉพาะของตัวเอง, `agent`+ เห็นทั้งหมด
+- [x] **F1.5** หน้า `service/tickets/[id]` — รายละเอียด + Timeline (Activity log) + สถานะ SLA
+- [x] **F1.6** ระบบ Comment — `POST /api/tickets/[id]/comments` + toggle "บันทึกภายใน" (`isInternal`)
+- [ ] **F1.7** ระบบแนบไฟล์ — upload/download/ลบ (จำกัดชนิด + ขนาดไฟล์) — *เลื่อนออกจาก Phase 1 ตามที่ตกลง (รอสรุปที่เก็บไฟล์)*
+- [x] **F1.8** Service Catalog CRUD — หน้า `admin/catalog` (หมวดหลัก + หมวดย่อย + ผู้รับผิดชอบเริ่มต้น)
+- [ ] **F1.9** รับแจ้งผ่าน **LINE** — ขยาย `api/line/webhook` สร้าง Ticket จากข้อความ + ผูก `lineUserId` **[M9]** — *เลื่อนไป Phase 4 ตามที่ตกลง (รวมกับงาน LINE Notification)*
+- [x] **F1.10** สร้าง Ticket แทนผู้อื่น (อีเมล/โทร/Walk-in) — เจ้าหน้าที่เลือก requester + ระบุ `channel`
+- [x] **F1.11** ค้นหา Ticket แบบ full-text (title + description)
+- [x] **F1.12** Export รายการ Ticket เป็น Excel/CSV
 
 ---
 
 ### ② ระบบจัดลำดับความสำคัญของงาน (Priority & Incident Management)
 
-- [ ] **F2.1** `lib/priority.ts` — Matrix 3×3 → Critical / High / Medium / Low
-- [ ] **F2.2** UI เลือก Impact × Urgency พร้อม **แสดง Priority ที่คำนวณได้แบบ realtime** ในฟอร์ม
-- [ ] **F2.3** Badge สี Priority ทั่วระบบ (Critical = แดง, High = ส้ม, Medium = เหลือง, Low = เทา)
-- [ ] **F2.4** เจ้าหน้าที่/หัวหน้าปรับ Impact/Urgency ได้ → priority + due date คำนวณใหม่ + บันทึกเหตุผลลง `TicketActivity`
-- [ ] **F2.5** เรียงลำดับคิวงานอัตโนมัติ: Priority DESC → `resolutionDueAt` ASC
-- [ ] **F2.6** Workflow 5 สถานะ + validation การเปลี่ยนสถานะที่ถูกต้อง
+- [x] **F2.1** `lib/priority.ts` — Matrix 3×3 → Critical / High / Medium / Low
+- [x] **F2.2** UI เลือก Impact × Urgency พร้อม **แสดง Priority ที่คำนวณได้แบบ realtime** ในฟอร์ม
+- [x] **F2.3** Badge สี Priority ทั่วระบบ (Critical = แดง, High = ส้ม, Medium = เหลือง, Low = เทา)
+- [x] **F2.4** เจ้าหน้าที่/หัวหน้าปรับ Impact/Urgency ได้ → priority + due date คำนวณใหม่ + บันทึกเหตุผลลง `TicketActivity`
+- [x] **F2.5** เรียงลำดับคิวงานอัตโนมัติ: Priority DESC → `resolutionDueAt` ASC
+- [x] **F2.6** Workflow 5 สถานะ + validation การเปลี่ยนสถานะที่ถูกต้อง
   - `new → assigned` (เมื่อมอบหมาย)
   - `assigned → in_progress` (เจ้าหน้าที่เริ่มงาน → บันทึก `respondedAt`)
   - `in_progress → resolved` (ต้องกรอก `resolutionNote` + Time Log)
   - `resolved → closed`
-- [ ] **F2.7** Auto-assign engine — ตาม `ServiceCategory.defaultAssigneeId` / `defaultTeamId`
-- [ ] **F2.8** Reassign — หัวหน้าโยกย้ายงาน + บันทึก activity log
-- [ ] **F2.9** หน้า "คิวงานทีม" — จัดกลุ่มตาม Priority + แสดงภาระงานรายคน
+- [x] **F2.7** Auto-assign engine — ตาม `ServiceCategory.defaultAssigneeId` / `defaultTeamId`
+- [x] **F2.8** Reassign — หัวหน้าโยกย้ายงาน + บันทึก activity log
+- [x] **F2.9** หน้า "คิวงานทีม" — จัดกลุ่มตาม Priority + แสดงภาระงานรายคน
 
 ---
 
@@ -673,6 +674,143 @@ REQUEST_PREFIX=RQ
 8. ทดสอบ notification 3 ช่องทาง: กระดิ่งใน UI + อีเมลเข้าจริง + LINE เข้ากลุ่ม
 9. ทดสอบ RBAC: login เป็น `student` → เรียก `GET /api/tickets` ของคนอื่น → ต้องได้ 403
 10. `pnpm build` + `pnpm lint` ผ่าน
+
+---
+
+<a id="16-git-commit-workflow"></a>
+
+## 16. มาตรฐานกลาง — Git & Commit Workflow
+
+> **ผลบังคับใช้:** ตั้งแต่ Phase 1 เป็นต้นไป — ถอดบทเรียนจากการทำ Phase 0 จริง
+> ทุกเฟสต้องทำครบทุกขั้น ไม่ข้ามขั้น
+
+### 16.1 Branch Strategy — 1 เฟส = 1 branch
+
+| กฎ | รายละเอียด |
+|---|---|
+| ชื่อ branch | `feat/itsm-phase-<N>` เช่น `feat/itsm-phase-1` |
+| แตกจาก | `main` ที่ sync กับ `origin/main` แล้วเท่านั้น |
+| ⛔ ห้าม | **commit ลง `main` โดยตรงทุกกรณี** |
+| งานแทรก/แก้บั๊กนอกเฟส | แยก `fix/<เรื่อง>` จาก `main` ต่างหาก ไม่ปนใน branch เฟส |
+| จบเฟส | merge เข้า `main` แบบ `--no-ff` (ให้เห็น merge commit ของเฟส) แล้ว push ทันที |
+| branch เก่า | เก็บไว้จนเฟสถัดไปเริ่มและยืนยันว่าไม่มีปัญหา จึงค่อยลบ |
+
+### 16.2 ขั้นตอนมาตรฐาน 8 ขั้นต่อ 1 เฟส
+
+| ขั้น | สิ่งที่ทำ | คำสั่ง / หลักฐาน |
+|---|---|---|
+| **1. เปิดเฟส** | sync `main` → ตรวจ working tree ต้องสะอาด → แตก branch | `git switch main && git pull` · `git status --porcelain` (ต้องว่าง) · `git switch -c feat/itsm-phase-N main` |
+| **2. ขออนุมัติ** | ไล่ดูว่าเฟสนี้จะแตะไฟล์ใดในตาราง **M1–M13** (§4) → **แจ้งขอความเห็นชอบก่อนลงมือทุกครั้ง** | สรุปเป็นรายการไฟล์ + สิ่งที่จะเปลี่ยน ก่อนแก้บรรทัดแรก |
+| **3. ลงมือ** | commit ย่อยระหว่างทาง 1 commit = 1 เรื่อง อ้างรหัสฟีเจอร์ (F1.2, F2.6 …) | ดู §16.3 |
+| **4. แก้ schema** | ถ้าแตะ `schema.prisma` ต้อง gen migration และ **commit โฟลเดอร์ migration ไปพร้อมกันใน commit เดียว** | ดู §16.5 ข้อ 1–2 |
+| **5. ผ่านเกต** | รันเกต G1–G7 ให้ผ่านก่อน commit ทุกครั้ง | ดู §16.4 |
+| **6. ปิดเฟส (เอกสาร)** | ติ๊ก checklist §8 จาก `[ ]` → `[x]` + เขียน `docs/phase-<N>-<ชื่อ>.md` (สิ่งที่ทำ / ไฟล์เดิมที่แก้ / ผลตรวจ / **ของค้าง**) | commit แยกเป็น `docs:` |
+| **7. merge + push** | ตรวจว่าจะ push อะไรไปก่อนเสมอ | `git log --oneline origin/main..main` → `git switch main && git merge --no-ff feat/itsm-phase-N` → `git push origin main` |
+| **8. ส่งมอบ** | รายงานสถานะ: commit ที่เพิ่ม, ผลเกต, ของค้าง, คำถามที่ต้องการคำตอบก่อนเฟสถัดไป | — |
+
+### 16.3 Commit Message Convention
+
+```
+<type>(<scope>): <สรุปสั้น ไม่เกิน ~72 ตัวอักษร>
+
+<body ภาษาไทย — อธิบายว่าทำอะไร/ทำไม>
+อ้างอิง: F1.2, F1.3, F2.7
+```
+
+| ส่วน | ค่าที่ใช้ |
+|---|---|
+| `type` | `feat` (ฟีเจอร์ใหม่) · `fix` (แก้บั๊ก) · `refactor` · `docs` · `chore` (deps/config) · `style` · `test` |
+| `scope` | ชื่อโมดูล — `itsm`, `tickets`, `sla`, `kb`, `assets`, `notify`, `rbac`, `schema` |
+| `สรุปสั้น` | ขึ้นต้นด้วยกริยา ไม่ต้องมีจุดปิดท้าย |
+| Merge commit | `Merge branch 'feat/itsm-phase-N' — ITSM Phase N: <หัวข้อเฟส>` |
+
+**ตัวอย่างที่ใช้จริงในโปรเจกต์นี้:**
+
+```
+feat(itsm): Phase 0 foundation — schema, RBAC, design tokens, helper libs
+docs: add ITSM requirements spec and Claude Design UI handoff bundle
+Merge branch 'feat/itsm-phase-0' — ITSM Phase 0: Foundation
+```
+
+**กฎย่อย**
+
+- 1 commit = 1 เรื่องที่อธิบายได้ในบรรทัดเดียว — ห้ายัดหลายฟีเจอร์รวมกัน
+- คอมเมนต์ในโค้ดและ body ของ commit เป็น **ภาษาไทย** ตาม convention เดิม (§2.4)
+- ห้าม commit โค้ดที่ยัง `tsc` ไม่ผ่าน แม้จะเป็น commit ระหว่างทาง
+
+### 16.4 Definition of Done — เกตก่อน commit ทุกครั้ง
+
+| # | เกต | คำสั่ง | เกณฑ์ผ่าน |
+|---|---|---|---|
+| **G1** | ไฟล์ที่จะ commit ถูกต้อง | `git status --porcelain` + `git diff --stat` | ไม่มีไฟล์แปลกปลอม / ไฟล์ค้างที่ไม่ตั้งใจติดไปด้วย |
+| **G2** | Schema ถูกต้อง *(เฉพาะเมื่อแตะ `schema.prisma`)* | `pnpm prisma validate` | ผ่าน |
+| **G3** | Client ตรงกับ schema | `pnpm prisma generate` | ผ่าน |
+| **G4** | Type ครบ | `npx tsc --noEmit` | **0 error** |
+| **G5** | Lint ไฟล์ที่แตะ | `pnpm lint <path ที่แก้>` | 0 error เฉพาะไฟล์ที่แก้/สร้างใหม่ *(baseline เดิม 18 error ในไฟล์ "ไม่แตะเลย" ไม่นับ — ดู §16.5 ข้อ 5)* |
+| **G6** | Build ผ่าน | `pnpm build` | ผ่าน — **บังคับอย่างน้อย 1 ครั้งก่อน merge เข้า `main`** |
+| **G7** | อยู่ในขอบเขต | ทบทวน diff ด้วยตา | ไม่มีไฟล์นอกรายการ M1–M13 ที่ยังไม่ได้ขออนุมัติ |
+
+> G4 เป็นเกตขั้นต่ำของทุก commit · G2/G3 ตามเงื่อนไข · G6 บังคับที่จุด merge
+
+### 16.5 กฎเฉพาะของโปรเจกต์นี้ (ห้ามละเมิด)
+
+1. **โฟลเดอร์ `prisma/migrations/**` ต้อง commit ทุกครั้ง** — Phase 0 เจอ drift เพราะ migration `20260609112407_add_document_table` ถูก apply ลง DB แล้วแต่โฟลเดอร์หายจาก repo ทำให้ Prisma สั่ง reset (ข้อมูลจะหายทั้งหมด) ต้องกู้ไฟล์คืนและแก้ checksum ใน `_prisma_migrations` เอง
+2. **`schema.prisma` + โฟลเดอร์ migration ต้องอยู่ใน commit เดียวกัน** — ห้ามแยกคนละ commit
+3. ⛔ **ห้ามรัน `prisma migrate reset` / `migrate dev` กับ DB จริง (Neon)** — ใช้ `prisma migrate diff` สร้าง SQL → **อ่าน SQL ยืนยันว่าไม่มี `DROP` / `TRUNCATE`** → apply ด้วย `prisma migrate deploy` เท่านั้น
+4. **ไฟล์ในตาราง M1–M13 (§4) ต้องแจ้งและได้รับความเห็นชอบก่อนแก้ทุกครั้ง** — ไฟล์นอกตารางที่จำเป็นต้องแตะ ต้องขออนุมัติเพิ่มเป็นรายกรณี (เช่น `globals.css`, `eslint.config.mjs` ใน Phase 0)
+5. **ไม่แก้ lint error เดิมที่อยู่ในไฟล์กลุ่ม "ไม่แตะเลย"** (§4 ท้ายตาราง) — ปัจจุบันมี 18 error (`no-explicit-any`) ถ้าจะเก็บกวาดต้องเปิดเป็นงานแยกและขออนุมัติ
+6. **ห้าม commit เข้า git:** `.env*` (ignored แล้ว) · ไฟล์ที่ผู้ใช้อัปโหลดจริงใน `UPLOAD_DIR` · `*.tsbuildinfo` · `app/generated/prisma` · secret/token ทุกชนิด
+   > 🔸 ของค้างที่ควรเก็บกวาดใน Phase 1: `cookies.txt` ถูก track อยู่ใน repo (ตรวจแล้วมีแต่ header ของ curl ไม่มีค่า cookie จริง จึงไม่ใช่ปัญหาความปลอดภัย) — ควร `git rm --cached cookies.txt` แล้วใส่ใน `.gitignore`
+7. **ทุก API route ใหม่ต้องผ่าน NFR1–NFR3** ก่อนถือว่า commit ได้ — ตรวจ session, validate ด้วย `zod`, กรอง row-level ด้วย `ticketScopeWhere()`
+
+### 16.6 การจัดการไฟล์ค้างใน working tree
+
+เมื่อเจอไฟล์ที่แก้ค้างอยู่และ**ไม่แน่ใจว่าเป็นของใหม่หรือของเก่า** ห้ามทิ้งด้วย `git checkout -- <file>` ให้ทำตามนี้:
+
+```bash
+# 1) สำรอง patch ไว้นอก repo ก่อนเสมอ
+git diff > <scratch>/pending-<เรื่อง>.patch
+
+# 2) stash พร้อมข้อความอธิบาย (กู้คืนได้ตลอด)
+git stash push -m "<อธิบายว่าเป็นอะไร>" <path...>
+
+# 3) ยืนยันว่า working tree สะอาดแล้วจึงเริ่มงานเฟสใหม่
+git status --porcelain
+```
+
+- กู้คืน: `git stash show -p stash@{0}` ดูก่อน แล้ว `git stash pop`
+- ถ้าจะหยิบมาเฉพาะบางไฟล์: `git checkout stash@{0} -- <path>`
+- **ตัวอย่างจริง (1 ก.ย. 2569, ก่อนเปิด Phase 1):** `stash@{0}` เก็บการแก้ค้าง 2 ไฟล์ — `app/api/line/webhook/route.ts` (ลบ guard ของ `LINE_CHANNEL_SECRET` และการตรวจ signature ว่าง → ถือเป็นการถอยด้าน security) และ `lib/rag-service.ts` (แก้ `SYSTEM_PROMPT`) ยังไม่ตัดสินใจว่าจะหยิบกลับหรือไม่
+
+### 16.7 Cheat Sheet
+
+```bash
+# ── เปิดเฟส ────────────────────────────────────────────
+git switch main && git pull
+git status --porcelain                 # ต้องว่าง
+git switch -c feat/itsm-phase-1 main
+
+# ── ระหว่างทำ (เกตก่อน commit) ─────────────────────────
+pnpm prisma validate                   # เมื่อแตะ schema
+pnpm prisma generate
+npx tsc --noEmit                       # ต้อง 0 error
+pnpm lint app/api/tickets              # เฉพาะ path ที่แก้
+git add -A && git commit               # ข้อความตาม §16.3
+
+# ── migration กับ DB จริง (ห้าม reset) ─────────────────
+pnpm prisma migrate diff \
+  --from-config-datasource --to-schema prisma/schema.prisma --script > review.sql
+grep -Ei 'drop|truncate' review.sql    # ต้องไม่พบ
+pnpm prisma migrate deploy
+npx tsx prisma/seed.ts                 # seed ยังไม่ได้ลงทะเบียนใน prisma.config.ts
+
+# ── ปิดเฟส ────────────────────────────────────────────
+pnpm build                             # G6 บังคับ
+git log --oneline origin/main..main    # ดูว่าจะ push อะไร
+git switch main
+git merge --no-ff feat/itsm-phase-1 -m "Merge branch 'feat/itsm-phase-1' — ITSM Phase 1: Helpdesk + Priority"
+git push origin main
+```
 
 ---
 
