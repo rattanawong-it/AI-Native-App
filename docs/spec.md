@@ -391,36 +391,36 @@ api/my-work/
 
 ### ① ระบบรับแจ้งปัญหาและคำขอบริการ (IT Service Request / Helpdesk)
 
-- [ ] **F1.1** หน้า `service/tickets/new` — ฟอร์มแจ้งปัญหา (หัวข้อ, รายละเอียด, หมวดหมู่, Impact, Urgency, แนบไฟล์)
-- [ ] **F1.2** API `POST /api/tickets` — สร้าง Ticket + gen `ticketNo` + คำนวณ priority + คำนวณ due date + auto-assign
-- [ ] **F1.3** หน้า `service/tickets` — ตารางรายการ + ฟิลเตอร์ (สถานะ / หมวด / Priority / ผู้รับผิดชอบ / ช่วงวันที่) + ค้นหา + pagination
-- [ ] **F1.4** View mode ตาม role — `student`/`user` เห็นเฉพาะของตัวเอง, `agent`+ เห็นทั้งหมด
-- [ ] **F1.5** หน้า `service/tickets/[id]` — รายละเอียด + Timeline (Activity log) + สถานะ SLA
-- [ ] **F1.6** ระบบ Comment — `POST /api/tickets/[id]/comments` + toggle "บันทึกภายใน" (`isInternal`)
-- [ ] **F1.7** ระบบแนบไฟล์ — upload/download/ลบ (จำกัดชนิด + ขนาดไฟล์)
-- [ ] **F1.8** Service Catalog CRUD — หน้า `admin/catalog` (หมวดหลัก + หมวดย่อย + ผู้รับผิดชอบเริ่มต้น)
-- [ ] **F1.9** รับแจ้งผ่าน **LINE** — ขยาย `api/line/webhook` สร้าง Ticket จากข้อความ + ผูก `lineUserId` **[M9]**
-- [ ] **F1.10** สร้าง Ticket แทนผู้อื่น (อีเมล/โทร/Walk-in) — เจ้าหน้าที่เลือก requester + ระบุ `channel`
-- [ ] **F1.11** ค้นหา Ticket แบบ full-text (title + description)
-- [ ] **F1.12** Export รายการ Ticket เป็น Excel/CSV
+- [x] **F1.1** หน้า `service/tickets/new` — ฟอร์มแจ้งปัญหา (หัวข้อ, รายละเอียด, หมวดหมู่, Impact, Urgency, แนบไฟล์)
+- [x] **F1.2** API `POST /api/tickets` — สร้าง Ticket + gen `ticketNo` + คำนวณ priority + คำนวณ due date + auto-assign
+- [x] **F1.3** หน้า `service/tickets` — ตารางรายการ + ฟิลเตอร์ (สถานะ / หมวด / Priority / ผู้รับผิดชอบ / ช่วงวันที่) + ค้นหา + pagination
+- [x] **F1.4** View mode ตาม role — `student`/`user` เห็นเฉพาะของตัวเอง, `agent`+ เห็นทั้งหมด
+- [x] **F1.5** หน้า `service/tickets/[id]` — รายละเอียด + Timeline (Activity log) + สถานะ SLA
+- [x] **F1.6** ระบบ Comment — `POST /api/tickets/[id]/comments` + toggle "บันทึกภายใน" (`isInternal`)
+- [ ] **F1.7** ระบบแนบไฟล์ — upload/download/ลบ (จำกัดชนิด + ขนาดไฟล์) — *เลื่อนออกจาก Phase 1 ตามที่ตกลง (รอสรุปที่เก็บไฟล์)*
+- [x] **F1.8** Service Catalog CRUD — หน้า `admin/catalog` (หมวดหลัก + หมวดย่อย + ผู้รับผิดชอบเริ่มต้น)
+- [ ] **F1.9** รับแจ้งผ่าน **LINE** — ขยาย `api/line/webhook` สร้าง Ticket จากข้อความ + ผูก `lineUserId` **[M9]** — *เลื่อนไป Phase 4 ตามที่ตกลง (รวมกับงาน LINE Notification)*
+- [x] **F1.10** สร้าง Ticket แทนผู้อื่น (อีเมล/โทร/Walk-in) — เจ้าหน้าที่เลือก requester + ระบุ `channel`
+- [x] **F1.11** ค้นหา Ticket แบบ full-text (title + description)
+- [x] **F1.12** Export รายการ Ticket เป็น Excel/CSV
 
 ---
 
 ### ② ระบบจัดลำดับความสำคัญของงาน (Priority & Incident Management)
 
-- [ ] **F2.1** `lib/priority.ts` — Matrix 3×3 → Critical / High / Medium / Low
-- [ ] **F2.2** UI เลือก Impact × Urgency พร้อม **แสดง Priority ที่คำนวณได้แบบ realtime** ในฟอร์ม
-- [ ] **F2.3** Badge สี Priority ทั่วระบบ (Critical = แดง, High = ส้ม, Medium = เหลือง, Low = เทา)
-- [ ] **F2.4** เจ้าหน้าที่/หัวหน้าปรับ Impact/Urgency ได้ → priority + due date คำนวณใหม่ + บันทึกเหตุผลลง `TicketActivity`
-- [ ] **F2.5** เรียงลำดับคิวงานอัตโนมัติ: Priority DESC → `resolutionDueAt` ASC
-- [ ] **F2.6** Workflow 5 สถานะ + validation การเปลี่ยนสถานะที่ถูกต้อง
+- [x] **F2.1** `lib/priority.ts` — Matrix 3×3 → Critical / High / Medium / Low
+- [x] **F2.2** UI เลือก Impact × Urgency พร้อม **แสดง Priority ที่คำนวณได้แบบ realtime** ในฟอร์ม
+- [x] **F2.3** Badge สี Priority ทั่วระบบ (Critical = แดง, High = ส้ม, Medium = เหลือง, Low = เทา)
+- [x] **F2.4** เจ้าหน้าที่/หัวหน้าปรับ Impact/Urgency ได้ → priority + due date คำนวณใหม่ + บันทึกเหตุผลลง `TicketActivity`
+- [x] **F2.5** เรียงลำดับคิวงานอัตโนมัติ: Priority DESC → `resolutionDueAt` ASC
+- [x] **F2.6** Workflow 5 สถานะ + validation การเปลี่ยนสถานะที่ถูกต้อง
   - `new → assigned` (เมื่อมอบหมาย)
   - `assigned → in_progress` (เจ้าหน้าที่เริ่มงาน → บันทึก `respondedAt`)
   - `in_progress → resolved` (ต้องกรอก `resolutionNote` + Time Log)
   - `resolved → closed`
-- [ ] **F2.7** Auto-assign engine — ตาม `ServiceCategory.defaultAssigneeId` / `defaultTeamId`
-- [ ] **F2.8** Reassign — หัวหน้าโยกย้ายงาน + บันทึก activity log
-- [ ] **F2.9** หน้า "คิวงานทีม" — จัดกลุ่มตาม Priority + แสดงภาระงานรายคน
+- [x] **F2.7** Auto-assign engine — ตาม `ServiceCategory.defaultAssigneeId` / `defaultTeamId`
+- [x] **F2.8** Reassign — หัวหน้าโยกย้ายงาน + บันทึก activity log
+- [x] **F2.9** หน้า "คิวงานทีม" — จัดกลุ่มตาม Priority + แสดงภาระงานรายคน
 
 ---
 
