@@ -77,6 +77,8 @@ export default function SlaContent() {
 
     const [formOpen, setFormOpen] = useState(false)
     const [form, setForm] = useState<FormState>(formFor("medium"))
+    /// ผู้ใช้พิมพ์ชื่อเองแล้วหรือยัง — ถ้ายัง ชื่อจะเปลี่ยนตามระดับความสำคัญที่เลือก
+    const [nameTouched, setNameTouched] = useState(false)
     const [deleting, setDeleting] = useState<SlaPolicy | null>(null)
 
     const load = useCallback(async () => {
@@ -119,6 +121,7 @@ export default function SlaContent() {
 
     const openCreate = (priority: Priority = "medium") => {
         setForm(formFor(priority))
+        setNameTouched(false)
         setFormOpen(true)
     }
 
@@ -132,6 +135,7 @@ export default function SlaContent() {
             resolutionMinutes: p.resolutionMinutes,
             active: p.active,
         })
+        setNameTouched(true)
         setFormOpen(true)
     }
 
@@ -282,7 +286,10 @@ export default function SlaContent() {
                             <Label className="mb-1.5">ชื่อนโยบาย</Label>
                             <Input
                                 value={form.name}
-                                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                                onChange={(e) => {
+                                    setNameTouched(true)
+                                    setForm((f) => ({ ...f, name: e.target.value }))
+                                }}
                                 placeholder="เช่น SLA — วิกฤต"
                             />
                         </div>
@@ -292,9 +299,17 @@ export default function SlaContent() {
                                 <Label className="mb-1.5">ระดับความสำคัญ</Label>
                                 <select
                                     value={form.priority}
-                                    onChange={(e) =>
-                                        setForm((f) => ({ ...f, priority: e.target.value as Priority }))
-                                    }
+                                    onChange={(e) => {
+                                        const priority = e.target.value as Priority
+                                        setForm((f) => ({
+                                            ...f,
+                                            priority,
+                                            // ยังไม่ได้ตั้งชื่อเอง → ให้ชื่อตามระดับที่เลือก
+                                            name: nameTouched
+                                                ? f.name
+                                                : `SLA — ${PRIORITY_LABEL[priority]}`,
+                                        }))
+                                    }}
                                     className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
                                 >
                                     {PRIORITY_LEVELS.map((p) => (
