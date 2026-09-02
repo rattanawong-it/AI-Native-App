@@ -226,3 +226,42 @@ export function ticketCommented(
         linkUrl: ticketLink(ticket),
     }
 }
+
+// ── ตัวช่วยประกอบข้อความของเหตุการณ์ Task (F5.6, F8.6) ────────────────
+
+interface TaskBrief {
+    id: string
+    title: string
+    projectId: string
+}
+
+/// การ์ดบนกระดานไม่มีหน้าของตัวเอง — เปิดกระดานของโครงการแล้วให้หน้าจอกางการ์ดนั้นให้
+export function taskLink(task: TaskBrief): string {
+    return `/management/projects/${task.projectId}?task=${task.id}`
+}
+
+/// Task ถูกมอบหมายให้ผู้พัฒนาคนหนึ่ง (F5.6)
+export function taskAssigned(
+    task: TaskBrief,
+    extra: {
+        actorName: string
+        projectName: string
+        priorityLabel: string
+        sprintLabel: string
+        dueLabel: string
+    }
+): NotificationContent {
+    return {
+        type: "task_assigned",
+        title: `คุณได้รับมอบหมาย Task ในโครงการ ${extra.projectName}`,
+        body: [
+            task.title,
+            "",
+            `มอบหมายโดย: ${extra.actorName}`,
+            `รอบพัฒนา: ${extra.sprintLabel}`,
+            `ระดับความสำคัญ: ${extra.priorityLabel}`,
+            `กำหนดส่ง: ${extra.dueLabel}`,
+        ].join("\n"),
+        linkUrl: taskLink(task),
+    }
+}

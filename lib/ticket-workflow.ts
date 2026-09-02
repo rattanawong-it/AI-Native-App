@@ -96,6 +96,7 @@ export const TICKET_ACTIONS = [
     "resolved",
     "closed",
     "reopened",
+    "converted_to_task",
 ] as const
 
 export type TicketAction = (typeof TICKET_ACTIONS)[number]
@@ -109,4 +110,5 @@ export const TICKET_ACTION_LABEL: Record<TicketAction, string> = {
     resolved: "แก้ไขเสร็จสิ้น",
     closed: "ปิดงาน",
     reopened: "เปิดงานอีกครั้ง",
+    converted_to_task: "แปลงเป็นงานพัฒนา",
 }
