@@ -8,6 +8,9 @@
 //   - เข้า resolved             → ตั้ง resolvedAt + resolutionNote + ธง resolutionBreached
 //   - เข้า closed               → ตั้ง closedAt
 //   - กลับจาก resolved          → ล้าง resolvedAt (เปิดงานอีกครั้ง)
+//
+// F3.6 — เข้าสถานะ resolved ต้องมีบันทึกเวลาทำงาน ถ้า AppSetting
+//        `ticket.require_worklog_on_resolve` เปิดอยู่ (ค่าเริ่มต้น = เปิด)
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
@@ -26,7 +29,12 @@ import {
     type TicketStatus,
     type TicketAction,
 } from "@/lib/ticket-workflow"
-import { logActivity, ticketDetailSelect, computeTicketSla } from "@/lib/ticket-service"
+import {
+    logActivity,
+    ticketDetailSelect,
+    computeTicketSla,
+    getAppSetting,
+} from "@/lib/ticket-service"
 
 /// เลือกชนิด activity ให้ตรงกับสถานะปลายทาง เพื่อให้ timeline อ่านง่าย
 function actionOf(from: TicketStatus, to: TicketStatus): TicketAction {
@@ -89,6 +97,25 @@ export async function PATCH(
         // ปิดงานเป็นอำนาจของหัวหน้าขึ้นไป หรือผู้ที่ถือ Ticket ใบนั้นเอง
         if (input.status === "closed" && !isManager(user) && current.assigneeId !== user.id) {
             return forbidden("เฉพาะผู้รับผิดชอบหรือหัวหน้าเท่านั้นที่ปิดงานได้")
+        }
+
+        // F3.6 — บังคับบันทึก Time Log ก่อนเข้าสถานะ "แก้ไขเสร็จ" ถ้าเปิดกฎนี้ไว้
+        //
+        // นับรวมบันทึกเวลาที่เคยลงไว้กับใบนี้แล้วด้วย (เจ้าหน้าที่บางคนลงเวลาระหว่างทำงาน
+        // ไม่ได้รอลงตอนปิด) จึงไม่บังคับให้กรอกซ้ำ
+        if (input.status === "resolved" && !(input.workHours && input.workHours > 0)) {
+            const required = await getAppSetting<boolean>(
+                "ticket.require_worklog_on_resolve",
+                true
+            )
+            if (required) {
+                const logged = await prisma.workLog.count({ where: { ticketId: id } })
+                if (logged === 0) {
+                    return badRequest(
+                        "ระบบกำหนดให้บันทึกชั่วโมงที่ใช้ทำงานก่อนปิดงาน กรุณากรอกจำนวนชั่วโมง"
+                    )
+                }
+            }
         }
 
         const now = new Date()

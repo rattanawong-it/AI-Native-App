@@ -20,6 +20,13 @@ import {
     evaluateTicketSla,
     finalize,
 } from "@/lib/sla-service"
+import {
+    endOfThaiDay,
+    startOfThaiDay,
+    thaiMonthKey,
+    thaiMonthLabel,
+    thaiToday,
+} from "@/lib/thai-date"
 
 /// เพดานจำนวนใบต่อการออกรายงานหนึ่งครั้ง — คำนวณในหน่วยความจำ จึงต้องจำกัดไว้
 const MAX_ROWS = 20000
@@ -40,36 +47,6 @@ const reportSelect = {
     category: { select: { id: true, name: true } },
     assignee: { select: { id: true, name: true } },
 } satisfies Prisma.TicketSelect
-
-/// "2026-09-01" → ต้นวันตามเวลาไทย
-function startOfThaiDay(iso: string): Date {
-    return new Date(`${iso}T00:00:00.000+07:00`)
-}
-
-/// "2026-09-01" → สิ้นสุดวันตามเวลาไทย (รวมทั้งวัน)
-function endOfThaiDay(iso: string): Date {
-    return new Date(`${iso}T23:59:59.999+07:00`)
-}
-
-/// วันที่แบบ ISO ของ "วันนี้" ตามเวลาไทย
-function thaiToday(offsetDays = 0): string {
-    const now = new Date(Date.now() + 7 * 60 * 60 * 1000)
-    now.setUTCDate(now.getUTCDate() + offsetDays)
-    return now.toISOString().slice(0, 10)
-}
-
-/// คีย์เดือนตามเวลาไทย "2026-09"
-function thaiMonthKey(date: Date): string {
-    return new Date(date.getTime() + 7 * 60 * 60 * 1000).toISOString().slice(0, 7)
-}
-
-function thaiMonthLabel(date: Date): string {
-    return date.toLocaleDateString("th-TH", {
-        timeZone: "Asia/Bangkok",
-        month: "short",
-        year: "numeric",
-    })
-}
 
 export async function GET(request: NextRequest) {
     const guard = await requireRole(["agent", "manager", "admin"])

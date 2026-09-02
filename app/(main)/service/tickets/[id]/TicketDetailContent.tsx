@@ -89,6 +89,10 @@ export default function TicketDetailContent({ ticketId }: { ticketId: string }) 
     const [priorityOpen, setPriorityOpen] = useState(false)
     const [resolveOpen, setResolveOpen] = useState(false)
 
+    /// F3.6 — ระบบบังคับให้กรอกชั่วโมงก่อนปิดงานหรือไม่ (ตั้งค่าที่หน้า admin/sla)
+    /// ค่าเริ่มต้นเป็น true ให้ตรงกับฝั่ง API เผื่ออ่านค่าไม่สำเร็จ จะได้ไม่ปล่อยผ่านโดยไม่รู้ตัว
+    const [requireWorkLog, setRequireWorkLog] = useState(true)
+
     const load = useCallback(async () => {
         setLoading(true)
         try {
@@ -108,6 +112,26 @@ export default function TicketDetailContent({ ticketId }: { ticketId: string }) 
     useEffect(() => {
         void load()
     }, [load])
+
+    // อ่านกฎการปิดงานครั้งเดียวตอนเปิดหน้า — ใช้บอก dialog ว่าช่องชั่วโมงบังคับหรือไม่ (F3.6)
+    useEffect(() => {
+        if (!isStaff) return
+        void (async () => {
+            try {
+                const res = await fetch("/api/settings")
+                if (!res.ok) return
+                const data = (await res.json()) as {
+                    settings: { key: string; value: boolean }[]
+                }
+                const hit = data.settings.find(
+                    (s) => s.key === "ticket.require_worklog_on_resolve"
+                )
+                if (hit) setRequireWorkLog(hit.value)
+            } catch {
+                // อ่านไม่ได้ก็คงค่า true ไว้ — ฝั่ง API เป็นผู้ตัดสินจริงอยู่แล้ว
+            }
+        })()
+    }, [isStaff])
 
     /// เปลี่ยนสถานะ (F2.6) — resolved จัดการแยกผ่าน dialog เพราะต้องกรอกสรุปการแก้ไข
     const changeStatus = async (status: string, extra?: Record<string, unknown>) => {
@@ -511,6 +535,7 @@ export default function TicketDetailContent({ ticketId }: { ticketId: string }) 
                 open={resolveOpen}
                 onOpenChange={setResolveOpen}
                 busy={busy}
+                requireWorkLog={requireWorkLog}
                 onSubmit={async (resolutionNote, workHours) => {
                     const ok = await changeStatus("resolved", { resolutionNote, workHours })
                     if (ok) setResolveOpen(false)
@@ -772,20 +797,26 @@ function PriorityDialog({
     )
 }
 
-/// F2.6 — ปิดงานต้องกรอกสรุปการแก้ไข (บันทึกชั่วโมงทำงานได้ด้วย)
+/// F2.6 — ปิดงานต้องกรอกสรุปการแก้ไข · F3.6 — ชั่วโมงทำงานบังคับเมื่อเปิดกฎไว้
 function ResolveDialog({
     open,
     onOpenChange,
     busy,
+    requireWorkLog,
     onSubmit,
 }: {
     open: boolean
     onOpenChange: (v: boolean) => void
     busy: boolean
+    /// true = ต้องกรอกชั่วโมงก่อนจึงจะกดปิดงานได้ (AppSetting ticket.require_worklog_on_resolve)
+    requireWorkLog: boolean
     onSubmit: (resolutionNote: string, workHours?: number) => Promise<void>
 }) {
     const [note, setNote] = useState("")
     const [hours, setHours] = useState("")
+
+    const hoursValue = Number(hours)
+    const hoursOk = !requireWorkLog || (hours !== "" && hoursValue > 0 && hoursValue <= 24)
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -808,7 +839,9 @@ function ResolveDialog({
                         />
                     </div>
                     <div>
-                        <Label className="mb-1.5">ชั่วโมงที่ใช้ (ไม่บังคับ)</Label>
+                        <Label className="mb-1.5">
+                            ชั่วโมงที่ใช้ {requireWorkLog ? "" : "(ไม่บังคับ)"}
+                        </Label>
                         <Input
                             type="number"
                             min={0}
@@ -820,7 +853,9 @@ function ResolveDialog({
                             className="w-32"
                         />
                         <p className="text-muted-foreground mt-1 text-xs">
-                            บันทึกเป็น Time Log ผูกกับ Ticket ใบนี้
+                            {requireWorkLog
+                                ? "ระบบกำหนดให้บันทึกชั่วโมงที่ใช้ทำงานก่อนปิดงาน (บันทึกเป็น Time Log ผูกกับ Ticket ใบนี้)"
+                                : "บันทึกเป็น Time Log ผูกกับ Ticket ใบนี้"}
                         </p>
                     </div>
                 </div>
@@ -833,7 +868,7 @@ function ResolveDialog({
                         onClick={() =>
                             void onSubmit(note.trim(), hours ? Number(hours) : undefined)
                         }
-                        disabled={busy || note.trim().length < 5}
+                        disabled={busy || note.trim().length < 5 || !hoursOk}
                     >
                         {busy ? (
                             <Loader2 className="size-4 animate-spin" />
