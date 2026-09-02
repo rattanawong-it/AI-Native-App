@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import QRCode from "qrcode"
+import NotificationSettingsCard from "@/app/(main)/profile/NotificationSettingsCard"
 
 export default function ProfileForm() {
     const { data: session, isPending } = useSession()
@@ -759,6 +760,9 @@ export default function ProfileForm() {
                     </div>
                 )}
             </div>
+
+            {/* F8.7 — ช่องทางแจ้งเตือน + ผูกบัญชี LINE */}
+            <NotificationSettingsCard />
         </div>
     )
 }

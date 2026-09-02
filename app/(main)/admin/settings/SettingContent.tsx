@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { themeStore } from "@/lib/theme-store"
+import DeliveryStatusCard from "@/app/(main)/admin/settings/DeliveryStatusCard"
 import {
   Settings,
   Sun,
@@ -677,6 +678,9 @@ export default function SettingContent() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* F8.8 — ผลการส่งจริงจาก NotificationDelivery + ปุ่มส่งซ้ำ */}
+              <DeliveryStatusCard />
             </div>
           )}
         </div>

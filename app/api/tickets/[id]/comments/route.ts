@@ -14,6 +14,7 @@ import {
 } from "@/lib/rbac"
 import { createCommentSchema, firstIssueMessage } from "@/lib/ticket-schema"
 import { logActivity } from "@/lib/ticket-service"
+import { notifyTicketCommented } from "@/lib/ticket-notify"
 
 const personSelect = { id: true, name: true, email: true, image: true } as const
 
@@ -83,6 +84,15 @@ export async function POST(
                 status: true,
                 respondedAt: true,
                 responseDueAt: true,
+                // ฟิลด์ชุดล่างนี้ใช้ประกอบข้อความแจ้งเตือน (F8.6)
+                id: true,
+                ticketNo: true,
+                title: true,
+                priority: true,
+                resolutionDueAt: true,
+                requester: { select: { id: true, name: true } },
+                assignee: { select: { id: true, name: true } },
+                category: { select: { name: true } },
             },
         })
         if (!ticket) return notFound("ไม่พบ Ticket ที่ต้องการ")
@@ -134,6 +144,14 @@ export async function POST(
             })
 
             return created
+        })
+
+        // F8.6 — แจ้งคู่สนทนา · บันทึกภายในไม่ส่งถึงผู้แจ้ง เพราะเขาไม่เห็นข้อความนี้ในหน้าจอ
+        void notifyTicketCommented(ticket, {
+            authorId: user.id,
+            authorName: user.name,
+            body: input.body,
+            isInternal,
         })
 
         return NextResponse.json({ comment }, { status: 201 })

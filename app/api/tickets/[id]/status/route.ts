@@ -35,6 +35,7 @@ import {
     computeTicketSla,
     getAppSetting,
 } from "@/lib/ticket-service"
+import { notifyTicketStatusChanged } from "@/lib/ticket-notify"
 
 /// เลือกชนิด activity ให้ตรงกับสถานะปลายทาง เพื่อให้ timeline อ่านง่าย
 function actionOf(from: TicketStatus, to: TicketStatus): TicketAction {
@@ -180,6 +181,16 @@ export async function PATCH(
             }
 
             return updated
+        })
+
+        // F8.6 — แจ้งผู้แจ้งและผู้รับผิดชอบว่าสถานะขยับ (ยิงแล้วไม่รอ)
+        void notifyTicketStatusChanged(ticket, {
+            fromLabel: TICKET_STATUS_LABEL[from],
+            toLabel: TICKET_STATUS_LABEL[to],
+            actorId: user.id,
+            actorName: user.name,
+            // ส่ง resolutionNote มาเฉพาะตอนปิดงาน เพื่อให้ใช้ข้อความแบบ "แก้ไขเสร็จ"
+            resolutionNote: to === "resolved" ? (input.resolutionNote ?? null) : null,
         })
 
         return NextResponse.json({ ticket: { ...ticket, sla: await computeTicketSla(ticket) } })

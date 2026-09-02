@@ -399,7 +399,7 @@ api/my-work/
 - [x] **F1.6** ระบบ Comment — `POST /api/tickets/[id]/comments` + toggle "บันทึกภายใน" (`isInternal`)
 - [ ] **F1.7** ระบบแนบไฟล์ — upload/download/ลบ (จำกัดชนิด + ขนาดไฟล์) — *เลื่อนออกจาก Phase 1 ตามที่ตกลง (รอสรุปที่เก็บไฟล์)*
 - [x] **F1.8** Service Catalog CRUD — หน้า `admin/catalog` (หมวดหลัก + หมวดย่อย + ผู้รับผิดชอบเริ่มต้น)
-- [ ] **F1.9** รับแจ้งผ่าน **LINE** — ขยาย `api/line/webhook` สร้าง Ticket จากข้อความ + ผูก `lineUserId` **[M9]** — *เลื่อนไป Phase 4 ตามที่ตกลง (รวมกับงาน LINE Notification)*
+- [x] **F1.9** รับแจ้งผ่าน **LINE** — ขยาย `api/line/webhook` สร้าง Ticket จากข้อความ + ผูก `lineUserId` **[M9]** — *ทำใน Phase 4 พร้อมงาน LINE Notification*
 - [x] **F1.10** สร้าง Ticket แทนผู้อื่น (อีเมล/โทร/Walk-in) — เจ้าหน้าที่เลือก requester + ระบุ `channel`
 - [x] **F1.11** ค้นหา Ticket แบบ full-text (title + description)
 - [x] **F1.12** Export รายการ Ticket เป็น Excel/CSV
@@ -530,14 +530,14 @@ api/my-work/
 
 ### ⑧ Notification (LINE + Email + In-app)
 
-- [ ] **F8.1** `lib/notification.ts` — service กลาง `notify({ userId, type, title, body, linkUrl, channels })`
-- [ ] **F8.2** In-app — model `Notification` + กระดิ่งใน Header + dropdown + mark as read
-- [ ] **F8.3** Email — ใช้ `nodemailer` เดิม + template (Ticket ใหม่ / เปลี่ยนสถานะ / มีคอมเมนต์ / แก้เสร็จ)
-- [ ] **F8.4** LINE — ใช้ `lib/line-push.ts` เดิม push เข้ากลุ่มทีมเมื่อมี Ticket ใหม่/มอบหมาย
-- [ ] **F8.5** LINE ตอบกลับผู้แจ้งรายบุคคล (ถ้ามี `lineUserId`)
-- [ ] **F8.6** Event ที่ต้องแจ้ง: Ticket ใหม่ / มอบหมายงาน / เปลี่ยนสถานะ / คอมเมนต์ใหม่ / คำขอรออนุมัติ / ผลการอนุมัติ / Task ถูกมอบหมาย
-- [ ] **F8.7** ตั้งค่าเปิด/ปิดช่องทางรายบุคคล (หน้า `profile`)
-- [ ] **F8.8** `NotificationDelivery` — บันทึกผลส่ง + retry เมื่อ fail
+- [x] **F8.1** `lib/notification.ts` — service กลาง `notify({ userId, type, title, body, linkUrl, channels })`
+- [x] **F8.2** In-app — model `Notification` + กระดิ่งใน Header + dropdown + mark as read
+- [x] **F8.3** Email — ใช้ `nodemailer` เดิม + template (Ticket ใหม่ / เปลี่ยนสถานะ / มีคอมเมนต์ / แก้เสร็จ)
+- [x] **F8.4** LINE — ใช้ `lib/line-push.ts` เดิม push เข้ากลุ่มทีมเมื่อมี Ticket ใหม่/มอบหมาย
+- [x] **F8.5** LINE ตอบกลับผู้แจ้งรายบุคคล (ถ้ามี `lineUserId`)
+- [x] **F8.6** Event ที่ต้องแจ้ง: Ticket ใหม่ / มอบหมายงาน / เปลี่ยนสถานะ / คอมเมนต์ใหม่ / คำขอรออนุมัติ / ผลการอนุมัติ / Task ถูกมอบหมาย — *เฟส 4 ผูกครบ 4 เหตุการณ์ของ Ticket · ชนิด `approval_*` และ `task_assigned` เตรียมไว้ใน service แล้ว รอ API ของเฟส 5 / เฟส 7 มาเรียก*
+- [x] **F8.7** ตั้งค่าเปิด/ปิดช่องทางรายบุคคล (หน้า `profile`)
+- [x] **F8.8** `NotificationDelivery` — บันทึกผลส่ง + retry เมื่อ fail
 
 ---
 

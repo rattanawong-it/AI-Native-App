@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation"
 import { sidebarData, bottomNavItems } from "../sidebar/sidebar-data"
 import  UserMenu  from "./UserMenu"
 import { ImpersonationBanner } from "./impersonation-banner"
+import NotificationBell from "@/components/notification/notification-bell"
 
 export function Header() {
     const pathname = usePathname()
@@ -52,6 +53,8 @@ export function Header() {
             </div>
 
             <div className="flex items-center gap-3">
+                {/* F8.2 — กระดิ่งแจ้งเตือน ซ่อนตัวเองเมื่อยังไม่ได้ล็อกอิน */}
+                <NotificationBell />
                 <UserMenu />
             </div>
         </header>

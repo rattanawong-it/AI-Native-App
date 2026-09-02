@@ -17,6 +17,7 @@ import {
 } from "@/lib/rbac"
 import { assignTicketSchema, firstIssueMessage } from "@/lib/ticket-schema"
 import { logActivity, ticketDetailSelect, computeTicketSla } from "@/lib/ticket-service"
+import { notifyTicketAssigned } from "@/lib/ticket-notify"
 
 export async function PATCH(
     request: NextRequest,
@@ -115,6 +116,9 @@ export async function PATCH(
 
             return updated
         })
+
+        // F8.6 — แจ้งผู้รับงานคนใหม่ (ยิงแล้วไม่รอ ดูหมายเหตุใน lib/ticket-notify.ts)
+        void notifyTicketAssigned(ticket, user.id, user.name)
 
         return NextResponse.json({ ticket: { ...ticket, sla: await computeTicketSla(ticket) } })
     } catch (error) {
