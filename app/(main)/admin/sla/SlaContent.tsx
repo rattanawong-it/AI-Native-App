@@ -38,6 +38,7 @@ import {
     type Category,
     type SlaPolicy,
 } from "@/lib/ticket-types"
+import TicketRulesCard from "@/app/(main)/admin/sla/TicketRulesCard"
 
 interface FormState {
     id?: string
@@ -267,6 +268,8 @@ export default function SlaContent() {
                         onToggle={(p) => void toggleActive(p)}
                         onDelete={setDeleting}
                     />
+                    {/* F3.6 — กฎการปิดงาน / มอบหมายอัตโนมัติ อยู่ในชุดเดียวกับกำหนดเวลา */}
+                    <TicketRulesCard />
                 </>
             )}
 
