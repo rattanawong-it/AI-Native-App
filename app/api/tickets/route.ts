@@ -25,6 +25,7 @@ import {
     ticketListSelect,
     withSla,
 } from "@/lib/ticket-service"
+import { notifyTicketCreated } from "@/lib/ticket-notify"
 
 export async function GET(request: NextRequest) {
     const guard = await requireAuth()
@@ -168,6 +169,10 @@ export async function POST(request: NextRequest) {
                 note: "มอบหมายอัตโนมัติตามหมวดหมู่บริการ",
             })
         }
+
+        // F8.6 — แจ้งเจ้าหน้าที่ที่รับงานและประกาศเข้ากลุ่ม LINE
+        // ยิงแล้วไม่รอ: การส่งเมล/LINE ใช้เวลาเป็นวินาที ผู้แจ้งไม่ควรต้องรอหน้าจอค้าง
+        void notifyTicketCreated(ticket, user.id)
 
         return NextResponse.json({ ticket }, { status: 201 })
     } catch (error) {
