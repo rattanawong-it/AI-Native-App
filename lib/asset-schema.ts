@@ -3,10 +3,11 @@
 // อ้างอิง docs/spec.md §8 ⑦A (F7.1–F7.7)
 
 import { z } from "zod"
-import { ASSET_STATUSES, ASSET_HISTORY_ACTIONS, ASSET_TYPES } from "@/lib/asset-workflow"
+import { ASSET_STATUSES, MANUAL_HISTORY_ACTIONS, ASSET_TYPES } from "@/lib/asset-workflow"
 
 const statusEnum = z.enum(ASSET_STATUSES, { message: "สถานะครุภัณฑ์ไม่ถูกต้อง" })
-const actionEnum = z.enum(ASSET_HISTORY_ACTIONS, { message: "ชนิดการเคลื่อนไหวไม่ถูกต้อง" })
+/// รับเฉพาะการกระทำที่เลือกเองได้ — `register` เป็นของระบบตอนขึ้นทะเบียนเท่านั้น
+const actionEnum = z.enum(MANUAL_HISTORY_ACTIONS, { message: "ชนิดการเคลื่อนไหวไม่ถูกต้อง" })
 const typeEnum = z.enum(ASSET_TYPES, { message: "ประเภทครุภัณฑ์ไม่ถูกต้อง" })
 
 /// ราคา — รับได้ทั้งตัวเลขและสตริงจากฟอร์ม เก็บลง Decimal(12,2)

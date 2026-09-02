@@ -9,6 +9,7 @@ export const ASSET_STATUSES = ["in_use", "in_stock", "repair", "disposed"] as co
 export type AssetStatus = (typeof ASSET_STATUSES)[number]
 
 export const ASSET_HISTORY_ACTIONS = [
+    "register",
     "assign",
     "transfer",
     "repair",
@@ -16,6 +17,19 @@ export const ASSET_HISTORY_ACTIONS = [
     "dispose",
 ] as const
 export type AssetHistoryAction = (typeof ASSET_HISTORY_ACTIONS)[number]
+
+/// การกระทำที่เจ้าหน้าที่เลือกเองได้จากหน้าจอ
+///
+/// `register` ไม่อยู่ในชุดนี้เพราะระบบออกให้เองตอนขึ้นทะเบียนครั้งแรกเท่านั้น —
+/// ถ้าปล่อยให้เลือกเองได้ ประวัติจะมี "ขึ้นทะเบียน" โผล่กลางทางซึ่งอ่านแล้วสับสน
+export const MANUAL_HISTORY_ACTIONS = [
+    "assign",
+    "transfer",
+    "repair",
+    "return",
+    "dispose",
+] as const
+export type ManualHistoryAction = (typeof MANUAL_HISTORY_ACTIONS)[number]
 
 /// ประเภทครุภัณฑ์ที่ใช้บ่อยในศูนย์ไอที — เก็บเป็น string ใน DB จึงเพิ่มได้ภายหลังโดยไม่ต้อง migrate
 export const ASSET_TYPES = [
@@ -45,6 +59,8 @@ const REQUIRES_CUSTODIAN: AssetStatus[] = ["in_use"]
 
 /// การกระทำที่พาไปสู่สถานะใด — ใช้เดาสถานะปลายทางให้อัตโนมัติเมื่อบันทึกประวัติ (F7.4)
 const ACTION_RESULT: Record<AssetHistoryAction, AssetStatus | null> = {
+    // ขึ้นทะเบียนไม่บังคับสถานะ — ใช้ค่าที่ผู้กรอกเลือกไว้ในฟอร์มตามเดิม
+    register: null,
     assign: "in_use",
     transfer: "in_use", // โอนให้คนใหม่ — ยังใช้งานอยู่เหมือนเดิม
     repair: "repair",
@@ -106,6 +122,7 @@ export const ASSET_STATUS_LABEL: Record<AssetStatus, string> = {
 }
 
 export const ASSET_HISTORY_ACTION_LABEL: Record<AssetHistoryAction, string> = {
+    register: "ขึ้นทะเบียน",
     assign: "จ่ายให้ผู้ครอบครอง",
     transfer: "โอนย้าย",
     repair: "ส่งซ่อม",

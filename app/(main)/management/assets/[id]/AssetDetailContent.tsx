@@ -44,9 +44,9 @@ import {
 import { AssetStatusBadge, AssetTypeBadge, AssetWarrantyBadge } from "@/components/asset/asset-badges"
 import AssetFormDialog from "@/app/(main)/management/assets/AssetFormDialog"
 import {
-    ASSET_HISTORY_ACTIONS,
+    MANUAL_HISTORY_ACTIONS,
     ASSET_HISTORY_ACTION_LABEL,
-    type AssetHistoryAction,
+    type ManualHistoryAction,
 } from "@/lib/asset-workflow"
 import type {
     AssetDetail,
@@ -122,7 +122,7 @@ export default function AssetDetailContent({ assetId }: { assetId: string }) {
     const [confirmDelete, setConfirmDelete] = useState(false)
 
     // ฟอร์มบันทึกการเคลื่อนไหว (F7.4)
-    const [action, setAction] = useState<AssetHistoryAction>("assign")
+    const [action, setAction] = useState<ManualHistoryAction>("assign")
     const [toUserId, setToUserId] = useState("")
     const [note, setNote] = useState("")
     const [saving, setSaving] = useState(false)
@@ -388,13 +388,13 @@ export default function AssetDetailContent({ assetId }: { assetId: string }) {
                             <Label>การกระทำ</Label>
                             <Select
                                 value={action}
-                                onValueChange={(v) => setAction(v as AssetHistoryAction)}
+                                onValueChange={(v) => setAction(v as ManualHistoryAction)}
                             >
                                 <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {ASSET_HISTORY_ACTIONS.map((a) => (
+                                    {MANUAL_HISTORY_ACTIONS.map((a) => (
                                         <SelectItem key={a} value={a}>
                                             {ASSET_HISTORY_ACTION_LABEL[a]}
                                         </SelectItem>

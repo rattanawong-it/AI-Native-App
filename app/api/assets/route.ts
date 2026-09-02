@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
         // เปิดสมุดประวัติทันทีที่ขึ้นทะเบียน — ถ้าจ่ายให้ใครไปแล้วตั้งแต่ต้นก็บันทึกเป็นการจ่ายของ
         await recordAssetHistory({
             assetId: asset.id,
-            action: input.custodianId ? "assign" : "return",
+            action: input.custodianId ? "assign" : "register",
             actorId: user.id,
             toUserId: input.custodianId ?? null,
             note: input.custodianId ? "ขึ้นทะเบียนพร้อมผู้ครอบครอง" : "ขึ้นทะเบียนเข้าคลัง",

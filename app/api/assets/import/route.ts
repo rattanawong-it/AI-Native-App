@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
                 })
                 await recordAssetHistory({
                     assetId: asset.id,
-                    action: "return",
+                    action: "register",
                     actorId: user.id,
                     note: "ขึ้นทะเบียนจากการนำเข้าไฟล์ CSV",
                 })
