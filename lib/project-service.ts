@@ -129,24 +129,60 @@ export function decimalOrNull(value: Prisma.Decimal | number | string | null): n
     return Number.isFinite(n) ? n : null
 }
 
-export function toTaskCardDto(row: TaskCardRow) {
+export function toTaskCardDto(row: TaskCardRow, loggedHours = 0) {
     return {
         ...row,
         estimateHours: decimalOrNull(row.estimateHours),
+        /// ชั่วโมงที่ลงเวลาไว้จริงกับงานใบนี้ (จาก `WorkLog` ของเฟส 3)
+        loggedHours,
         dueDate: row.dueDate?.toISOString() ?? null,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
     }
 }
 
-export function toTaskDetailDto(row: TaskDetailRow) {
+export function toTaskDetailDto(row: TaskDetailRow, loggedHours = 0) {
     return {
-        ...toTaskCardDto(row),
+        ...toTaskCardDto(row, loggedHours),
         description: row.description,
         createdBy: row.createdBy,
         project: row.project,
         sprint: row.sprint,
     }
+}
+
+// ── ชั่วโมงที่ลงจริง (เชื่อมกับ Time Log ของเฟส 3) ────────────────────
+
+/// รวมชั่วโมงจาก `WorkLog` ของหลายงานในคิวรีเดียว แล้วคืนเป็นแผนที่ id → ชั่วโมง
+///
+/// แยกออกมาเป็นคิวรีต่างหากแทนการใส่ใน select เพราะ Prisma รวมค่าใน `select` ไม่ได้
+/// และการดึง WorkLog ทุกแถวมานับเองจะหนักเกินจำเป็นเมื่อกระดานมีการ์ดหลายสิบใบ
+export async function loggedHoursByTask(taskIds: string[]): Promise<Map<string, number>> {
+    if (taskIds.length === 0) return new Map()
+
+    const rows = await prisma.workLog.groupBy({
+        by: ["taskId"],
+        where: { taskId: { in: taskIds } },
+        _sum: { hours: true },
+    })
+
+    const map = new Map<string, number>()
+    for (const r of rows) {
+        if (r.taskId) map.set(r.taskId, decimalOrNull(r._sum.hours) ?? 0)
+    }
+    return map
+}
+
+/// แปลงการ์ดทั้งชุดพร้อมเติมชั่วโมงที่ลงจริง — ใช้กับทุกเส้นที่คืนรายการงาน
+export async function toTaskCardDtos(rows: TaskCardRow[]) {
+    const logged = await loggedHoursByTask(rows.map((r) => r.id))
+    return rows.map((r) => toTaskCardDto(r, logged.get(r.id) ?? 0))
+}
+
+/// ชั่วโมงที่ลงจริงของงานใบเดียว
+export async function loggedHoursOf(taskId: string): Promise<number> {
+    const map = await loggedHoursByTask([taskId])
+    return map.get(taskId) ?? 0
 }
 
 // ── สิทธิ์ (spec §7) ─────────────────────────────────────────────────
@@ -277,15 +313,23 @@ export interface BoardSummary {
     /// ชั่วโมงที่ประมาณไว้รวม และส่วนที่ปิดงานแล้ว — ใช้เป็นเส้น burndown อย่างง่าย (F5.12)
     estimateTotal: number
     estimateDone: number
+    /// ชั่วโมงที่ลงเวลาไว้จริงรวม — เทียบกับที่ประมาณไว้เพื่อดูว่าประเมินแม่นแค่ไหน
+    loggedTotal: number
+}
+
+/// ปัดเป็นทศนิยม 2 ตำแหน่ง — กันเศษทศนิยมลอยจากการบวก float
+function round2(value: number): number {
+    return Math.round(value * 100) / 100
 }
 
 /// สรุปกระดานจากรายการการ์ดที่ดึงมาแล้ว — ไม่ยิงคิวรีเพิ่ม
 export function summarizeBoard(
-    tasks: { boardStatus: string; estimateHours: number | null }[]
+    tasks: { boardStatus: string; estimateHours: number | null; loggedHours?: number }[]
 ): BoardSummary {
     const counts = emptyBoardCount()
     let estimateTotal = 0
     let estimateDone = 0
+    let loggedTotal = 0
 
     for (const t of tasks) {
         const status = t.boardStatus as BoardStatus
@@ -293,6 +337,7 @@ export function summarizeBoard(
         const hours = t.estimateHours ?? 0
         estimateTotal += hours
         if (status === "done") estimateDone += hours
+        loggedTotal += t.loggedHours ?? 0
     }
 
     const total = tasks.length
@@ -302,8 +347,9 @@ export function summarizeBoard(
         total,
         done,
         progress: progressFrom(done, total),
-        estimateTotal: Math.round(estimateTotal * 100) / 100,
-        estimateDone: Math.round(estimateDone * 100) / 100,
+        estimateTotal: round2(estimateTotal),
+        estimateDone: round2(estimateDone),
+        loggedTotal: round2(loggedTotal),
     }
 }
 

@@ -18,6 +18,7 @@ import {
     recalcProjectProgress,
     taskCardSelect,
     toTaskCardDto,
+    toTaskCardDtos,
     validateAssignee,
     validateSprintOfProject,
 } from "@/lib/project-service"
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
         ])
 
         return NextResponse.json({
-            tasks: rows.map(toTaskCardDto),
+            tasks: await toTaskCardDtos(rows),
             total,
             page: query.page,
             pageSize: query.pageSize,

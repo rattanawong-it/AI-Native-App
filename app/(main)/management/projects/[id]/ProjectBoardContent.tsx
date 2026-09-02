@@ -41,7 +41,10 @@ import {
     ProjectStatusBadge,
     SprintStatusBadge,
 } from "@/components/project/project-badges"
-import KanbanBoard, { type MovePayload } from "@/app/(main)/management/projects/[id]/KanbanBoard"
+import KanbanBoard, {
+    type MovePayload,
+    type SprintDropTarget,
+} from "@/app/(main)/management/projects/[id]/KanbanBoard"
 import TaskDialog, {
     type TaskDialogTarget,
 } from "@/app/(main)/management/projects/[id]/TaskDialog"
@@ -234,6 +237,41 @@ export default function ProjectBoardContent({ projectId }: { projectId: string }
         }
     }
 
+    /// ลากการ์ดมาวางบนแถบรอบพัฒนา — ย้ายเข้า/ออกรอบโดยคงคอลัมน์เดิม (F5.13)
+    const handleMoveToSprint = async (task: TaskCard, target: SprintDropTarget) => {
+        if (task.sprintId === target.sprintId) return
+
+        const snapshot = tasks
+        // กำลังดูรอบเดียว = การ์ดที่ย้ายออกไปต้องหายจากกระดานทันที
+        setTasks((prev) =>
+            sprintFilter === "all"
+                ? prev.map((t) => (t.id === task.id ? { ...t, sprintId: target.sprintId } : t))
+                : prev.filter((t) => t.id !== task.id)
+        )
+
+        try {
+            const res = await fetch(`/api/tasks/${task.id}/move`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    boardStatus: task.boardStatus,
+                    sprintId: target.sprintId,
+                }),
+            })
+            if (!res.ok) {
+                toast.error(await readError(res, "ย้ายเข้ารอบพัฒนาไม่สำเร็จ"))
+                setTasks(snapshot)
+                return
+            }
+            toast.success(`ย้าย "${task.title}" เข้า ${target.label} แล้ว`)
+            // ตัวนับงานของแต่ละรอบบนแถบด้านบนเปลี่ยน จึงต้องโหลดข้อมูลโครงการใหม่
+            await fetchProject()
+        } catch {
+            toast.error("เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ")
+            setTasks(snapshot)
+        }
+    }
+
     // ── Sprint (F5.3) ──
 
     const saveSprint = async () => {
@@ -301,7 +339,8 @@ export default function ProjectBoardContent({ projectId }: { projectId: string }
 
     // ── ข้อมูลประกอบหน้าจอ ──
 
-    const sprints = project?.sprints ?? []
+    // ต้องผ่าน useMemo ไม่งั้น array ใหม่ทุก render จะทำให้ useMemo ที่พึ่งพามันคำนวณใหม่ทุกครั้ง
+    const sprints = useMemo(() => project?.sprints ?? [], [project])
     const activeSprint = sprints.find((s) => s.status === "active") ?? null
     const selectedSprint = sprints.find((s) => s.id === sprintFilter) ?? null
 
@@ -313,10 +352,12 @@ export default function ProjectBoardContent({ projectId }: { projectId: string }
         >
         let estimateTotal = 0
         let estimateDone = 0
+        let loggedTotal = 0
         for (const t of tasks) {
             if (t.boardStatus in counts) counts[t.boardStatus] += 1
             estimateTotal += t.estimateHours ?? 0
             if (t.boardStatus === "done") estimateDone += t.estimateHours ?? 0
+            loggedTotal += t.loggedHours
         }
         const done = counts.done ?? 0
         return {
@@ -326,6 +367,7 @@ export default function ProjectBoardContent({ projectId }: { projectId: string }
             progress: tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0,
             estimateTotal: Math.round(estimateTotal * 100) / 100,
             estimateDone: Math.round(estimateDone * 100) / 100,
+            loggedTotal: Math.round(loggedTotal * 100) / 100,
         }
     }, [tasks])
 
@@ -333,6 +375,15 @@ export default function ProjectBoardContent({ projectId }: { projectId: string }
         (task: TaskCard) => canManage || task.assigneeId === currentUserId,
         [canManage, currentUserId]
     )
+
+    /// ปลายทางที่ลากการ์ดไปวางเพื่อย้ายรอบได้ — ตัดรอบที่กำลังดูอยู่ออกเพราะวางแล้วไม่มีอะไรเปลี่ยน
+    const sprintTargets = useMemo<SprintDropTarget[]>(() => {
+        const all: SprintDropTarget[] = [
+            { key: "none", label: "Backlog", sprintId: null },
+            ...sprints.map((s) => ({ key: s.id, label: s.name, sprintId: s.id })),
+        ]
+        return all.filter((t) => t.key !== sprintFilter)
+    }, [sprints, sprintFilter])
 
     if (loading && !project) {
         return (
@@ -447,8 +498,8 @@ export default function ProjectBoardContent({ projectId }: { projectId: string }
                 />
                 <StatCard
                     icon={<Clock className="size-5" />}
-                    label="ชั่วโมงที่ประมาณไว้"
-                    value={`${project.board.estimateDone}/${project.board.estimateTotal} ชม.`}
+                    label="ชั่วโมง — ลงจริง / ประมาณไว้"
+                    value={`${project.board.loggedTotal}/${project.board.estimateTotal} ชม.`}
                     tone="bg-status-progress-bg text-status-progress-fg"
                 />
                 <Card>
@@ -555,8 +606,9 @@ export default function ProjectBoardContent({ projectId }: { projectId: string }
                             )}
                         </div>
                         <p className="text-muted-foreground text-sm">
-                            ปิดแล้ว {viewSummary.done}/{viewSummary.total} งาน · ชั่วโมง{" "}
-                            {viewSummary.estimateDone}/{viewSummary.estimateTotal} ชม.
+                            ปิดแล้ว {viewSummary.done}/{viewSummary.total} งาน · ประมาณไว้{" "}
+                            {viewSummary.estimateDone}/{viewSummary.estimateTotal} ชม. · ลงเวลาจริง{" "}
+                            {viewSummary.loggedTotal} ชม.
                         </p>
                     </div>
 
@@ -584,6 +636,8 @@ export default function ProjectBoardContent({ projectId }: { projectId: string }
                     onMove={(payload) => void handleMove(payload)}
                     onOpen={(task) => setTaskTarget({ id: task.id })}
                     canDrag={canDragTask}
+                    sprintTargets={canManage ? sprintTargets : []}
+                    onMoveToSprint={(task, target) => void handleMoveToSprint(task, target)}
                 />
             )}
 

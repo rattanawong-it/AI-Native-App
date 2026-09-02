@@ -70,6 +70,8 @@ export interface TaskCard {
     priority: string
     assigneeId: string | null
     estimateHours: number | null
+    /// ชั่วโมงที่ลงเวลาไว้จริงกับงานใบนี้ (รวมจาก Time Log ของเฟส 3)
+    loggedHours: number
     dueDate: string | null
     sortOrder: number
     sourceTicketId: string | null
@@ -117,6 +119,7 @@ export interface BoardSummary {
     progress: number
     estimateTotal: number
     estimateDone: number
+    loggedTotal: number
 }
 
 export interface BoardResponse {

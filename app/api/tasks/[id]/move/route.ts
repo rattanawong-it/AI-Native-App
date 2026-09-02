@@ -14,6 +14,7 @@ import { moveTaskSchema } from "@/lib/project-schema"
 import {
     SDLC_ROLES,
     canUpdateTask,
+    loggedHoursOf,
     recalcProjectProgress,
     sortOrderForMove,
     taskCardSelect,
@@ -92,7 +93,7 @@ export async function PATCH(
             progress = await recalcProjectProgress(current.projectId)
         }
 
-        return NextResponse.json({ task: toTaskCardDto(task), progress })
+        return NextResponse.json({ task: toTaskCardDto(task, await loggedHoursOf(id)), progress })
     } catch (error) {
         console.error("Task move Error:", error)
         return NextResponse.json({ error: "ไม่สามารถย้ายงานได้" }, { status: 500 })
