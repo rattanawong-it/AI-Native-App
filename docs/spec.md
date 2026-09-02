@@ -476,19 +476,19 @@ api/my-work/
 
 ### ⑥ ระบบ Knowledge Base
 
-- [ ] **F6.1** CRUD `KbArticle` — หน้า `service/kb` + `service/kb/new`
-- [ ] **F6.2** Markdown editor + preview (ใช้ `react-markdown` + `remark-gfm` ที่มีอยู่แล้ว)
-- [ ] **F6.3** หมวดหมู่ + Tags + ค้นหา + ฟิลเตอร์
-- [ ] **F6.4** สถานะบทความ: Draft → Pending Review → Published → Archived
-- [ ] **F6.5** Workflow การเผยแพร่: `agent` เขียน → `manager`/`admin` Publish
-- [ ] **F6.6** Visibility: `all` (ทุกคนอ่านได้) / `agent_only` (เฉพาะเจ้าหน้าที่)
-- [ ] **F6.7** หน้าอ่าน `service/kb/[slug]` + นับ `viewCount`
-- [ ] **F6.8** ปุ่ม "มีประโยชน์ / ไม่มีประโยชน์" → `KbFeedback` + นับสถิติ
-- [ ] **F6.9** **Sync เข้า RAG** — Publish → สร้าง/อัปเดต `KnowledgeDocument` → เรียก `lib/ingestion.ts` เดิม → embed ลง pgvector → `isIndexed = true`
-- [ ] **F6.10** Un-publish / Archive → ลบ vector ที่เกี่ยวข้องออก
-- [ ] **F6.11** ปรับ `SYSTEM_PROMPT` ใน `lib/rag-service.ts` ให้รองรับบริบท Helpdesk **[M10]**
-- [ ] **F6.12** แนะนำบทความ KB ที่เกี่ยวข้องในหน้า Ticket (vector search จาก title + description)
-- [ ] **F6.13** สร้างบทความ KB จาก Ticket ที่แก้แล้ว — ปุ่ม "บันทึกเป็นองค์ความรู้" (prefill จาก `resolutionNote`)
+- [x] **F6.1** CRUD `KbArticle` — หน้า `service/kb` + `service/kb/new`
+- [x] **F6.2** Markdown editor + preview (ใช้ `react-markdown` + `remark-gfm` ที่มีอยู่แล้ว)
+- [x] **F6.3** หมวดหมู่ + Tags + ค้นหา + ฟิลเตอร์
+- [x] **F6.4** สถานะบทความ: Draft → Pending Review → Published → Archived
+- [x] **F6.5** Workflow การเผยแพร่: `agent` เขียน → `manager`/`admin` Publish
+- [x] **F6.6** Visibility: `all` (ทุกคนอ่านได้) / `agent_only` (เฉพาะเจ้าหน้าที่)
+- [x] **F6.7** หน้าอ่าน `service/kb/[slug]` + นับ `viewCount`
+- [x] **F6.8** ปุ่ม "มีประโยชน์ / ไม่มีประโยชน์" → `KbFeedback` + นับสถิติ
+- [x] **F6.9** **Sync เข้า RAG** — Publish → สร้าง/อัปเดต `KnowledgeDocument` → เรียก `lib/ingestion.ts` เดิม → embed ลง pgvector → `isIndexed = true`
+- [x] **F6.10** Un-publish / Archive → ลบ vector ที่เกี่ยวข้องออก
+- [x] **F6.11** ปรับ `SYSTEM_PROMPT` ใน `lib/rag-service.ts` ให้รองรับบริบท Helpdesk **[M10]**
+- [x] **F6.12** แนะนำบทความ KB ที่เกี่ยวข้องในหน้า Ticket (vector search จาก title + description)
+- [x] **F6.13** สร้างบทความ KB จาก Ticket ที่แก้แล้ว — ปุ่ม "บันทึกเป็นองค์ความรู้" (prefill จาก `resolutionNote`)
 
 ---
 
