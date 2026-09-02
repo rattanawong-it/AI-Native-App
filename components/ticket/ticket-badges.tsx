@@ -22,7 +22,10 @@ import {
     type TicketChannel,
 } from "@/lib/ticket-workflow"
 
-const pill = "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap"
+/// `w-fit` จำเป็นเพราะป้ายเหล่านี้ถูกวางเป็นลูกของ grid ในหน้ารายการ —
+/// grid item จะถูกยืดเต็มความกว้างคอลัมน์โดยปริยาย ทำให้ป้ายกลายเป็นแถบยาว
+const pill =
+    "inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap"
 
 /// จุดสีนำหน้าข้อความในป้าย
 function Dot({ className }: { className: string }) {
