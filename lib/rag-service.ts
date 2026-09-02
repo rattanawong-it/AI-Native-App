@@ -1,5 +1,9 @@
 import { getOpenAIClient } from "@/lib/openai"
-import { searchDocuments, SearchResult } from "@/lib/vector-search"
+import {
+  searchDocuments,
+  type SearchResult,
+  type DocumentSearchOptions,
+} from "@/lib/vector-search"
 
 // กำหนดโครงสร้างของข้อความในแชท
 export interface ChatMessage {
@@ -45,10 +49,13 @@ const SYSTEM_PROMPT = `คุณคือ AI Assistant ของมหาวิ�
 export async function generateRAGResponse(
   userMessage: string,
   chatHistory: ChatMessage[] = [],
-  topK: number = 5
+  topK: number = 5,
+  /// ส่ง includeAgentOnly: true เฉพาะเมื่อยืนยันแล้วว่าผู้ถามเป็นเจ้าหน้าที่ขึ้นไป (F6.6)
+  /// ไม่ส่ง = ค้นเฉพาะบทความที่ทุกคนอ่านได้
+  options: DocumentSearchOptions = {}
 ): Promise<RAGResponse> {
-  // 1. ค้นหาเอกสารที่เกี่ยวข้อง
-  const searchResults = await searchDocuments(userMessage, topK)
+  // 1. ค้นหาเอกสารที่เกี่ยวข้อง — จำกัดตามสิทธิ์การมองเห็นของผู้ถาม
+  const searchResults = await searchDocuments(userMessage, topK, undefined, options)
 
   // 2. สร้าง Context จากผลการค้นหา
   const context = searchResults

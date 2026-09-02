@@ -2,6 +2,7 @@ import { generateRAGResponse, ChatMessage } from "@/lib/rag-service"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
+import { parseRoles, isStaff } from "@/lib/rbac"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
@@ -39,7 +40,11 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. สร้างคำตอบด้วย RAG
-    const response = await generateRAGResponse(message, history, 5)
+    // บทความ agent_only จะถูกหยิบมาตอบเฉพาะเมื่อผู้ถามเป็นเจ้าหน้าที่ขึ้นไป (F6.6)
+    const roles = parseRoles((session.user as { role?: string }).role)
+    const response = await generateRAGResponse(message, history, 5, {
+      includeAgentOnly: isStaff({ roles }),
+    })
 
     // 3. บันทึก Messages ลง Database
     if (sessionId) {
@@ -72,10 +77,13 @@ export async function POST(request: NextRequest) {
       })),
       tokensUsed: response.tokensUsed,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Chat API Error:", error)
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      {
+        error:
+          error instanceof Error ? error.message : "Internal server error",
+      },
       { status: 500 }
     )
   }

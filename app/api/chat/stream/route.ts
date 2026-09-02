@@ -3,6 +3,7 @@ import { searchDocuments } from "@/lib/vector-search"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
+import { parseRoles, isStaff } from "@/lib/rbac"
 import { NextRequest } from "next/server"
 
 // Simple in-memory rate limit: max 20 requests per IP per minute
@@ -50,7 +51,11 @@ export async function POST(request: NextRequest) {
   }
 
   // 3. ค้นหาเอกสารที่เกี่ยวข้อง
-  const searchResults = await searchDocuments(message, 5)
+  // ผู้ไม่ login หรือไม่ใช่เจ้าหน้าที่ จะไม่เห็นบทความ agent_only (F6.6)
+  const roles = parseRoles((session?.user as { role?: string } | undefined)?.role)
+  const searchResults = await searchDocuments(message, 5, undefined, {
+    includeAgentOnly: Boolean(session) && isStaff({ roles }),
+  })
   const context = searchResults
     .map((doc, i) => `[เอกสาร ${i + 1}]\n${doc.content}`)
     .join("\n\n---\n\n")
