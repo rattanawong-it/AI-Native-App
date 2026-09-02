@@ -18,6 +18,7 @@ import {
     CheckCircle2,
     History,
     RefreshCw,
+    FolderKanban,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useSession } from "@/lib/auth-client"
@@ -56,6 +57,8 @@ import {
     TICKET_ACTION_LABEL,
     type TicketAction,
 } from "@/lib/ticket-workflow"
+import { BOARD_STATUS_LABEL, type BoardStatus } from "@/lib/task-board"
+import type { ProjectRow, SprintRow } from "@/lib/project-types"
 import {
     formatThaiDateTime,
     formatRelative,
@@ -88,6 +91,13 @@ export default function TicketDetailContent({ ticketId }: { ticketId: string }) 
     const [assignOpen, setAssignOpen] = useState(false)
     const [priorityOpen, setPriorityOpen] = useState(false)
     const [resolveOpen, setResolveOpen] = useState(false)
+
+    // แปลง Ticket เป็นงานพัฒนา (F5.8) — โหลดรายชื่อโครงการตอนเปิดกล่องเท่านั้น
+    const [convertOpen, setConvertOpen] = useState(false)
+    const [projects, setProjects] = useState<ProjectRow[]>([])
+    const [convertProjectId, setConvertProjectId] = useState("")
+    const [convertSprints, setConvertSprints] = useState<SprintRow[]>([])
+    const [convertSprintId, setConvertSprintId] = useState("")
 
     /// F3.6 — ระบบบังคับให้กรอกชั่วโมงก่อนปิดงานหรือไม่ (ตั้งค่าที่หน้า admin/sla)
     /// ค่าเริ่มต้นเป็น true ให้ตรงกับฝั่ง API เผื่ออ่านค่าไม่สำเร็จ จะได้ไม่ปล่อยผ่านโดยไม่รู้ตัว
@@ -152,6 +162,61 @@ export default function TicketDetailContent({ ticketId }: { ticketId: string }) 
         } catch {
             toast.error("เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ")
             return false
+        } finally {
+            setBusy(false)
+        }
+    }
+
+    /// เปิดกล่องแปลงงาน แล้วดึงโครงการที่ยังเดินอยู่มาให้เลือก (F5.8)
+    const openConvert = async () => {
+        setConvertOpen(true)
+        try {
+            const res = await fetch("/api/projects?status=open&pageSize=100")
+            if (!res.ok) return
+            const data = (await res.json()) as { projects: ProjectRow[] }
+            setProjects(data.projects)
+        } catch {
+            // เลือกโครงการไม่ได้ก็ยังปิดกล่องได้ — ไม่ต้องรบกวนด้วย toast ซ้ำซ้อน
+        }
+    }
+
+    /// เปลี่ยนโครงการปลายทาง = ต้องโหลดรอบพัฒนาของโครงการนั้นใหม่ทุกครั้ง
+    const selectConvertProject = async (projectId: string) => {
+        setConvertProjectId(projectId)
+        setConvertSprintId("")
+        setConvertSprints([])
+        if (!projectId) return
+        try {
+            const res = await fetch(`/api/projects/${projectId}/sprints`)
+            if (!res.ok) return
+            const data = (await res.json()) as { sprints: SprintRow[] }
+            setConvertSprints(data.sprints)
+        } catch {
+            // ไม่มีรอบให้เลือกก็แปลงเข้า Backlog ได้อยู่แล้ว
+        }
+    }
+
+    const convertToTask = async () => {
+        if (!convertProjectId) return
+        setBusy(true)
+        try {
+            const res = await fetch(`/api/tickets/${ticketId}/convert-to-task`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    projectId: convertProjectId,
+                    sprintId: convertSprintId || null,
+                }),
+            })
+            if (!res.ok) {
+                toast.error(await readError(res, "แปลงเป็นงานพัฒนาไม่สำเร็จ"))
+                return
+            }
+            toast.success("สร้างงานพัฒนาใน Backlog ของโครงการแล้ว")
+            setConvertOpen(false)
+            await load()
+        } catch {
+            toast.error("เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ")
         } finally {
             setBusy(false)
         }
@@ -247,6 +312,14 @@ export default function TicketDetailContent({ ticketId }: { ticketId: string }) 
                         </>
                     )}
 
+                    {/* แปลงเป็นงานพัฒนา (F5.8) — หัวหน้าขึ้นไป และแปลงได้ครั้งเดียวต่อใบ */}
+                    {isManager && !ticket.convertedTaskId && ticket.status !== "closed" && (
+                        <Button variant="outline" onClick={() => void openConvert()}>
+                            <FolderKanban className="size-4" />
+                            แปลงเป็นงานพัฒนา
+                        </Button>
+                    )}
+
                     {/* ปุ่มเปลี่ยนสถานะตามเส้นทางที่อนุญาต (F2.6) */}
                     {canAct &&
                         transitions.map((s) =>
@@ -298,6 +371,33 @@ export default function TicketDetailContent({ ticketId }: { ticketId: string }) 
                             <CardContent>
                                 <p className="text-muted-foreground text-sm leading-7 whitespace-pre-wrap">
                                     {ticket.resolutionNote}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* งานพัฒนาที่แปลงไปจาก Ticket ใบนี้ (F5.9) */}
+                    {ticket.convertedTask && (
+                        <Card>
+                            <CardHeader>
+                                <h2 className="flex items-center gap-2 font-medium">
+                                    <FolderKanban className="text-brand size-4" />
+                                    งานพัฒนาที่เกี่ยวข้อง
+                                </h2>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                <Link
+                                    href={`/management/projects/${ticket.convertedTask.project.id}?task=${ticket.convertedTask.id}`}
+                                    className="text-brand text-sm font-medium hover:underline"
+                                >
+                                    {ticket.convertedTask.title}
+                                </Link>
+                                <p className="text-muted-foreground text-sm">
+                                    โครงการ {ticket.convertedTask.project.code} ·{" "}
+                                    {ticket.convertedTask.project.name} · สถานะบนกระดาน{" "}
+                                    {BOARD_STATUS_LABEL[
+                                        ticket.convertedTask.boardStatus as BoardStatus
+                                    ] ?? ticket.convertedTask.boardStatus}
                                 </p>
                             </CardContent>
                         </Card>
@@ -541,6 +641,64 @@ export default function TicketDetailContent({ ticketId }: { ticketId: string }) 
                     if (ok) setResolveOpen(false)
                 }}
             />
+
+            {/* แปลงเป็นงานพัฒนา (F5.8) */}
+            <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>แปลงเป็นงานพัฒนา</DialogTitle>
+                        <DialogDescription>
+                            ระบบจะสร้างการ์ดใน Backlog ของโครงการที่เลือก
+                            พร้อมยกหัวข้อและรายละเอียดของ Ticket ใบนี้ไปเป็นตั้งต้น
+                            และเก็บลิงก์อ้างอิงกันไว้ทั้งสองทาง · Ticket หนึ่งใบแปลงได้ครั้งเดียว
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        <div>
+                            <Label className="mb-1.5">โครงการปลายทาง</Label>
+                            <select
+                                value={convertProjectId}
+                                onChange={(e) => void selectConvertProject(e.target.value)}
+                                className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+                            >
+                                <option value="">เลือกโครงการ</option>
+                                {projects.map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                        {p.code} · {p.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <Label className="mb-1.5">รอบพัฒนา (ไม่บังคับ)</Label>
+                            <select
+                                value={convertSprintId}
+                                onChange={(e) => setConvertSprintId(e.target.value)}
+                                disabled={convertSprints.length === 0}
+                                className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm disabled:opacity-50"
+                            >
+                                <option value="">Backlog (ยังไม่เข้ารอบ)</option>
+                                {convertSprints.map((s) => (
+                                    <option key={s.id} value={s.id}>
+                                        {s.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setConvertOpen(false)}>
+                            ยกเลิก
+                        </Button>
+                        <Button onClick={() => void convertToTask()} disabled={busy || !convertProjectId}>
+                            {busy && <Loader2 className="size-4 animate-spin" />}
+                            สร้างงานพัฒนา
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

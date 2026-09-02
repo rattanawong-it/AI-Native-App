@@ -46,6 +46,14 @@ export interface TicketDetail extends TicketRow {
     assigneeId: string | null
     teamId: string | null
     categoryId: string
+    /// งานพัฒนาที่แปลงไปจาก Ticket ใบนี้ (F5.8, F5.9)
+    convertedTaskId: string | null
+    convertedTask: {
+        id: string
+        title: string
+        boardStatus: string
+        project: { id: string; code: string; name: string }
+    } | null
 }
 
 export interface TicketComment {

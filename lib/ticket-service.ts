@@ -169,6 +169,16 @@ export const ticketDetailSelect = {
     assigneeId: true,
     teamId: true,
     categoryId: true,
+    // งานพัฒนาที่แปลงไปจาก Ticket ใบนี้ — ใช้แสดงลิงก์อ้างอิงกลับ (F5.9)
+    convertedTaskId: true,
+    convertedTask: {
+        select: {
+            id: true,
+            title: true,
+            boardStatus: true,
+            project: { select: { id: true, code: true, name: true } },
+        },
+    },
 } satisfies Prisma.TicketSelect
 
 export type TicketListRow = Prisma.TicketGetPayload<{ select: typeof ticketListSelect }>

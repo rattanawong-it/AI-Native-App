@@ -17,7 +17,7 @@ import { TICKET_STATUS_LABEL, type TicketStatus } from "@/lib/ticket-workflow"
 import { myWorkQuerySchema } from "@/lib/worklog-schema"
 import { compareWorkItems, isDueToday, isOverdue, type WorkItem } from "@/lib/worklog-service"
 import { thaiToday } from "@/lib/thai-date"
-import { TASK_STATUS_LABEL } from "@/lib/worklog-types"
+import { BOARD_STATUS_LABEL, type BoardStatus } from "@/lib/task-board"
 
 /// ดึงมาเผื่อไว้มากกว่า limit เล็กน้อยต่อประเภท เพื่อให้การเรียงรวมได้ผลถูกต้อง
 /// ก่อนตัดตาม limit จริง (ถ้าดึงมาแค่ limit/3 งานด่วนของประเภทหนึ่งอาจตกหล่น)
@@ -72,6 +72,7 @@ export async function GET(request: NextRequest) {
                     priority: true,
                     dueDate: true,
                     updatedAt: true,
+                    projectId: true,
                     project: { select: { code: true, name: true } },
                 },
                 orderBy: { updatedAt: "desc" },
@@ -116,12 +117,12 @@ export async function GET(request: NextRequest) {
             id: t.id,
             title: t.title,
             code: t.project.code,
-            status: TASK_STATUS_LABEL[t.boardStatus] ?? t.boardStatus,
+            status: BOARD_STATUS_LABEL[t.boardStatus as BoardStatus] ?? t.boardStatus,
             priority: t.priority,
             dueDate: t.dueDate?.toISOString() ?? null,
             isDone: t.boardStatus === "done",
-            // หน้ารายละเอียด Task จะมาในเฟส 5 — ยังไม่มีที่ให้กดไป
-            href: null,
+            // การ์ดไม่มีหน้าของตัวเอง — เปิดกระดานของโครงการแล้วให้หน้าจอกางการ์ดนั้นให้ (F5.7)
+            href: `/management/projects/${t.projectId}?task=${t.id}`,
             context: t.project.name,
             updatedAt: t.updatedAt.toISOString(),
         }))

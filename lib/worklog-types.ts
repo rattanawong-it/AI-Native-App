@@ -126,14 +126,9 @@ export const WORK_KIND_LABEL: Record<WorkItem["kind"], string> = {
     todo: "งานส่วนตัว",
 }
 
-/// สถานะของ Task บนกระดาน (Phase 5 จะใช้ชุดเดียวกันนี้)
-export const TASK_STATUS_LABEL: Record<string, string> = {
-    backlog: "รอจัดคิว",
-    todo: "รอเริ่ม",
-    doing: "กำลังทำ",
-    review: "รอตรวจ",
-    done: "เสร็จแล้ว",
-}
+/// สถานะของ Task บนกระดาน — นิยามจริงอยู่ที่ `lib/task-board.ts` ตั้งแต่เฟส 5
+/// ส่งต่อชื่อเดิมไว้เพื่อไม่ให้หน้าจอของเฟส 3 ต้องแก้ import
+export { BOARD_STATUS_LABEL as TASK_STATUS_LABEL } from "@/lib/task-board"
 
 /// "1.5" → "1 ชม. 30 น." — ใช้แสดงชั่วโมงสะสมให้อ่านง่าย
 export function formatHours(hours: number): string {

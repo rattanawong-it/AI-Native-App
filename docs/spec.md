@@ -458,19 +458,19 @@ api/my-work/
 
 ### ⑤ ระบบบริหารโครงการพัฒนาซอฟต์แวร์ SDLC (Agile / Sprint)
 
-- [ ] **F5.1** CRUD `Project` — หน้า `management/projects` (แทน mock เดิม) **[M6]**
-- [ ] **F5.2** หน้า `management/projects/[id]` — ภาพรวมโครงการ + progress + สมาชิก
-- [ ] **F5.3** CRUD `Sprint` — สร้าง/แก้ไข/ปิด Sprint (ชื่อ, เป้าหมาย, ช่วงวันที่)
-- [ ] **F5.4** **Kanban Board** 5 คอลัมน์: Backlog → To Do → Doing → Review → Done
-- [ ] **F5.5** Drag & drop ย้ายการ์ดข้ามคอลัมน์ (`@dnd-kit`) + `PATCH /api/tasks/[id]/move`
-- [ ] **F5.6** CRUD `Task` — หัวข้อ, รายละเอียด, ผู้รับผิดชอบ, priority, ประมาณชั่วโมง, กำหนดส่ง
-- [ ] **F5.7** Task detail modal + comment
-- [ ] **F5.8** **แปลง Ticket → Backlog Task** — ปุ่มในหน้า Ticket, เลือกโครงการ/Sprint, เก็บ `sourceTicketId` + `convertedTaskId` สองทาง
-- [ ] **F5.9** แสดงลิงก์อ้างอิงกลับ — Ticket แสดง "งานพัฒนาที่เกี่ยวข้อง", Task แสดง "มาจาก Ticket #..."
-- [ ] **F5.10** คำนวณ progress โครงการอัตโนมัติจากสัดส่วน Task ที่ Done
-- [ ] **F5.11** CRUD `Team` + `TeamMember` — หน้า `management/teams` (แทน mock เดิม) **[M7]**
-- [ ] **F5.12** Sprint Burndown / สรุป Sprint (จำนวน Task ตามสถานะ)
-- [ ] **F5.13** Backlog view — รายการ Task ที่ยังไม่เข้า Sprint + ลาก/มอบเข้า Sprint
+- [x] **F5.1** CRUD `Project` — หน้า `management/projects` (แทน mock เดิม) **[M6]**
+- [x] **F5.2** หน้า `management/projects/[id]` — ภาพรวมโครงการ + progress + สมาชิก
+- [x] **F5.3** CRUD `Sprint` — สร้าง/แก้ไข/ปิด Sprint (ชื่อ, เป้าหมาย, ช่วงวันที่)
+- [x] **F5.4** **Kanban Board** 5 คอลัมน์: Backlog → To Do → Doing → Review → Done
+- [x] **F5.5** Drag & drop ย้ายการ์ดข้ามคอลัมน์ (`@dnd-kit`) + `PATCH /api/tasks/[id]/move`
+- [x] **F5.6** CRUD `Task` — หัวข้อ, รายละเอียด, ผู้รับผิดชอบ, priority, ประมาณชั่วโมง, กำหนดส่ง
+- [x] **F5.7** Task detail modal + comment
+- [x] **F5.8** **แปลง Ticket → Backlog Task** — ปุ่มในหน้า Ticket, เลือกโครงการ/Sprint, เก็บ `sourceTicketId` + `convertedTaskId` สองทาง
+- [x] **F5.9** แสดงลิงก์อ้างอิงกลับ — Ticket แสดง "งานพัฒนาที่เกี่ยวข้อง", Task แสดง "มาจาก Ticket #..."
+- [x] **F5.10** คำนวณ progress โครงการอัตโนมัติจากสัดส่วน Task ที่ Done
+- [x] **F5.11** CRUD `Team` + `TeamMember` — หน้า `management/teams` (แทน mock เดิม) **[M7]**
+- [x] **F5.12** Sprint Burndown / สรุป Sprint (จำนวน Task ตามสถานะ)
+- [x] **F5.13** Backlog view — รายการ Task ที่ยังไม่เข้า Sprint + ลาก/มอบเข้า Sprint
 
 ---
 
@@ -535,7 +535,7 @@ api/my-work/
 - [x] **F8.3** Email — ใช้ `nodemailer` เดิม + template (Ticket ใหม่ / เปลี่ยนสถานะ / มีคอมเมนต์ / แก้เสร็จ)
 - [x] **F8.4** LINE — ใช้ `lib/line-push.ts` เดิม push เข้ากลุ่มทีมเมื่อมี Ticket ใหม่/มอบหมาย
 - [x] **F8.5** LINE ตอบกลับผู้แจ้งรายบุคคล (ถ้ามี `lineUserId`)
-- [x] **F8.6** Event ที่ต้องแจ้ง: Ticket ใหม่ / มอบหมายงาน / เปลี่ยนสถานะ / คอมเมนต์ใหม่ / คำขอรออนุมัติ / ผลการอนุมัติ / Task ถูกมอบหมาย — *เฟส 4 ผูกครบ 4 เหตุการณ์ของ Ticket · ชนิด `approval_*` และ `task_assigned` เตรียมไว้ใน service แล้ว รอ API ของเฟส 5 / เฟส 7 มาเรียก*
+- [x] **F8.6** Event ที่ต้องแจ้ง: Ticket ใหม่ / มอบหมายงาน / เปลี่ยนสถานะ / คอมเมนต์ใหม่ / คำขอรออนุมัติ / ผลการอนุมัติ / Task ถูกมอบหมาย — *เฟส 4 ผูกครบ 4 เหตุการณ์ของ Ticket · เฟส 5 ผูก `task_assigned` แล้ว (สร้างการ์ดพร้อมผู้รับผิดชอบ / เปลี่ยนผู้รับผิดชอบ / แปลง Ticket) · ชนิด `approval_*` ยังรอ API ของเฟส 7*
 - [x] **F8.7** ตั้งค่าเปิด/ปิดช่องทางรายบุคคล (หน้า `profile`)
 - [x] **F8.8** `NotificationDelivery` — บันทึกผลส่ง + retry เมื่อ fail
 
