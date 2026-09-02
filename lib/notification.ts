@@ -157,6 +157,11 @@ async function deliver(
         if (!recipient.lineUserId) {
             return { channel, status: "failed", error: "ผู้รับยังไม่ได้ผูกบัญชี LINE" }
         }
+        // `pushMessageTo` แค่เขียน warning แล้วคืนค่าปกติเมื่อยังไม่ได้ตั้ง token —
+        // ถ้าไม่ดักตรงนี้ จะบันทึกว่า "ส่งสำเร็จ" ทั้งที่ไม่มีอะไรถูกส่งออกไปเลย
+        if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
+            return { channel, status: "failed", error: "ยังไม่ได้ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN" }
+        }
         await pushMessageTo(recipient.lineUserId, lineText(content))
         return { channel, status: "sent" }
     } catch (error) {

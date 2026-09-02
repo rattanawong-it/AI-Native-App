@@ -202,9 +202,11 @@ export default function NotificationSettingsCard() {
                                     enabled ? "bg-purple-600" : "bg-gray-300 dark:bg-gray-600"
                                 }`}
                             >
+                                {/* ตรึงหัวปุ่มด้วย left-0.5 — ถ้าปล่อยให้ absolute หาตำแหน่งเอง
+                                    หัวปุ่มจะไปโผล่นอกรางทางขวา */}
                                 <span
-                                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
-                                        enabled ? "translate-x-5.5" : "translate-x-0.5"
+                                    className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                                        enabled ? "translate-x-5" : "translate-x-0"
                                     }`}
                                 />
                             </button>
