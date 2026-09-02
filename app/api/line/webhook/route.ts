@@ -1,7 +1,28 @@
+// app/api/line/webhook/route.ts
+// Webhook ของ LINE — รับ event ทุกชนิดจาก LINE Messaging API
+//
+// หน้าที่ของไฟล์นี้ (เรียงตามลำดับที่ประมวลผล):
+//   1. ตรวจ signature ทุกครั้ง — ปฏิเสธคำขอที่ไม่ได้มาจาก LINE จริง
+//   2. บอทเข้า/ออกกลุ่ม → ลงทะเบียน/ปิดกลุ่มใน `LineGroup` อัตโนมัติ
+//   3. ข้อความในกลุ่ม → ตอบด้วย RAG เฉพาะเมื่อมี keyword นำหน้า
+//   4. ข้อความในแชท 1:1 → คำสั่ง Helpdesk มาก่อน (ผูกบัญชี / แจ้งปัญหา) แล้วค่อยตกไปให้ RAG
+//
+// เพิ่มในเฟส 4: ข้อ 4 ส่วนคำสั่ง Helpdesk — F1.9 (แจ้ง Ticket ผ่าน LINE) และ
+// F8.5 (ผูก `lineUserId` เพื่อรับแจ้งเตือนรายบุคคล) · ตรรกะอยู่ใน `lib/line-ticket.ts` และ `lib/line-link.ts`
+
 import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
 import { generateRAGResponse } from "@/lib/rag-service"
 import { prisma } from "@/lib/prisma"
+import { redeemBindCode } from "@/lib/line-link"
+import {
+  LINK_KEYWORDS,
+  TICKET_KEYWORDS,
+  createTicketFromLine,
+  stripPrefix,
+  successReply,
+} from "@/lib/line-ticket"
+import { appBaseUrl } from "@/lib/notification-templates"
 
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET
 const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN
@@ -151,6 +172,63 @@ async function replyFlexMessage(
   })
 }
 
+// ===== F1.9 / F8.5 — คำสั่งของระบบ Helpdesk ในแชท 1:1 =====
+//
+// รับเฉพาะแชทส่วนตัว เพราะต้องระบุตัวผู้แจ้งให้ได้ก่อนจึงจะสร้าง Ticket แทนเขาได้
+// คืน `true` เมื่อจัดการข้อความนี้ไปแล้ว (ผู้เรียกจะได้ไม่ส่งต่อให้ RAG ตอบซ้ำ)
+async function handleHelpdeskCommand(
+  text: string,
+  lineUserId: string | undefined,
+  replyToken: string
+): Promise<boolean> {
+  if (!lineUserId) return false
+
+  // ── ผูกบัญชีด้วยรหัสที่ขอจากหน้าโปรไฟล์ ──
+  const linkArg = stripPrefix(text, LINK_KEYWORDS)
+  if (linkArg !== null) {
+    const code = linkArg.split(/\s+/)[0] ?? ""
+    if (!code) {
+      await replyMessage(
+        replyToken,
+        "กรุณาพิมพ์รหัสต่อท้ายด้วย เช่น:\nผูกบัญชี A3K9PT\n\nขอรหัสได้ที่หน้าโปรไฟล์ของฉันในเว็บระบบ"
+      )
+      return true
+    }
+
+    const result = await redeemBindCode(code, lineUserId)
+    if (result.ok) {
+      await replyMessage(
+        replyToken,
+        `✅ ผูกบัญชีสำเร็จ — สวัสดีครับคุณ${result.userName}\n\n` +
+          "จากนี้จะได้รับแจ้งเตือนความคืบหน้าของงานทาง LINE\n" +
+          "และแจ้งปัญหาได้โดยพิมพ์ว่า:\nแจ้งปัญหา <รายละเอียด>"
+      )
+    } else {
+      const reason: Record<typeof result.reason, string> = {
+        not_found: "ไม่พบรหัสนี้ กรุณาตรวจสอบอีกครั้ง",
+        expired: "รหัสหมดอายุแล้ว (มีอายุ 10 นาที) กรุณาขอรหัสใหม่",
+        already_linked: "บัญชี LINE นี้ผูกกับผู้ใช้อื่นอยู่แล้ว กรุณายกเลิกการผูกจากบัญชีเดิมก่อน",
+        user_missing: "ไม่พบบัญชีผู้ใช้ที่ออกรหัสนี้",
+      }
+      await replyMessage(replyToken, `❌ ผูกบัญชีไม่สำเร็จ\n${reason[result.reason]}`)
+    }
+    return true
+  }
+
+  // ── แจ้งปัญหา ──
+  const ticketBody = stripPrefix(text, TICKET_KEYWORDS)
+  if (ticketBody !== null) {
+    const result = await createTicketFromLine(lineUserId, ticketBody)
+    await replyMessage(
+      replyToken,
+      result.ok ? successReply(result, appBaseUrl()) : result.message
+    )
+    return true
+  }
+
+  return false
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!LINE_CHANNEL_SECRET || !LINE_CHANNEL_ACCESS_TOKEN) {
@@ -226,14 +304,21 @@ export async function POST(request: NextRequest) {
               similarity: s.similarity ?? 0,
             }))
             await replyFlexMessage(replyToken, response.answer, sources)
-          } catch (error) {
+          } catch {
             await replyMessage(
               replyToken,
               "ขออภัยครับ ระบบมีปัญหาชั่วคราว กรุณาลองใหม่อีกครั้ง"
             )
           }
         } else {
-          // Chat 1:1: ตอบทุกข้อความ
+          // Chat 1:1: คำสั่งของ Helpdesk มาก่อน แล้วค่อยตกไปให้ RAG ตอบ (F1.9, F8.5)
+          const handled = await handleHelpdeskCommand(
+            userMessage,
+            event.source?.userId,
+            replyToken
+          )
+          if (handled) continue
+
           try {
             const response = await generateRAGResponse(userMessage, [], 3)
             const sources = response.sources.map((s) => ({
@@ -241,7 +326,7 @@ export async function POST(request: NextRequest) {
               similarity: s.similarity ?? 0,
             }))
             await replyFlexMessage(replyToken, response.answer, sources)
-          } catch (error) {
+          } catch {
             await replyMessage(
               replyToken,
               "ขออภัยครับ ระบบมีปัญหาชั่วคราว กรุณาลองใหม่อีกครั้ง"
@@ -252,7 +337,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ status: "ok" })
-  } catch (error: any) {
+  } catch (error) {
     console.error("LINE Webhook Error:", error)
     return NextResponse.json({ error: "Internal error" }, { status: 500 })
   }
