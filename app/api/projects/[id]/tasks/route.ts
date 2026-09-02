@@ -19,7 +19,7 @@ import {
     sprintSelect,
     summarizeBoard,
     taskCardSelect,
-    toTaskCardDto,
+    toTaskCardDtos,
 } from "@/lib/project-service"
 
 export async function GET(
@@ -76,7 +76,7 @@ export async function GET(
             select: taskCardSelect,
             orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
         })
-        const tasks = rows.map(toTaskCardDto)
+        const tasks = await toTaskCardDtos(rows)
 
         // สรุปของ Sprint ที่กำลังดู — ใช้ทำแถบความคืบหน้าเหนือกระดาน (F5.12)
         let sprint = null

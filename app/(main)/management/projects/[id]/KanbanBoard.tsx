@@ -16,8 +16,11 @@ import {
     PointerSensor,
     KeyboardSensor,
     closestCorners,
+    pointerWithin,
+    MeasuringStrategy,
     useSensor,
     useSensors,
+    type CollisionDetection,
     type DragEndEvent,
     type DragStartEvent,
 } from "@dnd-kit/core"
@@ -29,7 +32,14 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { useDroppable } from "@dnd-kit/core"
-import { GripVertical, MessageSquare, Clock, Ticket as TicketIcon, AlertTriangle } from "lucide-react"
+import {
+    GripVertical,
+    MessageSquare,
+    Clock,
+    Ticket as TicketIcon,
+    AlertTriangle,
+    CalendarRange,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { PriorityBadge, PersonChip } from "@/components/ticket/ticket-badges"
 import {
@@ -52,18 +62,71 @@ export interface MovePayload {
     nextTasks: TaskCard[]
 }
 
+/// ปลายทาง "รอบพัฒนา" ที่ลากการ์ดมาวางได้ระหว่างลาก (F5.13)
+export interface SprintDropTarget {
+    /// คีย์ที่ใช้เป็น droppable — "none" = Backlog
+    key: string
+    label: string
+    sprintId: string | null
+}
+
 interface Props {
     tasks: TaskCard[]
     onMove: (payload: MovePayload) => void
     onOpen: (task: TaskCard) => void
     /// ลากได้ไหม — เจ้าหน้าที่ลากได้เฉพาะงานของตัวเอง (spec §7)
     canDrag: (task: TaskCard) => boolean
+    /// รอบพัฒนาที่ย้ายเข้าได้ด้วยการลาก — ไม่รวมรอบที่กำลังดูอยู่
+    sprintTargets: SprintDropTarget[]
+    onMoveToSprint: (task: TaskCard, target: SprintDropTarget) => void
+}
+
+/// หาปลายทางที่ปล่อยการ์ด — ถือ "ตัวที่เมาส์อยู่ข้างใน" เป็นหลักก่อน
+///
+/// `closestCorners` เพียงอย่างเดียวใช้กรอบของการ์ดที่ลากมาเทียบระยะ ทำให้ตอนลากไปวางบน
+/// แถบรอบพัฒนา (ซึ่งเตี้ยกว่าการ์ดมาก) คอลัมน์ที่อยู่ใต้แถบชนะเสมอ · เมื่อไม่มีตัวไหน
+/// ครอบเมาส์อยู่ (เช่นลากด้วยคีย์บอร์ดที่ไม่มีตำแหน่งเมาส์) จึงค่อยถอยไปใช้ระยะมุมตามเดิม
+const collisionDetection: CollisionDetection = (args) => {
+    const hits = pointerWithin(args)
+    return hits.length > 0 ? hits : closestCorners(args)
 }
 
 const bySortOrder = (a: TaskCard, b: TaskCard) =>
     a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt)
 
-export default function KanbanBoard({ tasks, onMove, onOpen, canDrag }: Props) {
+/// ตัวเลขชั่วโมงมุมขวาล่างของการ์ด — "ลงจริง/ประมาณ" เมื่อมีทั้งคู่
+///
+/// คืน `null` เมื่อยังไม่มีทั้งชั่วโมงที่ประมาณและชั่วโมงที่ลงจริง จะได้ไม่ต้องแสดงอะไรเลย
+function hoursBadge(
+    task: TaskCard
+): { text: string; title: string; over: boolean } | null {
+    const est = task.estimateHours
+    const log = task.loggedHours
+
+    if (est !== null && log > 0) {
+        return {
+            text: `${log}/${est} ชม.`,
+            title: `ลงเวลาจริง ${log} ชม. จากที่ประมาณไว้ ${est} ชม.`,
+            over: log > est,
+        }
+    }
+    if (est !== null) {
+        return { text: `${est} ชม.`, title: `ประมาณไว้ ${est} ชม. · ยังไม่มีการลงเวลา`, over: false }
+    }
+    if (log > 0) {
+        return { text: `ลงแล้ว ${log} ชม.`, title: "ยังไม่ได้ประมาณชั่วโมงไว้", over: false }
+    }
+    return null
+}
+
+export default function KanbanBoard({
+    tasks,
+    onMove,
+    onOpen,
+    canDrag,
+    sprintTargets,
+    onMoveToSprint,
+}: Props) {
     const [dragging, setDragging] = useState<TaskCard | null>(null)
 
     const columns = useMemo(
@@ -93,8 +156,16 @@ export default function KanbanBoard({ tasks, onMove, onOpen, canDrag }: Props) {
         const task = tasks.find((t) => t.id === active.id)
         if (!task) return
 
-        // ปล่อยบนคอลัมน์ว่าง → id ของ droppable เป็น "col:<สถานะ>" · ปล่อยบนการ์ด → id คือ id ของการ์ด
         const overId = String(over.id)
+
+        // ปล่อยบนแถบรอบพัฒนา → ย้ายเข้ารอบนั้นโดยคงคอลัมน์เดิมไว้ (F5.13)
+        if (overId.startsWith("sprint:")) {
+            const target = sprintTargets.find((s) => s.key === overId.slice(7))
+            if (target) onMoveToSprint(task, target)
+            return
+        }
+
+        // ปล่อยบนคอลัมน์ว่าง → id ของ droppable เป็น "col:<สถานะ>" · ปล่อยบนการ์ด → id คือ id ของการ์ด
         const overTask = tasks.find((t) => t.id === overId)
         const targetStatus = (
             overId.startsWith("col:") ? overId.slice(4) : (overTask?.boardStatus ?? task.boardStatus)
@@ -140,11 +211,28 @@ export default function KanbanBoard({ tasks, onMove, onOpen, canDrag }: Props) {
     return (
         <DndContext
             sensors={sensors}
-            collisionDetection={closestCorners}
+            collisionDetection={collisionDetection}
+            // แถบ "ย้ายเข้ารอบพัฒนา" ถูก mount ตอนเริ่มลาก ไม่ใช่ตั้งแต่แรก —
+            // ค่าเริ่มต้นของ dnd-kit วัดขนาด droppable ครั้งเดียวตอนเริ่มลาก
+            // แถบที่โผล่ทีหลังจึงไม่มีกรอบให้ชน ต้องสั่งให้วัดใหม่ตลอดการลาก
+            measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onDragCancel={() => setDragging(null)}
         >
+            {/* แถบย้ายเข้ารอบพัฒนา — โผล่เฉพาะตอนกำลังลาก เพื่อไม่ให้รกในเวลาปกติ (F5.13) */}
+            {dragging && sprintTargets.length > 0 && (
+                <div className="border-brand/40 bg-brand-tint/40 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-dashed p-3">
+                    <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+                        <CalendarRange className="size-3.5" />
+                        ลากมาวางที่นี่เพื่อย้ายเข้ารอบพัฒนา
+                    </span>
+                    {sprintTargets.map((t) => (
+                        <SprintDropChip key={t.key} target={t} />
+                    ))}
+                </div>
+            )}
+
             <div className="overflow-x-auto pb-2">
                 <div className="grid min-w-[1100px] grid-cols-5 gap-4">
                     {columns.map((col) => (
@@ -164,6 +252,25 @@ export default function KanbanBoard({ tasks, onMove, onOpen, canDrag }: Props) {
                 {dragging ? <CardBody task={dragging} dragging /> : null}
             </DragOverlay>
         </DndContext>
+    )
+}
+
+// ── ปลายทางรอบพัฒนา ──────────────────────────────────────────────────
+
+function SprintDropChip({ target }: { target: SprintDropTarget }) {
+    const { setNodeRef, isOver } = useDroppable({ id: `sprint:${target.key}` })
+    return (
+        <span
+            ref={setNodeRef}
+            className={cn(
+                "rounded-md border px-3 py-1.5 text-sm transition-colors",
+                isOver
+                    ? "bg-primary text-primary-foreground border-primary font-medium"
+                    : "border-input bg-card"
+            )}
+        >
+            {target.label}
+        </span>
     )
 }
 
@@ -276,6 +383,7 @@ function CardBody({
     locked?: boolean
 }) {
     const overdue = isTaskOverdue(task)
+    const hours = hoursBadge(task)
 
     return (
         <div
@@ -339,7 +447,14 @@ function CardBody({
             <div className="flex items-center justify-between gap-2 border-t pt-2">
                 <PersonChip person={task.assignee} size={22} />
                 <span className="text-muted-foreground flex shrink-0 items-center gap-2 text-xs">
-                    {task.estimateHours !== null && <span>{task.estimateHours} ชม.</span>}
+                    {hours && (
+                        <span
+                            className={hours.over ? "text-priority-critical font-medium" : undefined}
+                            title={hours.title}
+                        >
+                            {hours.text}
+                        </span>
+                    )}
                     {task._count.comments > 0 && (
                         <span className="inline-flex items-center gap-1">
                             <MessageSquare className="size-3.5" />

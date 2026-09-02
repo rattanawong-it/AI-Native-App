@@ -12,6 +12,7 @@ import {
     SDLC_ROLES,
     canManageProject,
     decimalOrNull,
+    loggedHoursByTask,
     sprintSelect,
     summarizeBoard,
 } from "@/lib/project-service"
@@ -39,9 +40,11 @@ export async function GET(
             }),
             prisma.task.findMany({
                 where: { projectId: id, sprintId: { not: null } },
-                select: { sprintId: true, boardStatus: true, estimateHours: true },
+                select: { id: true, sprintId: true, boardStatus: true, estimateHours: true },
             }),
         ])
+
+        const logged = await loggedHoursByTask(tasks.map((t) => t.id))
 
         // สรุปทีละ Sprint จากชุดข้อมูลก้อนเดียว — ไม่ยิงคิวรีต่อ Sprint
         const withSummary = sprints.map((s) => ({
@@ -52,6 +55,7 @@ export async function GET(
                     .map((t) => ({
                         boardStatus: t.boardStatus,
                         estimateHours: decimalOrNull(t.estimateHours),
+                        loggedHours: logged.get(t.id) ?? 0,
                     }))
             ),
         }))

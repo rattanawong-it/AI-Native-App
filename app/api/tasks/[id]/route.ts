@@ -17,6 +17,7 @@ import {
     SDLC_ROLES,
     canManageProject,
     canUpdateTask,
+    loggedHoursOf,
     nextSortOrder,
     recalcProjectProgress,
     taskCommentSelect,
@@ -38,13 +39,16 @@ export async function GET(
         const task = await prisma.task.findUnique({ where: { id }, select: taskDetailSelect })
         if (!task) return notFound("ไม่พบงานที่ต้องการ")
 
-        const comments = await prisma.taskComment.findMany({
-            where: { taskId: id },
-            select: taskCommentSelect,
-            orderBy: { createdAt: "asc" },
-        })
+        const [comments, loggedHours] = await Promise.all([
+            prisma.taskComment.findMany({
+                where: { taskId: id },
+                select: taskCommentSelect,
+                orderBy: { createdAt: "asc" },
+            }),
+            loggedHoursOf(id),
+        ])
 
-        return NextResponse.json({ task: toTaskDetailDto(task), comments })
+        return NextResponse.json({ task: toTaskDetailDto(task, loggedHours), comments })
     } catch (error) {
         console.error("Task detail GET Error:", error)
         return NextResponse.json({ error: "ไม่สามารถโหลดรายละเอียดงานได้" }, { status: 500 })
@@ -167,7 +171,7 @@ export async function PATCH(
             )
         }
 
-        return NextResponse.json({ task: toTaskDetailDto(task) })
+        return NextResponse.json({ task: toTaskDetailDto(task, await loggedHoursOf(id)) })
     } catch (error) {
         console.error("Task PATCH Error:", error)
         return NextResponse.json({ error: "ไม่สามารถบันทึกการแก้ไขงานได้" }, { status: 500 })

@@ -369,6 +369,22 @@ export default function TaskDialog({
                                     placeholder="8"
                                     disabled={isEdit && !canEdit}
                                 />
+                                {/* ชั่วโมงที่ลงจริงมาจาก Time Log ของเฟส 3 — แก้ที่นี่ไม่ได้ */}
+                                {detail && (
+                                    <p
+                                        className={
+                                            detail.estimateHours !== null &&
+                                            detail.loggedHours > detail.estimateHours
+                                                ? "text-priority-critical mt-1.5 text-xs font-medium"
+                                                : "text-muted-foreground mt-1.5 text-xs"
+                                        }
+                                    >
+                                        ลงเวลาจริงแล้ว {detail.loggedHours} ชม.
+                                        {detail.estimateHours !== null &&
+                                            detail.loggedHours > detail.estimateHours &&
+                                            " — เกินที่ประมาณไว้"}
+                                    </p>
+                                )}
                             </div>
                             <div>
                                 <Label className="mb-1.5">กำหนดส่ง (ไม่บังคับ)</Label>
