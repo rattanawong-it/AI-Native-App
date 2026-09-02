@@ -31,8 +31,6 @@ export const createKbArticleSchema = z.object({
     categoryId: z.string().min(1).nullish(),
     tags: tagsSchema.optional(),
     visibility: visibilityEnum.default("all"),
-    /// Ticket ต้นทางเมื่อกดปุ่ม "บันทึกเป็นองค์ความรู้" (F6.13)
-    sourceTicketId: z.string().min(1).nullish(),
 })
 
 export type CreateKbArticleInput = z.infer<typeof createKbArticleSchema>
