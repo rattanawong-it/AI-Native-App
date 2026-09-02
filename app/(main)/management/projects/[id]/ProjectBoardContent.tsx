@@ -201,9 +201,32 @@ export default function ProjectBoardContent({ projectId }: { projectId: string }
                 return
             }
             const data = (await res.json()) as { progress: number | null }
-            // เข้า/ออกคอลัมน์ "เสร็จแล้ว" ทำให้ความคืบหน้าโครงการเปลี่ยน (F5.10)
+            // เข้า/ออกคอลัมน์ "เสร็จแล้ว" ทำให้ทั้งความคืบหน้าและตัวเลขสรุปของโครงการเปลี่ยน
+            // (F5.10) — ปรับทั้งสองอย่างพร้อมกัน ไม่งั้นการ์ด "งานที่ปิดแล้ว" จะค้างเลขเดิม
             if (data.progress !== null) {
-                setProject((prev) => (prev ? { ...prev, progress: data.progress! } : prev))
+                const moved = snapshot.find((t) => t.id === taskId)
+                const wasDone = moved?.boardStatus === "done"
+                const isDone = boardStatus === "done"
+                const delta = isDone === wasDone ? 0 : isDone ? 1 : -1
+                const hours = moved?.estimateHours ?? 0
+
+                setProject((prev) =>
+                    prev
+                        ? {
+                              ...prev,
+                              progress: data.progress!,
+                              doneTasks: prev.doneTasks + delta,
+                              board: {
+                                  ...prev.board,
+                                  done: prev.board.done + delta,
+                                  progress: data.progress!,
+                                  estimateDone:
+                                      Math.round((prev.board.estimateDone + delta * hours) * 100) /
+                                      100,
+                              },
+                          }
+                        : prev
+                )
             }
         } catch {
             toast.error("เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ")

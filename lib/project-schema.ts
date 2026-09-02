@@ -41,7 +41,7 @@ const isoStartDate = z
 
 /// รหัสโครงการ — ตัวพิมพ์ใหญ่/ตัวเลข/ขีด เท่านั้น เพราะใช้เป็นตัวนำหน้าที่คนพิมพ์อ้างถึงบ่อย
 const projectCode = z
-    .string()
+    .string({ message: "กรุณากรอกรหัสโครงการ" })
     .trim()
     .min(2, "รหัสโครงการต้องมีอย่างน้อย 2 ตัวอักษร")
     .max(20, "รหัสโครงการยาวเกิน 20 ตัวอักษร")
@@ -52,7 +52,7 @@ export const createProjectSchema = z
     .object({
         code: projectCode,
         name: z
-            .string()
+            .string({ message: "กรุณากรอกชื่อโครงการ" })
             .trim()
             .min(3, "กรุณากรอกชื่อโครงการอย่างน้อย 3 ตัวอักษร")
             .max(200, "ชื่อโครงการยาวเกิน 200 ตัวอักษร"),
@@ -103,7 +103,7 @@ export type ListProjectsQuery = z.infer<typeof listProjectsQuerySchema>
 
 const sprintFields = z.object({
     name: z
-        .string()
+        .string({ message: "กรุณากรอกชื่อ Sprint" })
         .trim()
         .min(2, "กรุณากรอกชื่อ Sprint อย่างน้อย 2 ตัวอักษร")
         .max(120, "ชื่อ Sprint ยาวเกิน 120 ตัวอักษร"),
@@ -140,10 +140,10 @@ const estimateHours = z.coerce
     .refine((v) => Number.isInteger(Math.round(v * 100)), "ทศนิยมได้ไม่เกิน 2 ตำแหน่ง")
 
 export const createTaskSchema = z.object({
-    projectId: z.string().min(1, "กรุณาเลือกโครงการ"),
+    projectId: z.string({ message: "กรุณาเลือกโครงการ" }).min(1, "กรุณาเลือกโครงการ"),
     sprintId: z.string().min(1).nullish(),
     title: z
-        .string()
+        .string({ message: "กรุณากรอกหัวข้องาน" })
         .trim()
         .min(3, "กรุณากรอกหัวข้องานอย่างน้อย 3 ตัวอักษร")
         .max(200, "หัวข้องานยาวเกิน 200 ตัวอักษร"),
@@ -200,7 +200,7 @@ export type ListTasksQuery = z.infer<typeof listTasksQuerySchema>
 /// ความเห็นใน Task (F5.7)
 export const createTaskCommentSchema = z.object({
     body: z
-        .string()
+        .string({ message: "กรุณาพิมพ์ข้อความก่อนส่ง" })
         .trim()
         .min(1, "กรุณาพิมพ์ข้อความก่อนส่ง")
         .max(5000, "ข้อความยาวเกิน 5000 ตัวอักษร"),
@@ -210,7 +210,9 @@ export type CreateTaskCommentInput = z.infer<typeof createTaskCommentSchema>
 // ── แปลง Ticket → Task (F5.8) ────────────────────────────────────────
 
 export const convertTicketSchema = z.object({
-    projectId: z.string().min(1, "กรุณาเลือกโครงการปลายทาง"),
+    projectId: z
+        .string({ message: "กรุณาเลือกโครงการปลายทาง" })
+        .min(1, "กรุณาเลือกโครงการปลายทาง"),
     sprintId: z.string().min(1).nullish(),
     /// ไม่ระบุ = ใช้หัวข้อของ Ticket
     title: z.string().trim().min(3).max(200).optional(),
@@ -225,7 +227,7 @@ export type ConvertTicketInput = z.infer<typeof convertTicketSchema>
 
 export const createTeamSchema = z.object({
     name: z
-        .string()
+        .string({ message: "กรุณากรอกชื่อทีม" })
         .trim()
         .min(2, "กรุณากรอกชื่อทีมอย่างน้อย 2 ตัวอักษร")
         .max(120, "ชื่อทีมยาวเกิน 120 ตัวอักษร"),
@@ -246,7 +248,9 @@ export const updateTeamSchema = z
 export type UpdateTeamInput = z.infer<typeof updateTeamSchema>
 
 export const addTeamMemberSchema = z.object({
-    userId: z.string().min(1, "กรุณาเลือกผู้ใช้ที่ต้องการเพิ่ม"),
+    userId: z
+        .string({ message: "กรุณาเลือกผู้ใช้ที่ต้องการเพิ่ม" })
+        .min(1, "กรุณาเลือกผู้ใช้ที่ต้องการเพิ่ม"),
     roleInTeam: z.enum(TEAM_ROLES, { message: "บทบาทในทีมไม่ถูกต้อง" }).default("member"),
 })
 export type AddTeamMemberInput = z.infer<typeof addTeamMemberSchema>
