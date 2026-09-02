@@ -1,468 +1,648 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+// หน้ารายการโครงการพัฒนา — ค้นหา / กรองสถานะ / สร้าง / แก้ไข / ลบ
+// อ้างอิง F5.1 (CRUD Project) และ F5.10 (ความคืบหน้าคำนวณจากสัดส่วน Task ที่ปิดแล้ว)
+//
+// [M6] เดิมไฟล์นี้เป็น mock `SAMPLE_PROJECTS` — เขียนใหม่ให้เรียก API จริงในเฟส 5
+// โครงสร้างหน้า (การ์ดสรุปด้านบน → แถบค้นหา/ตัวกรอง → กริดการ์ดโครงการ) ยังคงของเดิมไว้
+// เปลี่ยนเฉพาะแหล่งข้อมูลและใช้ component กลางของโปรเจกต์แทน markup ดิบ
+
+import { useCallback, useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import {
-  Plus,
-  Search,
-  MoreHorizontal,
-  Calendar,
-  Users,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  ArrowUpRight,
-  Folder,
-  BarChart3,
-  X,
-  Loader2,
+    Plus,
+    Search,
+    RefreshCw,
+    Folder,
+    Loader2,
+    Pencil,
+    Trash2,
+    Users,
+    CheckCircle2,
+    ChevronLeft,
+    ChevronRight,
+    CalendarDays,
+    ListChecks,
 } from "lucide-react"
+import { toast } from "sonner"
+import { useSession } from "@/lib/auth-client"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { PersonChip } from "@/components/ticket/ticket-badges"
+import { ProgressBar, ProjectStatusBadge } from "@/components/project/project-badges"
+import {
+    PROJECT_STATUSES,
+    PROJECT_STATUS_LABEL,
+    type ProjectStatus,
+} from "@/lib/task-board"
+import { formatThaiDate, readError } from "@/lib/ticket-types"
+import { toDateInput, type ProjectListResponse, type ProjectRow } from "@/lib/project-types"
 
-// ประเภทข้อมูล
-type ProjectStatus = "active" | "completed" | "on-hold" | "planning"
-type ProjectPriority = "high" | "medium" | "low"
+const PAGE_SIZE = 24
 
-interface Project {
-  id: string
-  name: string
-  description: string
-  status: ProjectStatus
-  priority: ProjectPriority
-  progress: number
-  members: number
-  tasks: { total: number; completed: number }
-  dueDate: string
-  updatedAt: string
-  tags: string[]
-}
-
-// ข้อมูลตัวอย่าง
-const SAMPLE_PROJECTS: Project[] = [
-  {
-    id: "1",
-    name: "AI Chatbot Platform",
-    description: "พัฒนาระบบ AI Chatbot สำหรับตอบคำถามลูกค้าแบบอัตโนมัติด้วย RAG",
-    status: "active",
-    priority: "high",
-    progress: 65,
-    members: 4,
-    tasks: { total: 24, completed: 16 },
-    dueDate: "2026-04-15",
-    updatedAt: "2026-03-01",
-    tags: ["AI", "NLP", "Next.js"],
-  },
-  {
-    id: "2",
-    name: "Knowledge Base Management",
-    description: "ระบบจัดการฐานความรู้สำหรับ AI ใช้ในการตอบคำถาม",
-    status: "active",
-    priority: "medium",
-    progress: 80,
-    members: 3,
-    tasks: { total: 18, completed: 14 },
-    dueDate: "2026-03-20",
-    updatedAt: "2026-03-02",
-    tags: ["Vector DB", "Prisma"],
-  },
-  {
-    id: "3",
-    name: "LINE Bot Integration",
-    description: "เชื่อมต่อระบบ Chat กับ LINE Official Account",
-    status: "planning",
-    priority: "high",
-    progress: 10,
-    members: 2,
-    tasks: { total: 12, completed: 1 },
-    dueDate: "2026-05-01",
-    updatedAt: "2026-02-28",
-    tags: ["LINE", "Webhook", "API"],
-  },
-  {
-    id: "4",
-    name: "User Analytics Dashboard",
-    description: "สร้าง Dashboard แสดงสถิติการใช้งานระบบ AI",
-    status: "on-hold",
-    priority: "low",
-    progress: 30,
-    members: 2,
-    tasks: { total: 15, completed: 5 },
-    dueDate: "2026-06-01",
-    updatedAt: "2026-02-20",
-    tags: ["Chart", "Analytics"],
-  },
-  {
-    id: "5",
-    name: "E-commerce Product Recommendation",
-    description: "ระบบแนะนำสินค้าด้วย AI สำหรับร้านค้าออนไลน์",
-    status: "completed",
-    priority: "medium",
-    progress: 100,
-    members: 5,
-    tasks: { total: 30, completed: 30 },
-    dueDate: "2026-02-28",
-    updatedAt: "2026-02-28",
-    tags: ["ML", "Recommendation"],
-  },
-  {
-    id: "6",
-    name: "Multi-language Support",
-    description: "เพิ่มระบบรองรับหลายภาษาสำหรับ Chatbot (TH, EN, ZH, JP)",
-    status: "planning",
-    priority: "medium",
-    progress: 5,
-    members: 3,
-    tasks: { total: 20, completed: 1 },
-    dueDate: "2026-07-01",
-    updatedAt: "2026-03-01",
-    tags: ["i18n", "AI"],
-  },
+/// ตัวกรองสถานะแบบปุ่มเดียว — "กำลังติดตาม" คือค่าเริ่มต้นเพราะโครงการที่จบแล้วมีแต่จะสะสม
+const STATUS_TABS: { key: string; label: string }[] = [
+    { key: "open", label: "กำลังติดตาม" },
+    ...PROJECT_STATUSES.map((s) => ({ key: s, label: PROJECT_STATUS_LABEL[s] })),
+    { key: "all", label: "ทั้งหมด" },
 ]
 
-// สี/สไตล์ตาม status
-const statusConfig: Record<
-  ProjectStatus,
-  { label: string; color: string; bgColor: string; icon: typeof CheckCircle2 }
-> = {
-  active: {
-    label: "Active",
-    color: "text-emerald-700 dark:text-emerald-400",
-    bgColor: "bg-emerald-100 dark:bg-emerald-900/30",
-    icon: ArrowUpRight,
-  },
-  completed: {
-    label: "Completed",
-    color: "text-blue-700 dark:text-blue-400",
-    bgColor: "bg-blue-100 dark:bg-blue-900/30",
-    icon: CheckCircle2,
-  },
-  "on-hold": {
-    label: "On Hold",
-    color: "text-amber-700 dark:text-amber-400",
-    bgColor: "bg-amber-100 dark:bg-amber-900/30",
-    icon: Clock,
-  },
-  planning: {
-    label: "Planning",
-    color: "text-purple-700 dark:text-purple-400",
-    bgColor: "bg-purple-100 dark:bg-purple-900/30",
-    icon: AlertCircle,
-  },
+interface FormState {
+    id?: string
+    code: string
+    name: string
+    description: string
+    status: ProjectStatus
+    teamId: string
+    startDate: string
+    endDate: string
 }
 
-const priorityConfig: Record<ProjectPriority, { label: string; dot: string }> = {
-  high: { label: "High", dot: "bg-red-500" },
-  medium: { label: "Medium", dot: "bg-amber-500" },
-  low: { label: "Low", dot: "bg-green-500" },
+const EMPTY_FORM: FormState = {
+    code: "",
+    name: "",
+    description: "",
+    status: "planning",
+    teamId: "",
+    startDate: "",
+    endDate: "",
+}
+
+interface TeamOption {
+    id: string
+    name: string
 }
 
 export default function ProjectContent() {
-  const [projects] = useState<Project[]>(SAMPLE_PROJECTS)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [filterStatus, setFilterStatus] = useState<ProjectStatus | "all">("all")
-  const [showNewModal, setShowNewModal] = useState(false)
-  const [newProject, setNewProject] = useState({ name: "", description: "" })
-  const [isSaving, setIsSaving] = useState(false)
+    const { data: session } = useSession()
+    const roles = useMemo(
+        () => ((session?.user as { role?: string })?.role || "user").split(",").map((r) => r.trim()),
+        [session]
+    )
+    const canManage = roles.some((r) => ["manager", "admin"].includes(r))
 
-  // กรองโปรเจกต์
-  const filteredProjects = projects.filter((p) => {
-    const matchSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.description.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchStatus = filterStatus === "all" || p.status === filterStatus
-    return matchSearch && matchStatus
-  })
+    const [projects, setProjects] = useState<ProjectRow[]>([])
+    const [statusCounts, setStatusCounts] = useState<Record<string, number>>({})
+    const [teams, setTeams] = useState<TeamOption[]>([])
+    const [total, setTotal] = useState(0)
+    const [totalPages, setTotalPages] = useState(1)
+    const [loading, setLoading] = useState(true)
 
-  // สถิติรวม
-  const stats = [
-    {
-      label: "ทั้งหมด",
-      value: projects.length,
-      icon: Folder,
-      color: "text-blue-600 dark:text-blue-400",
-      bg: "bg-blue-50 dark:bg-blue-900/20",
-    },
-    {
-      label: "กำลังดำเนินการ",
-      value: projects.filter((p) => p.status === "active").length,
-      icon: ArrowUpRight,
-      color: "text-emerald-600 dark:text-emerald-400",
-      bg: "bg-emerald-50 dark:bg-emerald-900/20",
-    },
-    {
-      label: "เสร็จแล้ว",
-      value: projects.filter((p) => p.status === "completed").length,
-      icon: CheckCircle2,
-      color: "text-purple-600 dark:text-purple-400",
-      bg: "bg-purple-50 dark:bg-purple-900/20",
-    },
-    {
-      label: "ภาพรวม Progress",
-      value: `${Math.round(projects.reduce((sum, p) => sum + p.progress, 0) / projects.length)}%`,
-      icon: BarChart3,
-      color: "text-amber-600 dark:text-amber-400",
-      bg: "bg-amber-50 dark:bg-amber-900/20",
-    },
-  ]
+    const [search, setSearch] = useState("")
+    const [debouncedSearch, setDebouncedSearch] = useState("")
+    const [status, setStatus] = useState("open")
+    const [page, setPage] = useState(1)
 
-  function handleCreateProject() {
-    if (!newProject.name.trim()) return
-    setIsSaving(true)
-    // Simulate API call
-    setTimeout(() => {
-      setIsSaving(false)
-      setShowNewModal(false)
-      setNewProject({ name: "", description: "" })
-    }, 1000)
-  }
+    const [formOpen, setFormOpen] = useState(false)
+    const [form, setForm] = useState<FormState>(EMPTY_FORM)
+    const [busy, setBusy] = useState(false)
+    const [deleting, setDeleting] = useState<ProjectRow | null>(null)
 
-  return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-            Projects
-          </h2>
-          <p className="text-muted-foreground mt-1">
-            จัดการโปรเจกต์ AI ทั้งหมดของคุณ
-          </p>
-        </div>
-        <button
-          onClick={() => setShowNewModal(true)}
-          className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm"
-        >
-          <Plus className="h-4 w-4" />
-          สร้างโปรเจกต์ใหม่
-        </button>
-      </div>
+    // หน่วงการค้นหาไว้ 350ms กันยิง API ทุกตัวอักษร (แบบเดียวกับหน้ารายการ Ticket)
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search)
+            setPage(1)
+        }, 350)
+        return () => clearTimeout(timer)
+    }, [search])
 
-      {/* Stats Overview */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
+    const queryString = useMemo(() => {
+        const params = new URLSearchParams()
+        if (debouncedSearch) params.set("q", debouncedSearch)
+        params.set("status", status)
+        params.set("page", String(page))
+        params.set("pageSize", String(PAGE_SIZE))
+        return params.toString()
+    }, [debouncedSearch, status, page])
+
+    const fetchProjects = useCallback(async () => {
+        setLoading(true)
+        try {
+            const res = await fetch(`/api/projects?${queryString}`)
+            if (!res.ok) {
+                toast.error(await readError(res, "ไม่สามารถโหลดรายการโครงการได้"))
+                return
+            }
+            const data = (await res.json()) as ProjectListResponse
+            setProjects(data.projects)
+            setStatusCounts(data.statusCounts)
+            setTotal(data.total)
+            setTotalPages(data.totalPages)
+        } catch {
+            toast.error("เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ")
+        } finally {
+            setLoading(false)
+        }
+    }, [queryString])
+
+    useEffect(() => {
+        void fetchProjects()
+    }, [fetchProjects])
+
+    useEffect(() => {
+        void (async () => {
+            const res = await fetch("/api/directory?scope=teams")
+            if (res.ok) {
+                const data = (await res.json()) as { teams: TeamOption[] }
+                setTeams(data.teams)
+            }
+        })()
+    }, [])
+
+    // ── สรุปตัวเลขด้านบน (นับจากทั้งระบบ ไม่ใช่เฉพาะหน้าที่แสดง) ──
+    const stats = useMemo(() => {
+        const all = Object.values(statusCounts).reduce((sum, n) => sum + n, 0)
+        const avgProgress =
+            projects.length > 0
+                ? Math.round(projects.reduce((sum, p) => sum + p.progress, 0) / projects.length)
+                : 0
+        return {
+            all,
+            active: statusCounts.active ?? 0,
+            completed: statusCounts.completed ?? 0,
+            avgProgress,
+        }
+    }, [statusCounts, projects])
+
+    const openCreate = () => {
+        setForm(EMPTY_FORM)
+        setFormOpen(true)
+    }
+
+    const openEdit = (p: ProjectRow) => {
+        setForm({
+            id: p.id,
+            code: p.code,
+            name: p.name,
+            description: p.description ?? "",
+            status: p.status as ProjectStatus,
+            teamId: p.teamId ?? "",
+            startDate: toDateInput(p.startDate),
+            endDate: toDateInput(p.endDate),
+        })
+        setFormOpen(true)
+    }
+
+    const save = async () => {
+        setBusy(true)
+        try {
+            // ส่งเฉพาะฟิลด์ที่กรอก — ช่องว่างหมายถึง "ไม่ระบุ" จึงต้องเป็น null ไม่ใช่สตริงว่าง
+            const payload = {
+                code: form.code,
+                name: form.name,
+                description: form.description.trim() || null,
+                status: form.status,
+                teamId: form.teamId || null,
+                startDate: form.startDate || null,
+                endDate: form.endDate || null,
+            }
+            const res = await fetch(form.id ? `/api/projects/${form.id}` : "/api/projects", {
+                method: form.id ? "PATCH" : "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            })
+            if (!res.ok) {
+                toast.error(await readError(res, "บันทึกโครงการไม่สำเร็จ"))
+                return
+            }
+            toast.success(form.id ? "บันทึกการแก้ไขแล้ว" : "สร้างโครงการเรียบร้อย")
+            setFormOpen(false)
+            await fetchProjects()
+        } catch {
+            toast.error("เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ")
+        } finally {
+            setBusy(false)
+        }
+    }
+
+    const remove = async () => {
+        if (!deleting) return
+        setBusy(true)
+        try {
+            const res = await fetch(`/api/projects/${deleting.id}`, { method: "DELETE" })
+            if (!res.ok) {
+                toast.error(await readError(res, "ลบโครงการไม่สำเร็จ"))
+                return
+            }
+            toast.success("ลบโครงการแล้ว")
+            setDeleting(null)
+            await fetchProjects()
+        } catch {
+            toast.error("เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ")
+        } finally {
+            setBusy(false)
+        }
+    }
+
+    return (
+        <div className="space-y-6">
+            {/* หัวข้อหน้า */}
+            <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-2xl font-bold mt-1">{stat.value}</p>
+                    <h1 className="text-2xl font-semibold tracking-tight">โครงการพัฒนา</h1>
+                    <p className="text-muted-foreground mt-1 text-sm">
+                        จัดการโครงการพัฒนาซอฟต์แวร์ รอบพัฒนา และกระดานงานของทีม
+                    </p>
                 </div>
-                <div className={`p-3 rounded-xl ${stat.bg}`}>
-                  <stat.icon className={`h-5 w-5 ${stat.color}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Search & Filter */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="ค้นหาโปรเจกต์..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none placeholder:text-gray-400 dark:placeholder:text-gray-500"
-          />
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {(["all", "active", "completed", "on-hold", "planning"] as const).map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilterStatus(status)}
-              className={`px-3.5 py-2 rounded-lg text-sm font-medium transition ${
-                filterStatus === status
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-              }`}
-            >
-              {status === "all"
-                ? "ทั้งหมด"
-                : statusConfig[status].label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Project Grid */}
-      {filteredProjects.length === 0 ? (
-        <div className="text-center py-16">
-          <Folder className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">ไม่พบโปรเจกต์</h3>
-          <p className="text-muted-foreground mt-1">ลองค้นหาด้วยคำอื่น หรือเปลี่ยนตัวกรอง</p>
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filteredProjects.map((project) => {
-            const status = statusConfig[project.status]
-            const priority = priorityConfig[project.priority]
-            const StatusIcon = status.icon
-            return (
-              <Card
-                key={project.id}
-                className="group hover:shadow-lg transition-shadow cursor-pointer"
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${status.bgColor} ${status.color}`}>
-                          <StatusIcon className="h-3 w-3" />
-                          {status.label}
-                        </span>
-                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <span className={`h-2 w-2 rounded-full ${priority.dot}`} />
-                          {priority.label}
-                        </span>
-                      </div>
-                      <CardTitle className="text-base truncate">{project.name}</CardTitle>
-                    </div>
-                    <button className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                    </button>
-                  </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                    {project.description}
-                  </p>
-                </CardHeader>
-
-                <CardContent className="pb-3">
-                  {/* Progress Bar */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between text-sm mb-1.5">
-                      <span className="text-muted-foreground">Progress</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">{project.progress}%</span>
-                    </div>
-                    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          project.progress === 100
-                            ? "bg-blue-500"
-                            : project.progress >= 60
-                            ? "bg-emerald-500"
-                            : project.progress >= 30
-                            ? "bg-amber-500"
-                            : "bg-purple-500"
-                        }`}
-                        style={{ width: `${project.progress}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Tasks summary */}
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span>
-                        {project.tasks.completed}/{project.tasks.total} Tasks
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Users className="h-4 w-4" />
-                      <span>{project.members} คน</span>
-                    </div>
-                  </div>
-                </CardContent>
-
-                <CardFooter className="border-t dark:border-gray-700 pt-3 pb-4 px-6 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Calendar className="h-3.5 w-3.5" />
-                    <span>
-                      กำหนด {new Date(project.dueDate).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
-                    </span>
-                  </div>
-                  <div className="flex gap-1">
-                    {project.tags.slice(0, 2).map((tag) => (
-                      <span
-                        key={tag}
-                        className="text-xs px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                    {project.tags.length > 2 && (
-                      <span className="text-xs px-1.5 py-0.5 text-muted-foreground">
-                        +{project.tags.length - 2}
-                      </span>
+                <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" asChild>
+                        <Link href="/management/teams">
+                            <Users className="size-4" />
+                            ทีมงาน
+                        </Link>
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={() => void fetchProjects()}>
+                        <RefreshCw className={loading ? "size-4 animate-spin" : "size-4"} />
+                        <span className="sr-only">รีเฟรช</span>
+                    </Button>
+                    {canManage && (
+                        <Button onClick={openCreate}>
+                            <Plus className="size-4" />
+                            สร้างโครงการ
+                        </Button>
                     )}
-                  </div>
-                </CardFooter>
-              </Card>
-            )
-          })}
-        </div>
-      )}
-
-      {/* New Project Modal */}
-      {showNewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setShowNewModal(false)}
-          />
-          <div className="relative w-full max-w-lg rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-2xl mx-4">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <Plus className="h-5 w-5 text-blue-600" />
-                สร้างโปรเจกต์ใหม่
-              </h3>
-              <button
-                onClick={() => setShowNewModal(false)}
-                className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-              >
-                <X className="h-4 w-4" />
-              </button>
+                </div>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  ชื่อโปรเจกต์
-                </label>
-                <input
-                  type="text"
-                  value={newProject.name}
-                  onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-                  placeholder="เช่น AI Chatbot for E-commerce"
+            {/* การ์ดสรุป */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <StatCard
+                    icon={<Folder className="size-5" />}
+                    label="โครงการทั้งหมด"
+                    value={stats.all}
+                    tone="bg-brand-tint text-brand"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  รายละเอียด
-                </label>
-                <textarea
-                  value={newProject.description}
-                  onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-                  rows={4}
-                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-y text-sm"
-                  placeholder="อธิบายเป้าหมายและขอบเขตของโปรเจกต์..."
+                <StatCard
+                    icon={<ListChecks className="size-5" />}
+                    label="กำลังดำเนินการ"
+                    value={stats.active}
+                    tone="bg-status-progress-bg text-status-progress-fg"
                 />
-              </div>
+                <StatCard
+                    icon={<CheckCircle2 className="size-5" />}
+                    label="เสร็จสิ้นแล้ว"
+                    value={stats.completed}
+                    tone="bg-status-resolved-bg text-status-resolved-fg"
+                />
+                <StatCard
+                    icon={<CalendarDays className="size-5" />}
+                    label="ความคืบหน้าเฉลี่ย (หน้านี้)"
+                    value={`${stats.avgProgress}%`}
+                    tone="bg-status-new-bg text-status-new-fg"
+                />
             </div>
 
-            <div className="flex justify-end gap-2 mt-6">
-              <button
-                onClick={() => setShowNewModal(false)}
-                disabled={isSaving}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-600 transition disabled:opacity-50"
-              >
-                ยกเลิก
-              </button>
-              <button
-                onClick={handleCreateProject}
-                disabled={!newProject.name.trim() || isSaving}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50 shadow-sm"
-              >
-                {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
-                {isSaving ? "กำลังสร้าง..." : "สร้างโปรเจกต์"}
-              </button>
+            {/* ค้นหา + ตัวกรอง */}
+            <div className="space-y-3">
+                <div className="relative">
+                    <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+                    <Input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="ค้นหารหัสโครงการ ชื่อ หรือรายละเอียด..."
+                        className="pl-9"
+                    />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {STATUS_TABS.map((t) => (
+                        <button
+                            key={t.key}
+                            onClick={() => {
+                                setStatus(t.key)
+                                setPage(1)
+                            }}
+                            className={
+                                status === t.key
+                                    ? "bg-primary text-primary-foreground rounded-md px-3 py-1.5 text-sm font-medium"
+                                    : "border-input hover:bg-accent rounded-md border px-3 py-1.5 text-sm"
+                            }
+                        >
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
             </div>
-          </div>
+
+            {/* กริดการ์ดโครงการ */}
+            {loading ? (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                        <Skeleton key={i} className="h-56 w-full" />
+                    ))}
+                </div>
+            ) : projects.length === 0 ? (
+                <Card>
+                    <CardContent className="text-muted-foreground py-16 text-center text-sm">
+                        <Folder className="mx-auto mb-3 size-8 opacity-40" />
+                        ไม่พบโครงการตามเงื่อนไขที่เลือก
+                    </CardContent>
+                </Card>
+            ) : (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {projects.map((p) => (
+                        <ProjectCard
+                            key={p.id}
+                            project={p}
+                            canManage={canManage}
+                            onEdit={() => openEdit(p)}
+                            onDelete={() => setDeleting(p)}
+                        />
+                    ))}
+                </div>
+            )}
+
+            {/* pagination */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-muted-foreground text-sm">
+                    {total === 0
+                        ? "ไม่มีรายการ"
+                        : `แสดง ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} จาก ${total} โครงการ`}
+                </p>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        disabled={page <= 1 || loading}
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                        <ChevronLeft className="size-4" />
+                        <span className="sr-only">หน้าก่อนหน้า</span>
+                    </Button>
+                    <span className="text-sm">
+                        หน้า {page} / {totalPages}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        disabled={page >= totalPages || loading}
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    >
+                        <ChevronRight className="size-4" />
+                        <span className="sr-only">หน้าถัดไป</span>
+                    </Button>
+                </div>
+            </div>
+
+            {/* ฟอร์มสร้าง/แก้ไข */}
+            <Dialog open={formOpen} onOpenChange={setFormOpen}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>{form.id ? "แก้ไขโครงการ" : "สร้างโครงการใหม่"}</DialogTitle>
+                        <DialogDescription>
+                            รหัสโครงการใช้อ้างถึงในเลขงานและรายงาน จึงตั้งให้สั้นและจำง่าย
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        <div className="grid gap-4 sm:grid-cols-[140px_1fr]">
+                            <div>
+                                <Label className="mb-1.5">รหัสโครงการ</Label>
+                                <Input
+                                    value={form.code}
+                                    onChange={(e) =>
+                                        setForm({ ...form, code: e.target.value.toUpperCase() })
+                                    }
+                                    placeholder="ITSM"
+                                />
+                            </div>
+                            <div>
+                                <Label className="mb-1.5">ชื่อโครงการ</Label>
+                                <Input
+                                    value={form.name}
+                                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                                    placeholder="เช่น ระบบบริหารงานบริการศูนย์ไอที"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <Label className="mb-1.5">รายละเอียด (ไม่บังคับ)</Label>
+                            <Textarea
+                                value={form.description}
+                                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                                rows={3}
+                                placeholder="เป้าหมายและขอบเขตของโครงการ..."
+                            />
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <Label className="mb-1.5">สถานะ</Label>
+                                <select
+                                    value={form.status}
+                                    onChange={(e) =>
+                                        setForm({ ...form, status: e.target.value as ProjectStatus })
+                                    }
+                                    className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+                                >
+                                    {PROJECT_STATUSES.map((s) => (
+                                        <option key={s} value={s}>
+                                            {PROJECT_STATUS_LABEL[s]}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <Label className="mb-1.5">ทีมที่รับผิดชอบ</Label>
+                                <select
+                                    value={form.teamId}
+                                    onChange={(e) => setForm({ ...form, teamId: e.target.value })}
+                                    className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+                                >
+                                    <option value="">ยังไม่ระบุทีม</option>
+                                    {teams.map((t) => (
+                                        <option key={t.id} value={t.id}>
+                                            {t.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <Label className="mb-1.5">วันเริ่ม (ไม่บังคับ)</Label>
+                                <Input
+                                    type="date"
+                                    value={form.startDate}
+                                    onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <Label className="mb-1.5">กำหนดเสร็จ (ไม่บังคับ)</Label>
+                                <Input
+                                    type="date"
+                                    value={form.endDate}
+                                    onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setFormOpen(false)}>
+                            ยกเลิก
+                        </Button>
+                        <Button
+                            onClick={() => void save()}
+                            disabled={
+                                busy || form.code.trim().length < 2 || form.name.trim().length < 3
+                            }
+                        >
+                            {busy && <Loader2 className="size-4 animate-spin" />}
+                            บันทึก
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ยืนยันการลบ */}
+            <AlertDialog open={deleting !== null} onOpenChange={(v) => !v && setDeleting(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>ลบโครงการนี้?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            &ldquo;{deleting?.name}&rdquo; จะถูกลบพร้อมรอบพัฒนาและงานทั้งหมดในโครงการ
+                            หากมีงานที่มีบันทึกเวลาทำงานผูกอยู่ ระบบจะไม่ยอมให้ลบ
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={busy}>ยกเลิก</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => void remove()} disabled={busy}>
+                            {busy && <Loader2 className="size-4 animate-spin" />}
+                            ลบโครงการ
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
-      )}
-    </div>
-  )
+    )
+}
+
+// ── ชิ้นส่วนย่อย ─────────────────────────────────────────────────────
+
+function StatCard({
+    icon,
+    label,
+    value,
+    tone,
+}: {
+    icon: React.ReactNode
+    label: string
+    value: number | string
+    tone: string
+}) {
+    return (
+        <Card>
+            <CardContent className="flex items-center gap-4">
+                <div className={`flex size-10 items-center justify-center rounded-lg ${tone}`}>
+                    {icon}
+                </div>
+                <div className="min-w-0">
+                    <p className="text-muted-foreground truncate text-sm">{label}</p>
+                    <p className="text-2xl font-semibold">{value}</p>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
+function ProjectCard({
+    project,
+    canManage,
+    onEdit,
+    onDelete,
+}: {
+    project: ProjectRow
+    canManage: boolean
+    onEdit: () => void
+    onDelete: () => void
+}) {
+    return (
+        <Card className="group flex h-full flex-col transition-shadow hover:shadow-md">
+            <CardContent className="flex flex-1 flex-col gap-4">
+                <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                        <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                            <span className="text-muted-foreground font-mono text-xs">
+                                {project.code}
+                            </span>
+                            <ProjectStatusBadge status={project.status} />
+                        </div>
+                        <Link
+                            href={`/management/projects/${project.id}`}
+                            className="hover:text-brand block truncate text-base font-semibold transition-colors"
+                        >
+                            {project.name}
+                        </Link>
+                    </div>
+                    {canManage && (
+                        <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                            <Button variant="ghost" size="icon" onClick={onEdit}>
+                                <Pencil className="size-4" />
+                                <span className="sr-only">แก้ไข</span>
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={onDelete}>
+                                <Trash2 className="text-priority-critical size-4" />
+                                <span className="sr-only">ลบ</span>
+                            </Button>
+                        </div>
+                    )}
+                </div>
+
+                <p className="text-muted-foreground line-clamp-2 min-h-[2.5rem] text-sm">
+                    {project.description || "ยังไม่มีคำอธิบายโครงการ"}
+                </p>
+
+                <ProgressBar value={project.progress} />
+
+                <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+                    <span className="inline-flex items-center gap-1.5">
+                        <ListChecks className="size-4" />
+                        {project.doneTasks}/{project._count.tasks} งาน
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                        <CalendarDays className="size-4" />
+                        {project._count.sprints} รอบพัฒนา
+                    </span>
+                    {project.team && (
+                        <span className="inline-flex items-center gap-1.5">
+                            <Users className="size-4" />
+                            {project.team.name}
+                        </span>
+                    )}
+                </div>
+
+                <div className="mt-auto flex items-center justify-between gap-2 border-t pt-3">
+                    <PersonChip person={project.owner} size={24} />
+                    <span className="text-muted-foreground shrink-0 text-xs">
+                        {project.endDate ? `กำหนด ${formatThaiDate(project.endDate)}` : "ไม่กำหนดวันจบ"}
+                    </span>
+                </div>
+            </CardContent>
+        </Card>
+    )
 }

@@ -3,7 +3,7 @@
 // ค่าวันที่เป็น string เพราะผ่าน JSON มาแล้ว
 // อ้างอิง docs/spec.md §8 ⑤ (F5.1–F5.13)
 
-import type { Person } from "@/lib/ticket-types"
+import { formatThaiDate, type Person } from "@/lib/ticket-types"
 import type { BoardStatus } from "@/lib/task-board"
 
 // ── โครงการ (F5.1, F5.2) ─────────────────────────────────────────────
@@ -160,22 +160,17 @@ export function isDoneStatus(status: string): status is BoardStatus {
     return status === "done"
 }
 
-/// "2026-09-15" → "15 ก.ย. 2569" — วันที่แบบไทยที่ใช้ทั่วหน้าจอโครงการ
-export function thaiDate(iso: string | null): string {
-    if (!iso) return "—"
-    const d = new Date(iso)
-    if (Number.isNaN(d.getTime())) return "—"
-    return d.toLocaleDateString("th-TH", {
-        timeZone: "Asia/Bangkok",
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-    })
+/// ช่วงวันของ Sprint — "1 ก.ย. 2569 – 14 ก.ย. 2569"
+export function thaiDateRange(from: string, to: string): string {
+    return `${formatThaiDate(from)} – ${formatThaiDate(to)}`
 }
 
-/// ช่วงวันของ Sprint แบบสั้น — "1 ก.ย. – 14 ก.ย. 2569"
-export function thaiDateRange(from: string, to: string): string {
-    return `${thaiDate(from)} – ${thaiDate(to)}`
+/// แปลงวันที่จาก API (ISO เต็ม) ให้ใส่ใน <input type="date"> ได้ตามวันไทย
+export function toDateInput(iso: string | null): string {
+    if (!iso) return ""
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return ""
+    return new Date(d.getTime() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10)
 }
 
 /// เลยกำหนดแล้วหรือยัง — งานที่ปิดแล้วไม่ถือว่าเลยกำหนด
