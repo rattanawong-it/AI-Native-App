@@ -1,24 +1,21 @@
-  import TeamContent from "@/app/(main)/management/teams/TeamContent"
+import TeamContent from "@/app/(main)/management/teams/TeamContent"
 
 import { Metadata } from "next"
 
 export const metadata: Metadata = {
-    title: "Teams",
+    title: "ทีมงาน",
     description:
-        "แดชบอร์ด AI Native App — ศูนย์กลางการจัดการทีม AI ครบวงจร ดูสถิติการใช้งาน, จัดการ Knowledge Base, AI Chat และตั้งค่าระบบทั้งหมดได้ในที่เดียว",
+        "จัดการทีมงานของศูนย์ไอทีและสมาชิกในแต่ละทีม — ทีมเดียวกันนี้ใช้มอบหมาย Ticket หมวดหมู่บริการ และโครงการพัฒนา",
     keywords: [
-        "Teams",
-        "ทีม",
-        "AI Native App",
-        "ศูนย์กลางการจัดการ",
-        "Knowledge Base",
-        "AI Chat",
-        "สถิติการใช้งาน",
-        "ระบบจัดการ AI",
+        "ทีมงาน",
+        "Team",
+        "สมาชิกทีม",
+        "หัวหน้าทีม",
+        "ศูนย์ไอที",
+        "มอบหมายงาน",
     ],
 }
 
-
 export default function TeamsPage() {
-  return <TeamContent />
+    return <TeamContent />
 }
