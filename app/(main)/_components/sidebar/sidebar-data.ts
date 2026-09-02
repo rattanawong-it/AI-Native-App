@@ -13,6 +13,7 @@ import {
     FilePlus2,
     ListTodo,
     BookOpen,
+    BookMarked,
     Package,
     FileCheck2,
     BarChart3,
@@ -62,6 +63,12 @@ export const sidebarData: NavSectionType[] = [
         title: "ฐานความรู้",
         items: [
             { title: "Knowledge Base", href: "/service/kb", icon: BookOpen },
+            {
+                title: "จัดการบทความ",
+                href: "/management/kb",
+                icon: BookMarked,
+                allowedRoles: STAFF,
+            },
         ],
     },
     {
