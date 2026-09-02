@@ -43,6 +43,7 @@ export const NOTIFICATION_TYPE_LABEL: Record<string, string> = {
     approval_requested: "คำขออนุมัติ",
     approval_decided: "ผลการอนุมัติ",
     task_assigned: "Task ใหม่",
+    asset_warranty_expiring: "ใกล้หมดประกัน",
 }
 
 export type { NotificationChannel, NotificationType }

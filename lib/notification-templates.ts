@@ -17,6 +17,7 @@ export const NOTIFICATION_TYPES = [
     "approval_requested",
     "approval_decided",
     "task_assigned",
+    "asset_warranty_expiring",
 ] as const
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
@@ -41,6 +42,7 @@ export const TYPE_LABEL: Record<NotificationType, string> = {
     approval_requested: "มีคำขอรออนุมัติ",
     approval_decided: "ผลการอนุมัติ",
     task_assigned: "ได้รับมอบหมาย Task",
+    asset_warranty_expiring: "ครุภัณฑ์ใกล้หมดประกัน",
 }
 
 /// อิโมจินำหน้าข้อความ LINE — ช่วยให้อ่านในกลุ่มที่ข้อความเยอะได้เร็วขึ้น
@@ -53,6 +55,7 @@ const TYPE_EMOJI: Record<NotificationType, string> = {
     approval_requested: "📝",
     approval_decided: "⚖️",
     task_assigned: "📋",
+    asset_warranty_expiring: "🛡️",
 }
 
 // ── ที่อยู่ของแอปสำหรับประกอบลิงก์ ───────────────────────────────────
@@ -263,5 +266,107 @@ export function taskAssigned(
             `กำหนดส่ง: ${extra.dueLabel}`,
         ].join("\n"),
         linkUrl: taskLink(task),
+    }
+}
+
+// ── ตัวช่วยประกอบข้อความของคำขออนุมัติ (F7.10, F7.12, F8.6) ───────────
+
+interface ApprovalBrief {
+    id: string
+    requestNo: string
+    title: string
+}
+
+export function approvalLink(request: ApprovalBrief): string {
+    return `/management/requests/${request.id}`
+}
+
+/// จำนวนเงินแบบไทย — "12,500.00 บาท" หรือ "ไม่ระบุ" เมื่อคำขอไม่ผูกวงเงิน
+export function amountLabel(amount: number | null): string {
+    if (amount === null) return "ไม่ระบุ"
+    return `${amount.toLocaleString("th-TH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    })} บาท`
+}
+
+/// ถึงคิวผู้อนุมัติขั้นหนึ่ง — ส่งตอนยื่นคำขอ และตอนขั้นก่อนหน้าอนุมัติผ่าน (F7.10)
+export function approvalRequested(
+    request: ApprovalBrief,
+    extra: {
+        requesterName: string
+        typeLabel: string
+        amount: number | null
+        stepOrder: number
+        totalSteps: number
+    }
+): NotificationContent {
+    return {
+        type: "approval_requested",
+        title: `${request.requestNo} รอการอนุมัติของคุณ`,
+        body: [
+            request.title,
+            "",
+            `ผู้ขอ: ${extra.requesterName}`,
+            `ประเภท: ${extra.typeLabel}`,
+            `จำนวนเงิน: ${amountLabel(extra.amount)}`,
+            `ขั้นที่: ${extra.stepOrder} จาก ${extra.totalSteps}`,
+        ].join("\n"),
+        linkUrl: approvalLink(request),
+    }
+}
+
+/// แจ้งผู้ขอเมื่อคำขอได้ข้อยุติ — อนุมัติครบทุกขั้น หรือถูกตีตกที่ขั้นใดขั้นหนึ่ง (F7.11)
+export function approvalDecided(
+    request: ApprovalBrief,
+    extra: {
+        approved: boolean
+        approverName: string
+        comment: string | null
+    }
+): NotificationContent {
+    const verdict = extra.approved ? "ได้รับอนุมัติแล้ว" : "ไม่ได้รับอนุมัติ"
+    const lines = [request.title, "", `ผลการพิจารณา: ${verdict}`, `โดย: ${extra.approverName}`]
+    if (extra.comment) lines.push(`ความเห็น: ${extra.comment}`)
+
+    return {
+        type: "approval_decided",
+        title: `${request.requestNo} ${verdict}`,
+        body: lines.join("\n"),
+        linkUrl: approvalLink(request),
+    }
+}
+
+// ── ตัวช่วยประกอบข้อความของครุภัณฑ์ (F7.6) ────────────────────────────
+
+interface AssetBrief {
+    id: string
+    assetCode: string
+    name: string
+}
+
+/// รับแค่ id เพื่อให้ตัวกันแจ้งซ้ำใน `asset-notify.ts` ประกอบลิงก์เดียวกันได้โดยไม่ต้องมีข้อมูลครบใบ
+export function assetLink(asset: { id: string }): string {
+    return `/management/assets/${asset.id}`
+}
+
+/// ครุภัณฑ์ใกล้หมดประกัน — ส่งให้ผู้ครอบครองและเจ้าหน้าที่ที่ดูแลทะเบียน (F7.6)
+export function assetWarrantyExpiring(
+    asset: AssetBrief,
+    extra: { daysLeft: number; endDateLabel: string; custodianName: string | null }
+): NotificationContent {
+    const lines = [
+        `${asset.assetCode} · ${asset.name}`,
+        "",
+        `ประกันหมดวันที่: ${extra.endDateLabel}`,
+        `เหลืออีก: ${extra.daysLeft} วัน`,
+    ]
+    if (extra.custodianName) lines.push(`ผู้ครอบครอง: ${extra.custodianName}`)
+
+    return {
+        type: "asset_warranty_expiring",
+        title: `${asset.assetCode} ใกล้หมดประกัน (เหลือ ${extra.daysLeft} วัน)`,
+        body: lines.join("\n"),
+        linkUrl: assetLink(asset),
     }
 }
