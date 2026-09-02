@@ -4,6 +4,7 @@ import { generateEmbedding } from "@/lib/openai"
 export interface SearchResult {
   id: string
   content: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- baseline เดิม: metadata เป็น jsonb อิสระ การรัดชนิดตรงนี้กระทบ 3 ไฟล์นอกขอบเขตเฟส 6
   metadata: any
   similarity: number
 }
@@ -34,4 +35,31 @@ export async function searchDocuments(
   `
 
   return results
+}
+/**
+ * ค้นหาเฉพาะ chunk ที่มาจากบทความ Knowledge Base (F6.12)
+ * ใช้แนะนำบทความที่เกี่ยวข้องในหน้า Ticket — กรองด้วย prefix ของ metadata.source
+ * ที่ lib/kb-sync.ts ตั้งไว้ตอน publish ("kb:<articleId>")
+ */
+export async function searchKbArticles(
+  query: string,
+  topK: number = 3,
+  matchThreshold: number = 0.3
+): Promise<SearchResult[]> {
+  const queryEmbedding = await generateEmbedding(query)
+  const embeddingStr = `[${queryEmbedding.join(",")}]`
+
+  return prisma.$queryRaw<SearchResult[]>`
+    SELECT
+      id,
+      content,
+      metadata,
+      1 - (embedding <=> ${embeddingStr}::vector) AS similarity
+    FROM document
+    WHERE embedding IS NOT NULL
+      AND metadata->>'source' LIKE 'kb:%'
+      AND 1 - (embedding <=> ${embeddingStr}::vector) >= ${matchThreshold}
+    ORDER BY embedding <=> ${embeddingStr}::vector
+    LIMIT ${topK}
+  `
 }

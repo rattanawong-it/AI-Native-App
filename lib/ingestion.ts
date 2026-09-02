@@ -10,12 +10,14 @@ async function generateEmbeddingWithRetry(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await generateEmbedding(text)
-    } catch (error: any) {
-      if (error?.code === "insufficient_quota") {
+    } catch (error: unknown) {
+      const err = error as { code?: string; status?: number }
+
+      if (err?.code === "insufficient_quota") {
         throw new Error("OpenAI API หมดเครดิต! กรุณาเติมเงินที่ https://platform.openai.com/settings/billing")
       }
 
-      if (error?.status === 429 && attempt < maxRetries) {
+      if (err?.status === 429 && attempt < maxRetries) {
         const waitMs = 1000 * attempt * 2
         console.warn(`⏳ Rate limited — รอ ${waitMs / 1000} วินาที (attempt ${attempt}/${maxRetries})`)
         await new Promise((r) => setTimeout(r, waitMs))
@@ -79,4 +81,31 @@ export async function ingestText(
   }
 
   console.log(`✅ Ingest "${source}" สำเร็จ (${chunks.length} chunks)`)
+}
+
+/**
+ * ลบ vector ทั้งหมดที่ผูกกับเอกสารหนึ่งใบออกจาก pgVector (F6.10)
+ * ใช้ตอน un-publish / archive บทความ KB และตอน re-index เพื่อกันเนื้อหาเก่าค้าง
+ * คืนจำนวนแถวที่ลบไป
+ */
+export async function deleteVectorsByDocumentId(documentId: string): Promise<number> {
+  const deleted = await prisma.$executeRaw`
+    DELETE FROM document
+    WHERE metadata->>'documentId' = ${documentId}
+  `
+
+  console.log(`🗑️  ลบ ${deleted} chunks ของเอกสาร ${documentId} ออกจาก Vector DB`)
+  return deleted
+}
+
+/**
+ * แทนที่เนื้อหาเดิมของเอกสารด้วยเนื้อหาใหม่ (F6.9)
+ * ลบ vector เก่าก่อนแล้วค่อย ingest ใหม่ — กันบทความที่แก้แล้วเหลือ chunk เวอร์ชันเก่าค้างใน DB
+ */
+export async function reingestDocument(
+  content: string,
+  options: { source: string; documentId: string }
+) {
+  await deleteVectorsByDocumentId(options.documentId)
+  await ingestText(content, options)
 }

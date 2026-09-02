@@ -58,6 +58,7 @@ import {
     type TicketAction,
 } from "@/lib/ticket-workflow"
 import { BOARD_STATUS_LABEL, type BoardStatus } from "@/lib/task-board"
+import { KbSuggestionCard, SaveAsKbButton } from "@/components/kb/kb-ticket-panel"
 import type { ProjectRow, SprintRow } from "@/lib/project-types"
 import {
     formatThaiDateTime,
@@ -360,6 +361,9 @@ export default function TicketDetailContent({ ticketId }: { ticketId: string }) 
                         </CardContent>
                     </Card>
 
+                    {/* F6.12 — บทความ KB ที่ใกล้เคียงกับปัญหาใบนี้ (vector search) */}
+                    <KbSuggestionCard ticketId={ticket.id} />
+
                     {ticket.resolutionNote && (
                         <Card>
                             <CardHeader>
@@ -368,10 +372,18 @@ export default function TicketDetailContent({ ticketId }: { ticketId: string }) 
                                     สรุปการแก้ไข
                                 </h2>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="space-y-3">
                                 <p className="text-muted-foreground text-sm leading-7 whitespace-pre-wrap">
                                     {ticket.resolutionNote}
                                 </p>
+                                {/* F6.13 — ต่อยอดวิธีแก้เข้าคลังความรู้ เฉพาะเจ้าหน้าที่ขึ้นไป */}
+                                {isStaff && (
+                                    <SaveAsKbButton
+                                        title={ticket.title}
+                                        resolutionNote={ticket.resolutionNote}
+                                        categoryId={ticket.categoryId}
+                                    />
+                                )}
                             </CardContent>
                         </Card>
                     )}
