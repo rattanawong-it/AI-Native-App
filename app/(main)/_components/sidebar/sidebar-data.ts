@@ -1,5 +1,6 @@
 import {
     LayoutDashboard,
+    Search,
     PanelsTopLeft,
     LibraryBig,
     Users,
@@ -44,9 +45,11 @@ const ADMIN = ["admin"]
 
 export const sidebarData: NavSectionType[] = [
     {
-        // แดชบอร์ด — ทุก role เห็น (ไม่มี allowedRoles)
+        // แดชบอร์ด + ค้นหารวม — ทุก role เห็น (ไม่มี allowedRoles)
+        // ค้นหารวมกรองผลตามสิทธิ์ในตัวมันเอง ผู้ใช้ทั่วไปจึงเห็นเมนูได้โดยไม่หลุดข้อมูล
         items: [
             { title: "แดชบอร์ด", href: "/dashboard", icon: LayoutDashboard },
+            { title: "ค้นหารวม", href: "/search", icon: Search },
         ],
     },
     {
