@@ -11,6 +11,8 @@ import { prisma } from "@/lib/prisma"
 import { canAccessTicket, type AuthUser } from "@/lib/rbac"
 import { PRIORITY_WEIGHT, type Priority } from "@/lib/priority"
 import { WORKLOG_REF_LABEL, type WorkLogRefType } from "@/lib/worklog-schema"
+import { TICKET_STATUS_LABEL, type TicketStatus } from "@/lib/ticket-workflow"
+import { BOARD_STATUS_LABEL, type BoardStatus } from "@/lib/task-board"
 import {
     addThaiDays,
     endOfThaiMonth,
@@ -264,4 +266,142 @@ export function daysInRange(from: string, to: string, max = 62): string[] {
         cursor = addThaiDays(cursor, 1)
     }
     return out
+}
+
+// ── โหลดงาน 3 ประเภทของผู้ใช้คนหนึ่ง (F3.1, F3.2, F3.9) ──────────────
+
+/// ตัวเลือกการโหลด — ค่าเริ่มต้นคือ "งานที่ยังค้าง ทุกประเภท"
+export interface LoadWorkItemsOptions {
+    /// true = เอาเฉพาะงานที่จบแล้ว · false (ค่าเริ่มต้น) = เฉพาะงานที่ยังค้าง
+    includeDone?: boolean
+    /// ค้นจากชื่องาน
+    search?: string
+    /// จำนวนสูงสุดต่อประเภท — ดึงเผื่อไว้ให้การเรียงรวมถูกต้องก่อนตัดจริง
+    perKindTake?: number
+}
+
+/// ดึงเผื่อไว้มากกว่าที่จะแสดงจริง เพราะถ้าดึงมาแค่ limit/3
+/// งานด่วนของประเภทหนึ่งอาจตกหล่นตั้งแต่ชั้นฐานข้อมูล
+const PER_KIND_TAKE = 200
+
+/// รวม Ticket / Task / TodoItem ของผู้ใช้คนหนึ่งให้เป็น WorkItem ชุดเดียว (ยังไม่เรียง)
+///
+/// เป็น union ฝั่งแอปพลิเคชัน ไม่ใช่ SQL UNION เพราะสามตารางนี้มีคอลัมน์คนละชุด
+/// ใช้ร่วมกันระหว่าง `GET /api/my-work` กับ widget งานวันนี้/เลยกำหนดบนแดชบอร์ด
+/// เพื่อให้ตัวเลขสองที่ตรงกันเสมอ
+export async function loadWorkItems(
+    userId: string,
+    options: LoadWorkItemsOptions = {}
+): Promise<WorkItem[]> {
+    const includeDone = options.includeDone ?? false
+    const take = options.perKindTake ?? PER_KIND_TAKE
+    const search = options.search
+        ? { contains: options.search, mode: "insensitive" as const }
+        : undefined
+
+    const [tickets, tasks, todos] = await Promise.all([
+        prisma.ticket.findMany({
+            where: {
+                assigneeId: userId,
+                status: includeDone
+                    ? { in: ["resolved", "closed"] }
+                    : { notIn: ["resolved", "closed"] },
+                ...(search ? { title: search } : {}),
+            },
+            select: {
+                id: true,
+                ticketNo: true,
+                title: true,
+                status: true,
+                priority: true,
+                resolutionDueAt: true,
+                updatedAt: true,
+                category: { select: { name: true } },
+            },
+            orderBy: { updatedAt: "desc" },
+            take,
+        }),
+        prisma.task.findMany({
+            where: {
+                assigneeId: userId,
+                boardStatus: includeDone ? "done" : { not: "done" },
+                ...(search ? { title: search } : {}),
+            },
+            select: {
+                id: true,
+                title: true,
+                boardStatus: true,
+                priority: true,
+                dueDate: true,
+                updatedAt: true,
+                projectId: true,
+                project: { select: { code: true, name: true } },
+            },
+            orderBy: { updatedAt: "desc" },
+            take,
+        }),
+        prisma.todoItem.findMany({
+            where: {
+                ownerId: userId,
+                isDone: includeDone,
+                ...(search ? { title: search } : {}),
+            },
+            select: {
+                id: true,
+                title: true,
+                note: true,
+                priority: true,
+                dueDate: true,
+                isDone: true,
+                updatedAt: true,
+            },
+            orderBy: { updatedAt: "desc" },
+            take,
+        }),
+    ])
+
+    const ticketItems: WorkItem[] = tickets.map((t) => ({
+        kind: "ticket",
+        id: t.id,
+        title: t.title,
+        code: t.ticketNo,
+        status: TICKET_STATUS_LABEL[t.status as TicketStatus] ?? t.status,
+        priority: t.priority,
+        dueDate: t.resolutionDueAt?.toISOString() ?? null,
+        isDone: t.status === "resolved" || t.status === "closed",
+        href: `/service/tickets/${t.id}`,
+        context: t.category.name,
+        updatedAt: t.updatedAt.toISOString(),
+    }))
+
+    const taskItems: WorkItem[] = tasks.map((t) => ({
+        kind: "task",
+        id: t.id,
+        title: t.title,
+        code: t.project.code,
+        status: BOARD_STATUS_LABEL[t.boardStatus as BoardStatus] ?? t.boardStatus,
+        priority: t.priority,
+        dueDate: t.dueDate?.toISOString() ?? null,
+        isDone: t.boardStatus === "done",
+        // การ์ดไม่มีหน้าของตัวเอง — เปิดกระดานของโครงการแล้วให้หน้าจอกางการ์ดนั้นให้ (F5.7)
+        href: `/management/projects/${t.projectId}?task=${t.id}`,
+        context: t.project.name,
+        updatedAt: t.updatedAt.toISOString(),
+    }))
+
+    const todoItems: WorkItem[] = todos.map((t) => ({
+        kind: "todo",
+        id: t.id,
+        title: t.title,
+        code: null,
+        status: t.isDone ? "เสร็จแล้ว" : "ค้างอยู่",
+        priority: t.priority,
+        dueDate: t.dueDate?.toISOString() ?? null,
+        isDone: t.isDone,
+        href: null,
+        context: t.note,
+        updatedAt: t.updatedAt.toISOString(),
+    }))
+
+    return [...ticketItems, ...taskItems, ...todoItems]
 }
