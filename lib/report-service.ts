@@ -284,24 +284,28 @@ async function buildWorkloadSection(
 ): Promise<WorkloadSection> {
     const start = startOfThaiDay(period.from)
     const end = endOfThaiDay(period.to)
-    const base = ticketScope(scope)
+
+    // ⚠️ ห้ามเขียนเป็น `{ ...ticketScope(scope), assigneeId: { not: null } }`
+    //    เพราะ assigneeId ตัวหลังจะทับตัวกรองขอบเขตที่มาจาก scope ทิ้งไปเงียบๆ
+    //    (เจอจริงตอนทดสอบ — agent เห็นภาระงานของทุกคนทั้งที่ควรเห็นแค่ของตัวเอง)
+    const scopedAssignee: Prisma.TicketWhereInput =
+        scope.kind === "all" ? { assigneeId: { not: null } } : { assigneeId: scope.userId }
 
     const [assignedGroups, resolvedGroups, openGroups, hourGroups] = await Promise.all([
         prisma.ticket.groupBy({
             by: ["assigneeId"],
-            where: { ...base, assigneeId: { not: null }, createdAt: { gte: start, lte: end } },
+            where: { ...scopedAssignee, createdAt: { gte: start, lte: end } },
             _count: { _all: true },
         }),
         prisma.ticket.groupBy({
             by: ["assigneeId"],
-            where: { ...base, assigneeId: { not: null }, resolvedAt: { gte: start, lte: end } },
+            where: { ...scopedAssignee, resolvedAt: { gte: start, lte: end } },
             _count: { _all: true },
         }),
         prisma.ticket.groupBy({
             by: ["assigneeId"],
             where: {
-                ...base,
-                assigneeId: { not: null },
+                ...scopedAssignee,
                 status: { in: ["new", "assigned", "in_progress"] },
             },
             _count: { _all: true },
