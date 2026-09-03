@@ -2,16 +2,24 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Sparkles, Eye, EyeOff } from "lucide-react"
 import { signIn } from "@/lib/auth-client"
 
+/// ปลายทางหลัง login — middleware แนบ ?callbackUrl มาให้เมื่อผู้ใช้ถูกตีกลับจากหน้าที่ต้อง login
+/// รับเฉพาะเส้นทางภายในที่ขึ้นต้นด้วย "/" เดี่ยว เพื่อไม่ให้ถูกใช้พาออกไปเว็บอื่น
+function safeCallback(raw: string | null): string {
+    if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/dashboard"
+    return raw
+}
+
 export default function LoginForm() {
 
     const router = useRouter() // Next.js Router สำหรับการนำทางหลังจากเข้าสู่ระบบสำเร็จ
+    const callbackUrl = safeCallback(useSearchParams().get("callbackUrl"))
 
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
@@ -38,7 +46,7 @@ export default function LoginForm() {
                     setError(result.error.message || "เข้าสู่ระบบไม่สำเร็จ")
                 }
             } else {
-                router.push("/dashboard");
+                router.push(callbackUrl);
             }
 
         } catch {
@@ -55,12 +63,12 @@ export default function LoginForm() {
         try {
             const result = await signIn.social({
                 provider,
-                callbackURL: "/dashboard",
+                callbackURL: callbackUrl,
             })
             if (result.error) {
                 setError(result.error.message || "เข้าสู่ระบบไม่สำเร็จ")
             } else {
-                router.push("/dashboard")
+                router.push(callbackUrl)
             }
         } catch {
             setError("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง")

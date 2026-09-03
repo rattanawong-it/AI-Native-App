@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import LoginForm from "@/app/(auth)/auth/signin/LoginForm"
 import type { Metadata } from "next"
 
@@ -9,5 +10,11 @@ export const metadata: Metadata = {
 }
 
 export default function SigninPage() {
-  return <LoginForm />
+  // LoginForm อ่าน ?callbackUrl ด้วย useSearchParams จึงต้องมี Suspense คั่น
+  // ไม่งั้น Next จะบังคับให้ทั้งหน้าเรนเดอร์แบบ dynamic
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  )
 }
