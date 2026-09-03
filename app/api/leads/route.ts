@@ -1,6 +1,12 @@
+// app/api/leads/route.ts
+// POST เปิดสาธารณะ **โดยตั้งใจ** — เป็นฟอร์มติดต่อบนหน้า landing (app/(landing)/LeadForm.tsx)
+// GET เป็นข้อมูลผู้สนใจทั้งหมด จึงต้อง manager ขึ้นไป ตรงกับหน้า /management/lead
+// ที่อยู่ในกลุ่ม 7 ของ docs/spec.md §7.2
+
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { pushMessageToGroup } from "@/lib/line-push"
+import { requireRole, MANAGER_ROLES } from "@/lib/rbac"
 
 export async function POST(request: NextRequest) {
   try {
@@ -54,7 +60,7 @@ export async function POST(request: NextRequest) {
       message: "ขอบคุณสำหรับความสนใจ! ทีมงานจะติดต่อกลับภายใน 24 ชั่วโมง",
       success: true,
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error("Lead API Error:", error)
     return NextResponse.json(
       { error: "เกิดข้อผิดพลาด กรุณาลองใหม่" },
@@ -63,14 +69,17 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ดึงรายการ Lead ทั้งหมด (สำหรับ Admin)
+// ดึงรายการ Lead ทั้งหมด — หัวหน้าขึ้นไปเท่านั้น
 export async function GET() {
+  const guard = await requireRole([...MANAGER_ROLES])
+  if (!guard.ok) return guard.response
+
   try {
     const leads = await prisma.lead.findMany({
       orderBy: { createdAt: "desc" },
     })
     return NextResponse.json(leads)
-  } catch (error: any) {
+  } catch (error) {
     console.error("Lead GET Error:", error)
     return NextResponse.json(
       { error: "เกิดข้อผิดพลาด" },
