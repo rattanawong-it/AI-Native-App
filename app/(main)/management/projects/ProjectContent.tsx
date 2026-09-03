@@ -7,6 +7,7 @@
 // โครงสร้างหน้า (การ์ดสรุปด้านบน → แถบค้นหา/ตัวกรอง → กริดการ์ดโครงการ) ยังคงของเดิมไว้
 // เปลี่ยนเฉพาะแหล่งข้อมูลและใช้ component กลางของโปรเจกต์แทน markup ดิบ
 
+import { rolesAreManager } from "@/lib/roles"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import {
@@ -101,7 +102,7 @@ export default function ProjectContent() {
         () => ((session?.user as { role?: string })?.role || "user").split(",").map((r) => r.trim()),
         [session]
     )
-    const canManage = roles.some((r) => ["manager", "admin"].includes(r))
+    const canManage = rolesAreManager(roles)
 
     const [projects, setProjects] = useState<ProjectRow[]>([])
     const [statusCounts, setStatusCounts] = useState<Record<string, number>>({})

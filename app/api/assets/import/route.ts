@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { parse } from "csv-parse/sync"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest } from "@/lib/rbac"
+import { requireRole, badRequest, MANAGER_ROLES } from "@/lib/rbac"
 import { importAssetRowSchema, importAssetSchema } from "@/lib/asset-schema"
 import { firstIssueMessage } from "@/lib/ticket-schema"
 import {
@@ -43,7 +43,7 @@ function normalizeRow(raw: Record<string, string>): Record<string, string> {
 }
 
 export async function POST(request: NextRequest) {
-    const guard = await requireRole(["manager", "admin"])
+    const guard = await requireRole([...MANAGER_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 

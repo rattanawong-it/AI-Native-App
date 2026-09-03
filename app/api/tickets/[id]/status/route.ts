@@ -21,6 +21,7 @@ import {
     forbidden,
     canUpdateTicket,
     isManager,
+    STAFF_ROLES,
 } from "@/lib/rbac"
 import { changeStatusSchema, firstIssueMessage } from "@/lib/ticket-schema"
 import {
@@ -50,7 +51,7 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     // F2.6 — เปลี่ยนสถานะได้เฉพาะ agent ขึ้นไป (spec §7)
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
     const { id } = await params

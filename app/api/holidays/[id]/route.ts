@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest, notFound } from "@/lib/rbac"
+import { requireRole, badRequest, notFound, ADMIN_ROLES } from "@/lib/rbac"
 import { firstIssueMessage } from "@/lib/ticket-schema"
 import { updateHolidaySchema } from "@/lib/sla-schema"
 import { invalidateBusinessCalendar } from "@/lib/business-hours"
@@ -17,7 +17,7 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const guard = await requireRole(["admin"])
+    const guard = await requireRole([...ADMIN_ROLES])
     if (!guard.ok) return guard.response
     const { id } = await params
 
@@ -61,7 +61,7 @@ export async function DELETE(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const guard = await requireRole(["admin"])
+    const guard = await requireRole([...ADMIN_ROLES])
     if (!guard.ok) return guard.response
     const { id } = await params
 

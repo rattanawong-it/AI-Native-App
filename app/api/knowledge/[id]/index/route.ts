@@ -1,6 +1,9 @@
+// app/api/knowledge/[id]/index/route.ts
+// สั่ง index เอกสารเข้า vector database ใหม่ — admin เท่านั้น
+// งานนี้กินโควตา embedding API จึงไม่ควรเปิดให้ผู้ใช้ทั่วไปสั่งได้
+
+import { requireRole, ADMIN_ROLES } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
 import { ingestText } from "@/lib/ingestion"
 
@@ -9,10 +12,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const guard = await requireRole([...ADMIN_ROLES])
+  if (!guard.ok) return guard.response
 
   const { id } = await params
 
@@ -47,10 +48,10 @@ export async function POST(
     return NextResponse.json({
       message: `เอกสาร "${document.title}" ถูก index เข้า Vector DB เรียบร้อย`,
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error("Indexing error:", error)
     return NextResponse.json(
-      { error: error.message || "Indexing failed" },
+      { error: (error instanceof Error ? error.message : "") || "Indexing failed" },
       { status: 500 }
     )
   }

@@ -9,13 +9,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { Prisma } from "@/app/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest } from "@/lib/rbac"
+import { requireRole, badRequest, STAFF_ROLES } from "@/lib/rbac"
 import { firstIssueMessage, searchParamsToObject } from "@/lib/ticket-schema"
 import { createTodoSchema, listTodosQuerySchema } from "@/lib/worklog-schema"
 import { todoSelect } from "@/lib/worklog-service"
 
 export async function GET(request: NextRequest) {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 

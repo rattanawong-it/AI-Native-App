@@ -11,19 +11,26 @@
 import { NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { auth } from "@/lib/auth"
+import { ROLES, ROLE_RANK, parseRoles, isStaff, isManager, type Role } from "@/lib/roles"
 
-/// 5 roles ของระบบ เรียงจากสิทธิ์น้อย → มาก
-export const ROLES = ["student", "user", "agent", "manager", "admin"] as const
-export type Role = (typeof ROLES)[number]
-
-/// ลำดับชั้นของ role — ใช้เทียบว่า "อย่างน้อยระดับนี้ขึ้นไป"
-const ROLE_RANK: Record<Role, number> = {
-    student: 0,
-    user: 1,
-    agent: 2,
-    manager: 3,
-    admin: 4,
-}
+// ชื่อ role และตรรกะเทียบสิทธิ์ย้ายไปอยู่ที่ lib/roles.ts แล้ว (ไม่พึ่ง next/ จึงใช้ฝั่ง client ได้)
+// ไฟล์นี้ re-export ให้ครบเพื่อไม่ต้องแก้ import ของ API route เดิมราว 70 เส้น
+export {
+    ROLES,
+    ROLE_RANK,
+    ROLE_LABELS,
+    STAFF_ROLES,
+    MANAGER_ROLES,
+    ADMIN_ROLES,
+    rolesAtLeast,
+    parseRoles,
+    hasRole,
+    isAtLeast,
+    isStaff,
+    isManager,
+    isAdmin,
+} from "@/lib/roles"
+export type { Role } from "@/lib/roles"
 
 /// ผู้ใช้ที่ผ่านการยืนยันตัวตนแล้ว (รูปแบบย่อที่ API ใช้จริง)
 export interface AuthUser {
@@ -37,15 +44,6 @@ export interface AuthUser {
 type Guard =
     | { ok: true; user: AuthUser }
     | { ok: false; response: NextResponse }
-
-/// แปลงค่า role จาก session (อาจเป็น "agent,manager") ให้เป็น array
-export function parseRoles(raw?: string | null): Role[] {
-    const list = (raw || "user")
-        .split(",")
-        .map((r) => r.trim())
-        .filter((r): r is Role => (ROLES as readonly string[]).includes(r))
-    return list.length > 0 ? list : ["user"]
-}
 
 /// ดึง session ปัจจุบัน — คืน null ถ้ายังไม่ได้ login
 export async function getAuthUser(): Promise<AuthUser | null> {
@@ -93,30 +91,6 @@ export async function requireRole(allowed: Role[]): Promise<Guard> {
 /// ต้องมีสิทธิ์อย่างน้อยระดับ role ที่กำหนด (ใช้ลำดับชั้น)
 export async function requireMinRole(min: Role): Promise<Guard> {
     return requireRole(ROLES.filter((r) => ROLE_RANK[r] >= ROLE_RANK[min]))
-}
-
-// ── ตัวช่วยเชิงบทบาท (ใช้ได้ทั้งฝั่ง server และ client) ──────────────
-
-export function hasRole(user: Pick<AuthUser, "roles">, role: Role): boolean {
-    return user.roles.includes(role)
-}
-
-export function isAtLeast(user: Pick<AuthUser, "roles">, min: Role): boolean {
-    return user.roles.some((r) => ROLE_RANK[r] >= ROLE_RANK[min])
-}
-
-/// `agent` ขึ้นไป — เห็น Ticket ทั้งหมด, รับงาน, เปลี่ยนสถานะ
-export function isStaff(user: Pick<AuthUser, "roles">): boolean {
-    return isAtLeast(user, "agent")
-}
-
-/// `manager` ขึ้นไป — มอบหมายงาน, อนุมัติคำขอ, Publish KB, รายงานรวม
-export function isManager(user: Pick<AuthUser, "roles">): boolean {
-    return isAtLeast(user, "manager")
-}
-
-export function isAdmin(user: Pick<AuthUser, "roles">): boolean {
-    return hasRole(user, "admin")
 }
 
 // ── Row-level check (NFR3) ────────────────────────────────────────────

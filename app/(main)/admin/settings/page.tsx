@@ -1,7 +1,5 @@
+import { requireScreen } from "@/lib/screen-guard"
 import SettingContent from '@/app/(main)/admin/settings/SettingContent'
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
-import { redirect } from "next/navigation"
 
 import { Metadata } from "next"
 
@@ -24,19 +22,9 @@ export const metadata: Metadata = {
 
 
 export default async function SettingPage() {
-    const session = await auth.api.getSession({
-        headers: await headers(),
-    })
-
-    if (!session) {
-        redirect("/dashboard")
-    }
-
-    // ตรวจสอบว่าเป็น Admin เท่านั้นที่เข้าถึงได้
-    const userRoles = (session.user.role ?? "user").split(",").map((r: string) => r.trim())
-    if (!userRoles.includes("admin")) {
-        redirect("/dashboard")
-    }
+    // สิทธิ์ admin ถูกกันไว้ที่ app/(main)/admin/layout.tsx แล้ว
+    // เรียกซ้ำที่นี่เพื่อไม่ให้หน้าหลุดถ้ามีใครย้ายไฟล์ออกจากกลุ่ม /admin ในอนาคต
+    await requireScreen("SYSTEM_ADMIN")
 
     return <SettingContent />
 }

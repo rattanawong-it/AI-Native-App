@@ -23,6 +23,7 @@ import {
     CalendarDays,
     type LucideIcon,
 } from "lucide-react"
+import { STAFF_ROLES, MANAGER_ROLES, ADMIN_ROLES } from "@/lib/roles"
 
 export interface NavItemType {
     title: string
@@ -38,10 +39,11 @@ export interface NavSectionType {
     allowedRoles?: string[]  // ถ้าไม่กำหนด = ทุก role เห็น
 }
 
-// กลุ่ม role ที่ใช้ซ้ำ — อ้างอิง docs/spec.md §7 (RBAC Matrix)
-const STAFF = ["agent", "manager", "admin"]       // เจ้าหน้าที่ขึ้นไป
-const MANAGER = ["manager", "admin"]              // หัวหน้าขึ้นไป
-const ADMIN = ["admin"]
+// กลุ่ม role ที่ใช้ซ้ำ — ดึงจาก lib/roles.ts ซึ่งเป็นแหล่งความจริงเดียวของระบบ
+// (เดิมประกาศ array ซ้ำไว้ตรงนี้ จึงเพี้ยนจาก API ได้โดยไม่มีอะไรเตือน)
+const STAFF = [...STAFF_ROLES]      // เจ้าหน้าที่ขึ้นไป
+const MANAGER = [...MANAGER_ROLES]  // หัวหน้าขึ้นไป
+const ADMIN = [...ADMIN_ROLES]
 
 export const sidebarData: NavSectionType[] = [
     {
@@ -92,11 +94,19 @@ export const sidebarData: NavSectionType[] = [
         allowedRoles: STAFF,
     },
     {
-        // บริหารจัดการ (ของเดิม) — เฉพาะ admin และ manager
-        title: "บริหารจัดการ",
+        // งานพัฒนา (SDLC) — เจ้าหน้าที่ขึ้นไป ตรงกับ SDLC_ROLES ใน lib/project-service.ts
+        // (เดิมกลุ่มนี้ตั้งไว้ที่ manager ขึ้นไป ทำให้ agent ที่ API เปิดให้เข้าถึงกลับไม่เห็นเมนู)
+        title: "งานพัฒนา",
         items: [
             { title: "โครงการพัฒนา", href: "/management/projects", icon: PanelsTopLeft },
             { title: "ทีมงาน", href: "/management/teams", icon: Component },
+        ],
+        allowedRoles: STAFF,
+    },
+    {
+        // ลูกค้าสัมพันธ์ — หัวหน้าขึ้นไป (docs/spec.md §7.2 กลุ่ม 7)
+        title: "ลูกค้าสัมพันธ์",
+        items: [
             { title: "ผู้สนใจ (Lead)", href: "/management/lead", icon: ClipboardList },
         ],
         allowedRoles: MANAGER,

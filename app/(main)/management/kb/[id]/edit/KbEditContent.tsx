@@ -3,6 +3,7 @@
 // หน้าแก้ไขบทความ — ฟอร์มเดียวกับหน้าเขียนใหม่ บวกแถบจัดการสถานะการเผยแพร่
 // อ้างอิง F6.1, F6.2, F6.4, F6.5, F6.9, F6.10
 
+import { rolesAreManager } from "@/lib/roles"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { ChevronLeft, Loader2, ExternalLink } from "lucide-react"
@@ -30,7 +31,7 @@ export default function KbEditContent({ articleId }: { articleId: string }) {
         () => ((session?.user as { role?: string })?.role || "user").split(",").map((r) => r.trim()),
         [session]
     )
-    const canPublish = roles.some((r) => ["manager", "admin"].includes(r))
+    const canPublish = rolesAreManager(roles)
 
     const [article, setArticle] = useState<KbArticleDetail | null>(null)
     const [categories, setCategories] = useState<Category[]>([])

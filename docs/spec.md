@@ -401,10 +401,10 @@ api/my-work/
 - **กลุ่ม 2 และ 3 เปิดให้ทุก role โดยตั้งใจ** — ความปลอดภัยอยู่ที่การกรองข้อมูล ไม่ใช่การกันหน้าจอ
   (`/search` กรองผลลัพธ์ตามสิทธิ์ในตัวมันเอง · `/dashboard` เลือกชุดวิดเจ็ตจาก `viewOf()` ใน
   `lib/dashboard-service.ts:57-60` เป็น `manager` / `agent` / `requester`)
-- **กลุ่ม 6 ปัจจุบันไม่ตรงกันระหว่างชั้น** — `sidebar-data.ts` แสดงเมนู "โครงการพัฒนา / ทีมงาน" เฉพาะ
-  `manager` ขึ้นไป แต่ API ใช้ `SDLC_ROLES = ["agent","manager","admin"]` (`lib/project-service.ts:197`)
-  และ §7.1 ระบุว่า `agent` อ่านได้ + แก้ task ตัวเองได้ → ของจริงเพี้ยนจาก spec
-  **ต้องแก้ sidebar ให้เปิดกลุ่ม 6 ถึง `agent`** และแยก "ผู้สนใจ (Lead)" ออกไปกลุ่ม 7 ซึ่งเป็น `manager` ขึ้นไปจริง
+- ~~**กลุ่ม 6 ปัจจุบันไม่ตรงกันระหว่างชั้น**~~ **แก้แล้วใน Phase 9** — เดิม `sidebar-data.ts` แสดงเมนู
+  "โครงการพัฒนา / ทีมงาน" เฉพาะ `manager` ขึ้นไป แต่ API ใช้ `SDLC_ROLES = ["agent","manager","admin"]`
+  ตอนนี้ sidebar เปิดกลุ่ม 6 ถึง `agent` และ `SDLC_ROLES = STAFF_ROLES` อ้าง `lib/roles.ts` ชุดเดียวกัน
+  ส่วน "ผู้สนใจ (Lead)" แยกออกไปเป็นกลุ่ม 7 ซึ่งเป็น `manager` ขึ้นไปแล้ว
 - หน้าจอในกลุ่ม 5 ที่ `agent` เข้าได้แต่แก้ไม่ได้ ต้องซ่อน/ปิดปุ่มเขียนด้วย ไม่ใช่ปล่อยให้กดแล้วได้ 403
 - เส้นทางที่ไม่ปรากฏใน sidebar แต่เข้าถึงได้จริงต้องอยู่ในตารางนี้ด้วย — ปัจจุบันมี
   `/service/tickets/queue`, `/management/kb/new`, `/management/kb/[id]/edit`, `/management/assets/[id]`,
@@ -420,7 +420,14 @@ api/my-work/
 `ReportScope`, `canAccessTicket` / `canUpdateTicket` / `canAssignTicket`)
 แต่ **การบังคับใช้ยังไม่ครบ 4 เรื่อง** เรียงตามความรุนแรง:
 
-#### ① หน้าจอไม่ถูกกันฝั่ง server
+> ✅ **ทั้ง 4 ข้อแก้แล้วใน Phase 9** (branch `feat/itsm-phase-9` · ดู `docs/phase-9-rbac.md`)
+> หัวข้อย่อยด้านล่างคงไว้เป็นบันทึกสภาพก่อนแก้ พร้อมวงเล็บกำกับว่าตอนนี้เป็นอย่างไร
+
+#### ① หน้าจอไม่ถูกกันฝั่ง server — ✅ แก้แล้ว (Phase 9)
+
+> ตอนนี้: มี `middleware.ts` กันชั้นแรกที่ขอบ + `requireScreen()` ใน `lib/screen-guard.ts`
+> ตรวจ role ที่ layout ของกลุ่ม (`admin/layout.tsx`, `management/layout.tsx`) และหน้าที่เกณฑ์ต่าง
+> จากกลุ่ม ครบทั้ง 43 หน้า โดยอ้างผัง §7.2 ผ่าน `lib/screen-access.ts`
 
 ไม่มี `middleware.ts` ในโปรเจกต์ และมีเพียง **4 จาก 43 หน้า** ที่ตรวจ role ฝั่ง server
 (`admin/users`, `admin/settings`, `admin/line-groups`, `dashboard`) ส่วน `app/(main)/layout.tsx`
@@ -431,7 +438,11 @@ api/my-work/
 หลุดออกไปแล้ว) — ที่กันอยู่ตอนนี้คือ `filterSectionsByRole()` ซึ่งเพียงซ่อนเมนูฝั่ง client
 ไม่ใช่การควบคุมการเข้าถึง
 
-#### ② API ที่ไม่ตรวจสิทธิ์เลย ทั้งที่แตะข้อมูลจริง
+#### ② API ที่ไม่ตรวจสิทธิ์เลย ทั้งที่แตะข้อมูลจริง — ✅ แก้แล้ว (Phase 9)
+
+> ตอนนี้: ทุกแถวในตารางถูกแก้ตามคอลัมน์ "ควรเป็น" แล้ว · `/api/users` ทั้งสองไฟล์ถูกลบทิ้ง ·
+> ไล่ตรวจทุก `route.ts` ใต้ `app/api` แล้วเหลือเส้นเดียวที่ไม่มี guard คือ `POST /api/contact`
+> ซึ่งเปิดสาธารณะโดยตั้งใจ
 
 | Route | ความเสี่ยง | ควรเป็น |
 |---|---|---|
@@ -445,7 +456,10 @@ api/my-work/
 > `POST /api/leads` และ `POST /api/contact` เปิดสาธารณะ **โดยตั้งใจ** (ฟอร์มบนหน้า landing) ห้ามเผลอปิด ·
 > `POST /api/line/webhook` ตรวจลายเซ็น HMAC อยู่แล้ว ไม่ต้องแก้
 
-#### ③ role `student` และ `agent` ตั้งให้ใครไม่ได้
+#### ③ role `student` และ `agent` ตั้งให้ใครไม่ได้ — ✅ แก้แล้ว (Phase 9)
+
+> ตอนนี้: ทั้ง 4 ไฟล์อ้าง `ROLES` / `ROLE_LABELS` จาก `lib/roles.ts` · หน้า `/admin/users`
+> มีสี ไอคอน และชื่อไทยครบทั้ง 5 role · `lib/auth-client.ts` ลงทะเบียนครบ 5 ตัว
 
 ทั้งสอง role ถูกนิยามครบใน `lib/permissions.ts`, `lib/auth.ts`, `lib/rbac.ts` และ `sidebar-data.ts`
 แต่รายการ role ในชั้นจัดการผู้ใช้ยังค้างที่ `["user","manager","admin"]` จากก่อน ITSM:
@@ -457,7 +471,12 @@ api/my-work/
 
 → **ครึ่งหนึ่งของ matrix §7.1 ยังใช้จริงไม่ได้** เพราะไม่มีวิธีตั้ง role สองตัวนี้ให้ผู้ใช้จากหน้าจอ
 
-#### ④ ค่าคงที่ role กระจัดกระจายจนเพี้ยนกันเอง
+#### ④ ค่าคงที่ role กระจัดกระจายจนเพี้ยนกันเอง — ✅ แก้แล้ว (Phase 9)
+
+> ตอนนี้: `lib/roles.ts` เป็นแหล่งความจริงเดียว (ไม่ import `next/` จึงใช้ได้ทั้งสองฝั่ง)
+> `requireRole()` ใน API route 61 จุด/41 ไฟล์ใช้ `[...STAFF_ROLES]` / `[...MANAGER_ROLES]` /
+> `[...ADMIN_ROLES]` · ฝั่ง client ใช้ `rolesAreStaff()` / `rolesAreManager()` ·
+> `sidebar-data.ts` และ `SDLC_ROLES` อ้างชุดเดียวกัน · `lib/rbac.ts` re-export ให้ครบ
 
 array `["agent","manager","admin"]` และ `["manager","admin"]` ถูกเขียนซ้ำราว **85 จุด** — ~70 จุดใน
 `requireRole()` ของ API route · ~15 จุดในคอมโพเนนต์ฝั่ง client ที่คำนวณ `isStaff` / `isManager` / `canManage`
@@ -727,6 +746,7 @@ REQUEST_PREFIX=RQ
 | **6** | Knowledge Base + RAG Sync (⑥) | 1 |
 | **7** | งานธุรการ: ครุภัณฑ์ + คำขออนุมัติ (⑦A, ⑦B) | 0, 4 |
 | **8** | Dashboard + รายงาน + Export (⑦C, ⑨) | ทุกเฟส |
+| **9** | บังคับใช้สิทธิ์ให้ครบทุกชั้น — กันหน้าจอฝั่ง server, ปิด API ที่ไม่ตรวจสิทธิ์, ทำให้ role ครบ 5 ใช้ได้จริง, รวมค่าคงที่ role (ปิด §7.3 ทั้ง 4 ข้อ) | ทุกเฟส |
 
 ---
 
@@ -734,7 +754,9 @@ REQUEST_PREFIX=RQ
 
 ## 12. Non-Functional Requirements
 
-- [ ] **NFR1** ทุก API route ตรวจ session ตาม pattern เดิม + ตรวจ role ผ่าน `lib/rbac.ts`
+- [x] **NFR1** ทุก API route ตรวจ session ตาม pattern เดิม + ตรวจ role ผ่าน `lib/rbac.ts`
+      *(ปิดใน Phase 9 — ไล่ตรวจทุก `route.ts` ใต้ `app/api` แล้ว เหลือเส้นเดียวที่ไม่มี guard
+      คือ `POST /api/contact` ซึ่งเปิดสาธารณะโดยตั้งใจ · ดู `docs/phase-9-rbac.md`)*
 - [ ] **NFR2** Validate input ทุก endpoint ด้วย `zod`
 - [ ] **NFR3** ผู้ใช้ทั่วไปต้องเห็นเฉพาะ Ticket ของตัวเอง (row-level check ทุก query)
 - [ ] **NFR4** UI ภาษาไทยทั้งหมด, วันที่รูปแบบไทย (พ.ศ.), timezone `Asia/Bangkok`

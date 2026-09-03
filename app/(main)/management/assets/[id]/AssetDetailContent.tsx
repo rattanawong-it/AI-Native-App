@@ -3,6 +3,7 @@
 // หน้ารายละเอียดครุภัณฑ์ — ข้อมูลทะเบียน ประวัติการเคลื่อนไหว และ QR Code
 // อ้างอิง F7.2, F7.3, F7.4, F7.5
 
+import { rolesAreManager } from "@/lib/roles"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
@@ -108,7 +109,7 @@ export default function AssetDetailContent({ assetId }: { assetId: string }) {
         () => ((session?.user as { role?: string })?.role || "user").split(",").map((r) => r.trim()),
         [session]
     )
-    const canManage = roles.some((r) => ["manager", "admin"].includes(r))
+    const canManage = rolesAreManager(roles)
 
     const [asset, setAsset] = useState<AssetDetail | null>(null)
     const [histories, setHistories] = useState<AssetHistoryEntry[]>([])

@@ -3,6 +3,7 @@
 // หน้ารายการคำขออนุมัติ — ทั้งหมด / ของฉัน / รออนุมัติของฉัน
 // อ้างอิง F7.8, F7.9, F7.11, F7.12
 
+import { rolesAreManager } from "@/lib/roles"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import {
@@ -84,7 +85,7 @@ export default function RequestContent() {
         () => ((session?.user as { role?: string })?.role || "user").split(",").map((r) => r.trim()),
         [session]
     )
-    const canApprove = roles.some((r) => ["manager", "admin"].includes(r))
+    const canApprove = rolesAreManager(roles)
 
     const [requests, setRequests] = useState<ApprovalRow[]>([])
     const [total, setTotal] = useState(0)

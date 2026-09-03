@@ -1,6 +1,8 @@
+// app/api/knowledge/upload/route.ts
+// อัปโหลดไฟล์เข้าคลัง RAG — admin เท่านั้น ให้ตรงกับหน้า /admin/knowledge
+
+import { requireRole, ADMIN_ROLES } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
 
 // ฟังก์ชันดึงข้อความจากไฟล์ต่างๆ
@@ -35,10 +37,8 @@ async function extractTextFromFile(
 }
 
 export async function POST(request: NextRequest) {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const guard = await requireRole([...ADMIN_ROLES])
+  if (!guard.ok) return guard.response
 
   const formData = await request.formData()
   const file = formData.get("file") as File | null
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
         source: file.name,
         fileType: extension,
         fileSize: file.size,
-        createdBy: session.user.id,
+        createdBy: guard.user.id,
       },
     })
 
@@ -101,10 +101,10 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     )
-  } catch (error: any) {
+  } catch (error) {
     console.error("File upload error:", error)
     return NextResponse.json(
-      { error: error.message || "Upload failed" },
+      { error: (error instanceof Error ? error.message : "") || "Upload failed" },
       { status: 500 }
     )
   }

@@ -4,6 +4,7 @@
 // อ้างอิง F5.2 (ภาพรวม + progress + สมาชิก), F5.3 (CRUD Sprint), F5.4/F5.5 (กระดาน + ลากย้าย),
 //        F5.10 (progress อัตโนมัติ), F5.12 (สรุป Sprint) และ F5.13 (Backlog view)
 
+import { rolesAreManager } from "@/lib/roles"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -94,7 +95,7 @@ export default function ProjectBoardContent({ projectId }: { projectId: string }
         () => ((session?.user as { role?: string })?.role || "user").split(",").map((r) => r.trim()),
         [session]
     )
-    const canManage = roles.some((r) => ["manager", "admin"].includes(r))
+    const canManage = rolesAreManager(roles)
     const currentUserId = session?.user?.id ?? null
 
     const [project, setProject] = useState<ProjectDetail | null>(null)

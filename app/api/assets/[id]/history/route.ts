@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest, notFound } from "@/lib/rbac"
+import { requireRole, badRequest, notFound, STAFF_ROLES, MANAGER_ROLES } from "@/lib/rbac"
 import { createAssetHistorySchema } from "@/lib/asset-schema"
 import { firstIssueMessage } from "@/lib/ticket-schema"
 import {
@@ -27,7 +27,7 @@ export async function GET(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
 
     const { id } = await params
@@ -56,7 +56,7 @@ export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const guard = await requireRole(["manager", "admin"])
+    const guard = await requireRole([...MANAGER_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 

@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import QRCode from "qrcode"
 import { prisma } from "@/lib/prisma"
-import { requireRole, notFound, badRequest } from "@/lib/rbac"
+import { requireRole, notFound, badRequest, STAFF_ROLES } from "@/lib/rbac"
 import { appBaseUrl } from "@/lib/notification-templates"
 
 /// ขนาดด้านละกี่พิกเซล — ใหญ่พอให้พิมพ์ป้ายขนาด 3 ซม. แล้วยังสแกนติด
@@ -19,7 +19,7 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
 
     const { id } = await params

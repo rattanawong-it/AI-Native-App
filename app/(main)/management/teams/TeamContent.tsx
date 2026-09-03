@@ -9,6 +9,7 @@
 // ทีมชุดนี้คือทีมเดียวกับที่ Ticket, หมวดหมู่บริการ และโครงการอ้างถึง ไม่ใช่ตารางแยก
 // การลบจึงถูกกันไว้เมื่อมีใครอ้างถึงอยู่ — ให้ปิดใช้งานแทน
 
+import { rolesAreManager } from "@/lib/roles"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import {
@@ -82,7 +83,7 @@ export default function TeamContent() {
         () => ((session?.user as { role?: string })?.role || "user").split(",").map((r) => r.trim()),
         [session]
     )
-    const canManage = roles.some((r) => ["manager", "admin"].includes(r))
+    const canManage = rolesAreManager(roles)
 
     const [teams, setTeams] = useState<TeamRow[]>([])
     const [agents, setAgents] = useState<Person[]>([])

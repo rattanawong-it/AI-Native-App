@@ -460,9 +460,11 @@ export default function SettingContent() {
                 <CardContent>
                   <div className="space-y-2">
                     {[
-                      { role: "Admin", perms: "CRUD ทุกอย่าง + จัดการ User/Session", color: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" },
-                      { role: "Manager", perms: "Create, Read, Update โปรเจกต์", color: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400" },
-                      { role: "User", perms: "Create, Read โปรเจกต์", color: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400" },
+                      { role: "Admin", perms: "ทุกสิทธิ์ + ตั้งค่า SLA/Catalog/ปฏิทิน + จัดการผู้ใช้", color: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" },
+                      { role: "Manager", perms: "มอบหมายงาน อนุมัติคำขอ Publish KB ดูรายงานรวม", color: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400" },
+                      { role: "Agent", perms: "รับงาน เปลี่ยนสถานะ เขียน KB เข้าหน้างานธุรการ", color: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" },
+                      { role: "User", perms: "แจ้งปัญหาและติดตามของตัวเอง + อ่าน KB สาธารณะ", color: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400" },
+                      { role: "Student", perms: "แจ้งปัญหาและติดตามของตัวเอง + อ่าน KB สาธารณะ", color: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300" },
                     ].map((r) => (
                       <div key={r.role} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
                         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${r.color}`}>{r.role}</span>

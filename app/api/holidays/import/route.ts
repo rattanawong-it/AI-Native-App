@@ -8,14 +8,14 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest } from "@/lib/rbac"
+import { requireRole, badRequest, ADMIN_ROLES } from "@/lib/rbac"
 import { firstIssueMessage } from "@/lib/ticket-schema"
 import { importHolidaysSchema } from "@/lib/sla-schema"
 import { invalidateBusinessCalendar } from "@/lib/business-hours"
 import { utcDate } from "@/lib/sla-service"
 
 export async function POST(request: NextRequest) {
-    const guard = await requireRole(["admin"])
+    const guard = await requireRole([...ADMIN_ROLES])
     if (!guard.ok) return guard.response
 
     let body: unknown

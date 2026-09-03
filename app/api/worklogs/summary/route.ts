@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { Prisma } from "@/app/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest, forbidden, isManager } from "@/lib/rbac"
+import { requireRole, badRequest, forbidden, isManager, STAFF_ROLES } from "@/lib/rbac"
 import { firstIssueMessage, searchParamsToObject } from "@/lib/ticket-schema"
 import { WORKLOG_REF_LABEL, workLogSummaryQuerySchema, type WorkLogRefType } from "@/lib/worklog-schema"
 import { decimalToNumber, daysInRange, roundHours, summaryRange } from "@/lib/worklog-service"
@@ -19,7 +19,7 @@ import { thaiToday } from "@/lib/thai-date"
 import { shortThaiDay } from "@/lib/worklog-types"
 
 export async function GET(request: NextRequest) {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 

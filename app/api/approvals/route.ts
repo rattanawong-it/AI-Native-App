@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest } from "@/lib/rbac"
+import { requireRole, badRequest, STAFF_ROLES } from "@/lib/rbac"
 import { createApprovalSchema, listApprovalQuerySchema } from "@/lib/approval-schema"
 import { searchParamsToObject, firstIssueMessage } from "@/lib/ticket-schema"
 import {
@@ -19,7 +19,7 @@ import { createWithRunningNumber, nextRequestNo } from "@/lib/running-number"
 import { notifyApprovalPending } from "@/lib/approval-notify"
 
 export async function GET(request: NextRequest) {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 

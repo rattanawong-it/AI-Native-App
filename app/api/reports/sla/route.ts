@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { Prisma } from "@/app/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest, isManager } from "@/lib/rbac"
+import { requireRole, badRequest, isManager, STAFF_ROLES } from "@/lib/rbac"
 import { PRIORITY_LABEL, PRIORITY_WEIGHT, type Priority } from "@/lib/priority"
 import { firstIssueMessage } from "@/lib/ticket-schema"
 import { slaReportQuerySchema } from "@/lib/sla-schema"
@@ -49,7 +49,7 @@ const reportSelect = {
 } satisfies Prisma.TicketSelect
 
 export async function GET(request: NextRequest) {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 

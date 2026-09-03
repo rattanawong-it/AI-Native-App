@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole } from "@/lib/rbac"
+import { requireRole, STAFF_ROLES } from "@/lib/rbac"
 
 const personSelect = {
     id: true,
@@ -31,7 +31,7 @@ const STAFF_ROLE_FILTER = {
 }
 
 export async function GET(request: NextRequest) {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
 
     const url = new URL(request.url)

@@ -1,6 +1,4 @@
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
-import { redirect } from "next/navigation"
+import { requireScreen } from "@/lib/screen-guard"
 import UsersManagement from "./UsersManagement"
 
 export const metadata = {
@@ -8,19 +6,9 @@ export const metadata = {
 }
 
 export default async function AdminUsersPage() {
-    const session = await auth.api.getSession({
-        headers: await headers(),
-    })
-
-    // ถ้าไม่ใช่ Admin → redirect กลับ Dashboard (รองรับ multi-role)
-    if (!session) {
-        redirect("/dashboard")
-    }
-
-    const userRoles = (session.user.role ?? "user").split(",").map((r: string) => r.trim())
-    if (!userRoles.includes("admin")) {
-        redirect("/dashboard")
-    }
+    // สิทธิ์ admin ถูกกันไว้ที่ app/(main)/admin/layout.tsx แล้ว
+    // เรียกซ้ำที่นี่เพื่อไม่ให้หน้าหลุดถ้ามีใครย้ายไฟล์ออกจากกลุ่ม /admin ในอนาคต
+    await requireScreen("SYSTEM_ADMIN")
 
     return <UsersManagement />
 }

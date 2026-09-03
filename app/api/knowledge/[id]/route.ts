@@ -1,6 +1,9 @@
+// app/api/knowledge/[id]/route.ts
+// อ่าน / แก้ / ลบเอกสารในคลัง RAG — admin เท่านั้น ให้ตรงกับหน้า /admin/knowledge
+// เดิมตรวจแค่ว่ามี session ผู้ใช้ทุก role ที่ login แล้วจึงแก้และลบเอกสารได้
+
+import { requireRole, ADMIN_ROLES } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
 
 // GET — ดึงเอกสารตาม ID
@@ -8,10 +11,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const guard = await requireRole([...ADMIN_ROLES])
+  if (!guard.ok) return guard.response
 
   const { id } = await params
 
@@ -31,10 +32,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const guard = await requireRole([...ADMIN_ROLES])
+  if (!guard.ok) return guard.response
 
   const { id } = await params
   const { title, content } = await request.json()
@@ -56,10 +55,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const guard = await requireRole([...ADMIN_ROLES])
+  if (!guard.ok) return guard.response
 
   const { id } = await params
 

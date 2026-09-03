@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, requireRole, badRequest } from "@/lib/rbac"
+import { requireAuth, requireRole, badRequest, STAFF_ROLES } from "@/lib/rbac"
 import { createKbArticleSchema, listKbQuerySchema } from "@/lib/kb-schema"
 import { searchParamsToObject, firstIssueMessage } from "@/lib/ticket-schema"
 import {
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     // F6.5 — เขียนบทความได้ตั้งแต่ระดับเจ้าหน้าที่ขึ้นไป
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 
