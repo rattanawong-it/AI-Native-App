@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest, notFound, forbidden } from "@/lib/rbac"
+import { requireRole, badRequest, notFound, forbidden, MANAGER_ROLES } from "@/lib/rbac"
 import { decideApprovalSchema } from "@/lib/approval-schema"
 import { firstIssueMessage } from "@/lib/ticket-schema"
 import { approvalDetailSelect, decimalOrNull, toApprovalDto } from "@/lib/approval-service"
@@ -18,7 +18,7 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     // สิทธิ์ `approval:approve` เป็นของ `manager` ขึ้นไปตาม §7
-    const guard = await requireRole(["manager", "admin"])
+    const guard = await requireRole([...MANAGER_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 

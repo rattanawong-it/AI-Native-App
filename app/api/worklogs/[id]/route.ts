@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { Prisma } from "@/app/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest, notFound, forbidden } from "@/lib/rbac"
+import { requireRole, badRequest, notFound, forbidden, STAFF_ROLES } from "@/lib/rbac"
 import { firstIssueMessage } from "@/lib/ticket-schema"
 import { updateWorkLogSchema } from "@/lib/worklog-schema"
 import { toWorkLogDto, validateWorkLogRef, workLogSelect } from "@/lib/worklog-service"
@@ -18,7 +18,7 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
     const { id } = await params
@@ -102,7 +102,7 @@ export async function DELETE(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
     const { id } = await params

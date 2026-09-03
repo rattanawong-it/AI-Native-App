@@ -14,6 +14,7 @@ import {
     forbidden,
     canAssignTicket,
     isManager,
+    STAFF_ROLES,
 } from "@/lib/rbac"
 import { assignTicketSchema, firstIssueMessage } from "@/lib/ticket-schema"
 import { logActivity, ticketDetailSelect, computeTicketSla } from "@/lib/ticket-service"
@@ -23,7 +24,7 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
     const { id } = await params

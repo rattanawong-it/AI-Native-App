@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest } from "@/lib/rbac"
+import { requireRole, badRequest, MANAGER_ROLES } from "@/lib/rbac"
 import { listAssetQuerySchema } from "@/lib/asset-schema"
 import { searchParamsToObject, firstIssueMessage } from "@/lib/ticket-schema"
 import {
@@ -21,7 +21,7 @@ const MAX_ROWS = 5000
 
 export async function GET(request: NextRequest) {
     // ส่งออกข้อมูลทั้งชุดต้องมีสิทธิ์ `report:export` ตาม §7 — `agent` จึงยังทำไม่ได้
-    const guard = await requireRole(["manager", "admin"])
+    const guard = await requireRole([...MANAGER_ROLES])
     if (!guard.ok) return guard.response
 
     const parsed = listAssetQuerySchema.safeParse(searchParamsToObject(new URL(request.url)))

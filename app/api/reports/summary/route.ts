@@ -8,13 +8,13 @@
 // สิทธิ์ตาม spec §7 (รายงาน/Dashboard รวม): agent เห็นเฉพาะงานของตัวเอง · manager/admin เห็นทั้งศูนย์
 
 import { NextRequest, NextResponse } from "next/server"
-import { requireRole, badRequest } from "@/lib/rbac"
+import { requireRole, badRequest, STAFF_ROLES } from "@/lib/rbac"
 import { firstIssueMessage, searchParamsToObject } from "@/lib/ticket-schema"
 import { reportPeriodQuerySchema, resolvePeriod } from "@/lib/report-schema"
 import { buildSummaryReport } from "@/lib/report-service"
 
 export async function GET(request: NextRequest) {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 

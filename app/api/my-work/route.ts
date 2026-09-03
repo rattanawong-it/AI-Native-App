@@ -11,14 +11,14 @@
 // "งานของคนเดียว" ปริมาณจึงอยู่ในหลักสิบเสมอ ไม่ใช่รายงานทั้งระบบ
 
 import { NextRequest, NextResponse } from "next/server"
-import { requireRole, badRequest } from "@/lib/rbac"
+import { requireRole, badRequest, STAFF_ROLES } from "@/lib/rbac"
 import { firstIssueMessage, searchParamsToObject } from "@/lib/ticket-schema"
 import { myWorkQuerySchema } from "@/lib/worklog-schema"
 import { compareWorkItems, isDueToday, isOverdue, loadWorkItems } from "@/lib/worklog-service"
 import { thaiToday } from "@/lib/thai-date"
 
 export async function GET(request: NextRequest) {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 

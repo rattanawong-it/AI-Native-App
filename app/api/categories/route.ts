@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, requireRole, badRequest } from "@/lib/rbac"
+import { requireAuth, requireRole, badRequest, ADMIN_ROLES } from "@/lib/rbac"
 import { createCategorySchema, firstIssueMessage } from "@/lib/ticket-schema"
 import { categorySelect } from "@/lib/ticket-service"
 
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const guard = await requireRole(["admin"])
+    const guard = await requireRole([...ADMIN_ROLES])
     if (!guard.ok) return guard.response
 
     let body: unknown

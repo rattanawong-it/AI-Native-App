@@ -6,14 +6,14 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole } from "@/lib/rbac"
+import { requireRole, MANAGER_ROLES } from "@/lib/rbac"
 import { approvalListSelect, pendingForApproverWhere, toApprovalDto } from "@/lib/approval-service"
 
 /// จำนวนใบสูงสุดที่ส่งกลับ — กล่อง "รออนุมัติ" ที่ยาวกว่านี้ควรไปดูในหน้ารายการเต็ม
 const MAX_ITEMS = 20
 
 export async function GET(request: NextRequest) {
-    const guard = await requireRole(["manager", "admin"])
+    const guard = await requireRole([...MANAGER_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 

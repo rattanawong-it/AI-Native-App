@@ -6,13 +6,13 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest } from "@/lib/rbac"
+import { requireRole, badRequest, ADMIN_ROLES } from "@/lib/rbac"
 import { firstIssueMessage } from "@/lib/ticket-schema"
 import { retryDeliveriesSchema } from "@/lib/notification-schema"
 import { retryFailedDeliveries } from "@/lib/notification"
 
 export async function GET() {
-    const guard = await requireRole(["admin"])
+    const guard = await requireRole([...ADMIN_ROLES])
     if (!guard.ok) return guard.response
 
     try {
@@ -41,7 +41,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-    const guard = await requireRole(["admin"])
+    const guard = await requireRole([...ADMIN_ROLES])
     if (!guard.ok) return guard.response
 
     // ไม่ส่ง body มาก็ได้ — ใช้ค่าเริ่มต้น 50 รายการ

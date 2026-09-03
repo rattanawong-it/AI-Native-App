@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest } from "@/lib/rbac"
+import { requireRole, badRequest, STAFF_ROLES, MANAGER_ROLES } from "@/lib/rbac"
 import { createAssetSchema, listAssetQuerySchema } from "@/lib/asset-schema"
 import { searchParamsToObject, firstIssueMessage } from "@/lib/ticket-schema"
 import {
@@ -21,7 +21,7 @@ import {
 import { requiresCustodian } from "@/lib/asset-workflow"
 
 export async function GET(request: NextRequest) {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
 
     const parsed = listAssetQuerySchema.safeParse(searchParamsToObject(new URL(request.url)))
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const guard = await requireRole(["manager", "admin"])
+    const guard = await requireRole([...MANAGER_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 

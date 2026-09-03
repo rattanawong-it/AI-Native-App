@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest } from "@/lib/rbac"
+import { requireRole, badRequest, MANAGER_ROLES } from "@/lib/rbac"
 import { firstIssueMessage, searchParamsToObject } from "@/lib/ticket-schema"
 import { reportPeriodQuerySchema, resolvePeriod } from "@/lib/report-schema"
 import { buildSummaryReport } from "@/lib/report-service"
@@ -61,7 +61,7 @@ function safeHighlights(dataJson: unknown): { label: string; highlights: Snapsho
 }
 
 export async function GET() {
-    const guard = await requireRole(["manager", "admin"])
+    const guard = await requireRole([...MANAGER_ROLES])
     if (!guard.ok) return guard.response
 
     try {
@@ -100,7 +100,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-    const guard = await requireRole(["manager", "admin"])
+    const guard = await requireRole([...MANAGER_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 

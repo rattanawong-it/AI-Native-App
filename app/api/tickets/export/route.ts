@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import ExcelJS from "exceljs"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest } from "@/lib/rbac"
+import { requireRole, badRequest, STAFF_ROLES } from "@/lib/rbac"
 import { PRIORITY_LABEL, type Priority } from "@/lib/priority"
 import {
     TICKET_STATUS_LABEL,
@@ -39,7 +39,7 @@ function formatDateTime(value: Date | null): string {
 
 export async function GET(request: NextRequest) {
     // ส่งออกรายงานเป็นสิทธิ์ของเจ้าหน้าที่ขึ้นไป (spec §7 — รายงาน)
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 

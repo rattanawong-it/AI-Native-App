@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest, notFound, forbidden } from "@/lib/rbac"
+import { requireRole, badRequest, notFound, forbidden, STAFF_ROLES } from "@/lib/rbac"
 import { approvalListSelect, decimalOrNull, toApprovalDto } from "@/lib/approval-service"
 import { transitionError } from "@/lib/approval-workflow"
 import { notifyApprovalPending } from "@/lib/approval-notify"
@@ -15,7 +15,7 @@ export async function POST(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
     const { user } = guard
 

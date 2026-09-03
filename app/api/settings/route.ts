@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest } from "@/lib/rbac"
+import { requireRole, badRequest, STAFF_ROLES, ADMIN_ROLES } from "@/lib/rbac"
 import { firstIssueMessage } from "@/lib/ticket-schema"
 import {
     EDITABLE_BOOLEAN_SETTINGS,
@@ -29,7 +29,7 @@ const DEFAULTS: Record<EditableBooleanSetting, { value: boolean; description: st
 }
 
 export async function GET() {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
 
     try {
@@ -57,7 +57,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: NextRequest) {
-    const guard = await requireRole(["admin"])
+    const guard = await requireRole([...ADMIN_ROLES])
     if (!guard.ok) return guard.response
 
     let body: unknown

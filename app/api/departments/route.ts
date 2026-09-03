@@ -6,10 +6,10 @@
 
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole } from "@/lib/rbac"
+import { requireRole, STAFF_ROLES } from "@/lib/rbac"
 
 export async function GET() {
-    const guard = await requireRole(["agent", "manager", "admin"])
+    const guard = await requireRole([...STAFF_ROLES])
     if (!guard.ok) return guard.response
 
     try {
