@@ -3,6 +3,7 @@
 // หน้าทะเบียนครุภัณฑ์ IT — ค้นหา ฟิลเตอร์ เพิ่ม/แก้ไข นำเข้า/ส่งออก และเตือนใกล้หมดประกัน
 // อ้างอิง F7.1, F7.2, F7.3, F7.6, F7.7
 
+import { rolesAreManager } from "@/lib/roles"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import {
@@ -87,7 +88,7 @@ export default function AssetContent() {
         () => ((session?.user as { role?: string })?.role || "user").split(",").map((r) => r.trim()),
         [session]
     )
-    const canManage = roles.some((r) => ["manager", "admin"].includes(r))
+    const canManage = rolesAreManager(roles)
 
     const [assets, setAssets] = useState<AssetRow[]>([])
     const [total, setTotal] = useState(0)

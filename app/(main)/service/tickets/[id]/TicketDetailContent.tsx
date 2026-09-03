@@ -3,6 +3,7 @@
 // หน้ารายละเอียด Ticket — timeline, ความคิดเห็น, เปลี่ยนสถานะ, มอบหมาย, ปรับความสำคัญ
 // อ้างอิง F1.5, F1.6, F2.3, F2.4, F2.6, F2.8, F4.8, F4.9
 
+import { rolesAreManager, rolesAreStaff } from "@/lib/roles"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import {
@@ -77,8 +78,8 @@ export default function TicketDetailContent({ ticketId }: { ticketId: string }) 
         () => ((session?.user as { role?: string })?.role || "user").split(",").map((r) => r.trim()),
         [session]
     )
-    const isStaff = roles.some((r) => ["agent", "manager", "admin"].includes(r))
-    const isManager = roles.some((r) => ["manager", "admin"].includes(r))
+    const isStaff = rolesAreStaff(roles)
+    const isManager = rolesAreManager(roles)
 
     const [data, setData] = useState<TicketDetailResponse | null>(null)
     const [loading, setLoading] = useState(true)

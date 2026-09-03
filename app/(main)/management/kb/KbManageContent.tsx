@@ -3,6 +3,7 @@
 // หน้าจัดการบทความคลังความรู้ — ดูทุกสถานะ ส่งตรวจ เผยแพร่ ถอน และเก็บเข้ากรุ
 // อ้างอิง F6.1, F6.4, F6.5, F6.9, F6.10
 
+import { rolesAreManager } from "@/lib/roles"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import {
@@ -55,7 +56,7 @@ export default function KbManageContent() {
         () => ((session?.user as { role?: string })?.role || "user").split(",").map((r) => r.trim()),
         [session]
     )
-    const canPublish = roles.some((r) => ["manager", "admin"].includes(r))
+    const canPublish = rolesAreManager(roles)
 
     const [articles, setArticles] = useState<KbArticleRow[]>([])
     const [total, setTotal] = useState(0)

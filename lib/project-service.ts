@@ -11,6 +11,7 @@ import type { Prisma } from "@/app/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
 import { isManager, type AuthUser } from "@/lib/rbac"
 import { BOARD_STATUSES, SORT_STEP, progressFrom, type BoardStatus } from "@/lib/task-board"
+import { STAFF_ROLES } from "@/lib/roles"
 
 const personSelect = { id: true, name: true, email: true, image: true } as const
 
@@ -194,7 +195,8 @@ export async function loggedHoursOf(taskId: string): Promise<number> {
 // | admin   | จัดการได้ทั้งหมด        | จัดการได้ทั้งหมด               |
 
 /// role ที่เปิดให้เข้าถึงกลุ่ม SDLC ได้ — ใช้เป็นชุดเดียวกันทุก route
-export const SDLC_ROLES = ["agent", "manager", "admin"] as const
+/// อ้าง STAFF_ROLES เพื่อไม่ให้เพี้ยนจาก sidebar และ middleware (docs/spec.md §7.2 กลุ่ม 6)
+export const SDLC_ROLES = STAFF_ROLES
 
 /// สร้าง/แก้ไข/ลบ โครงการ Sprint และทีม — หัวหน้าขึ้นไปเท่านั้น
 export function canManageProject(user: AuthUser): boolean {

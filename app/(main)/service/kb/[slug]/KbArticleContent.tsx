@@ -3,6 +3,7 @@
 // หน้าอ่านบทความคลังความรู้ — render Markdown, นับยอดเข้าอ่าน, โหวตมีประโยชน์
 // อ้างอิง F6.2, F6.6, F6.7, F6.8
 
+import { rolesAreManager, rolesAreStaff } from "@/lib/roles"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import ReactMarkdown from "react-markdown"
@@ -44,7 +45,7 @@ export default function KbArticleContent({ slugOrId }: { slugOrId: string }) {
         () => ((session?.user as { role?: string })?.role || "user").split(",").map((r) => r.trim()),
         [session]
     )
-    const isStaff = roles.some((r) => ["agent", "manager", "admin"].includes(r))
+    const isStaff = rolesAreStaff(roles)
 
     const [article, setArticle] = useState<KbArticleDetail | null>(null)
     const [loading, setLoading] = useState(true)
@@ -150,7 +151,7 @@ export default function KbArticleContent({ slugOrId }: { slugOrId: string }) {
         )
     }
 
-    const canEdit = isStaff && (article.authorId === currentUserId || roles.includes("manager") || roles.includes("admin"))
+    const canEdit = isStaff && (article.authorId === currentUserId || rolesAreManager(roles))
 
     return (
         <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">

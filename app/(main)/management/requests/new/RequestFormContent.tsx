@@ -5,6 +5,7 @@
 //
 // ลำดับของผู้อนุมัติในรายการคือลำดับการไล่อนุมัติจริง (ขั้น 1 → 2 → 3) จึงต้องเลื่อนขึ้นลงได้
 
+import { parseRoles, rolesAreManager } from "@/lib/roles"
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -39,8 +40,7 @@ interface Person {
 
 /// ผู้อนุมัติต้องมีสิทธิ์ `approval:approve` = `manager` ขึ้นไป (API ตรวจซ้ำอีกชั้นอยู่แล้ว)
 function canApprove(person: Person): boolean {
-    const role = person.role ?? ""
-    return role.includes("manager") || role.includes("admin")
+    return rolesAreManager(parseRoles(person.role))
 }
 
 export default function RequestFormContent() {

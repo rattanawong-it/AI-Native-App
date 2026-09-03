@@ -3,6 +3,7 @@
 // หน้ารายการบทความคลังความรู้ — ค้นหา / ฟิลเตอร์หมวดหมู่+แท็ก / เรียงลำดับ / pagination
 // อ้างอิง F6.1, F6.3, F6.6, F6.7
 
+import { rolesAreStaff } from "@/lib/roles"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import {
@@ -38,7 +39,7 @@ export default function KbListContent() {
         () => ((session?.user as { role?: string })?.role || "user").split(",").map((r) => r.trim()),
         [session]
     )
-    const isStaff = roles.some((r) => ["agent", "manager", "admin"].includes(r))
+    const isStaff = rolesAreStaff(roles)
 
     const [articles, setArticles] = useState<KbArticleRow[]>([])
     const [categories, setCategories] = useState<Category[]>([])

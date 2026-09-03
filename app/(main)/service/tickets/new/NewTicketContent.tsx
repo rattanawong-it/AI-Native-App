@@ -3,6 +3,7 @@
 // ฟอร์มแจ้งปัญหา / คำขอบริการใหม่
 // อ้างอิง F1.1 (ฟอร์ม), F1.10 (แจ้งแทนผู้อื่น + ระบุช่องทาง), F2.2 (Priority realtime)
 
+import { rolesAreStaff } from "@/lib/roles"
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -36,7 +37,7 @@ export default function NewTicketContent() {
         () => ((session?.user as { role?: string })?.role || "user").split(",").map((r) => r.trim()),
         [session]
     )
-    const isStaff = roles.some((r) => ["agent", "manager", "admin"].includes(r))
+    const isStaff = rolesAreStaff(roles)
 
     const [categories, setCategories] = useState<Category[]>([])
     const [submitting, setSubmitting] = useState(false)
