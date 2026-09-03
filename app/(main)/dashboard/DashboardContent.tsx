@@ -1,198 +1,69 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import {
-    Shield,
-    Bot,
-    Database,
-    Sparkles,
-    Users,
-    FileText,
-    MessageSquare,
-    Activity,
-    ArrowUpRight,
-    Clock,
-    FolderOpen,
-    Zap,
-    TrendingUp,
-    Server,
-} from "lucide-react"
+"use client"
 
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
-import { prisma } from "@/lib/prisma"
+// แดชบอร์ดแยกตาม role (F9.1–F9.5) + widget งานวันนี้/งานเลยกำหนด (F3.9)
+//
+// สามชั้นซ้อนกัน ไม่ใช่สามหน้าแยก:
+//   requester (student/user) → เห็นเฉพาะ "Ticket ของฉัน"
+//   agent                    → + งานที่ต้องทำของตัวเอง
+//   manager / admin          → + ภาพรวมทั้งศูนย์ ซึ่งวางไว้บนสุดเพราะเป็นสิ่งที่หัวหน้าเปิดมาดูก่อน
+//
+// ข้อมูลทั้งหมดมาจาก server เป็น props แล้ว — ไฟล์นี้ไม่ fetch ซ้ำ
+
 import Link from "next/link"
+import {
+    AlertTriangle,
+    ArrowUpRight,
+    CalendarClock,
+    CheckCircle2,
+    ClipboardList,
+    Clock,
+    FilePlus2,
+    FileCheck2,
+    Inbox,
+    Timer,
+    TrendingUp,
+    UserPlus,
+} from "lucide-react"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { PriorityBadge, StatusBadge } from "@/components/ticket/ticket-badges"
+import { GroupBarChart, TicketTrendChart } from "@/components/report/report-charts"
+import { formatThaiDateTime } from "@/lib/ticket-types"
+import type { WorkItem } from "@/lib/worklog-service"
+import type { DashboardData, DashboardTicketBrief } from "@/lib/dashboard-types"
 
-export default async function DashboardContent() {
-    const session = await auth.api.getSession({
-        headers: await headers(),
-    })
+/// เกณฑ์สี % ตรงเวลาชุดเดียวกับรายงาน SLA
+function rateClass(rate: number | null): string {
+    if (rate === null) return "text-muted-foreground"
+    if (rate >= 90) return "text-sla-ontime"
+    if (rate >= 75) return "text-sla-atrisk"
+    return "text-sla-breached"
+}
 
-    if (!session) {
-        return null
-    }
-
-    const isAdmin = session.user.role === "admin"
-
-    // ─── Fetch Real Stats ────────────────────────────────
-    const [
-        totalUsers,
-        totalDocuments,
-        indexedDocuments,
-        totalChatSessions,
-        totalMessages,
-        recentSessions,
-        recentDocuments,
-    ] = await Promise.all([
-        prisma.user.count(),
-        prisma.knowledgeDocument.count(),
-        prisma.knowledgeDocument.count({ where: { isIndexed: true } }),
-        prisma.chatSession.count({ where: { userId: session.user.id } }),
-        prisma.chatMessage.count({
-            where: { session: { userId: session.user.id } },
-        }),
-        prisma.chatSession.findMany({
-            where: { userId: session.user.id },
-            orderBy: { updatedAt: "desc" },
-            take: 5,
-            include: { _count: { select: { messages: true } } },
-        }),
-        prisma.knowledgeDocument.findMany({
-            orderBy: { createdAt: "desc" },
-            take: 5,
-        }),
-    ])
-
-    // ─── Stats Cards ─────────────────────────────────────
-    const stats = [
-        {
-            title: "สถานะบัญชี",
-            value: isAdmin ? "Admin" : session.user.role === "manager" ? "Manager" : "User",
-            icon: Shield,
-            description: `เข้าสู่ระบบในชื่อ ${session.user.name}`,
-            color: "text-purple-600 dark:text-purple-400",
-            bg: "bg-purple-50 dark:bg-purple-900/20",
-        },
-        {
-            title: "Knowledge Docs",
-            value: totalDocuments.toString(),
-            icon: Database,
-            description: `${indexedDocuments} เอกสารถูก Index แล้ว`,
-            color: "text-emerald-600 dark:text-emerald-400",
-            bg: "bg-emerald-50 dark:bg-emerald-900/20",
-        },
-        {
-            title: "AI Chat Sessions",
-            value: totalChatSessions.toString(),
-            icon: Bot,
-            description: `${totalMessages} ข้อความทั้งหมด`,
-            color: "text-blue-600 dark:text-blue-400",
-            bg: "bg-blue-50 dark:bg-blue-900/20",
-        },
-        ...(isAdmin
-            ? [
-                  {
-                      title: "ผู้ใช้ทั้งหมด",
-                      value: totalUsers.toString(),
-                      icon: Users,
-                      description: "ผู้ใช้ในระบบ",
-                      color: "text-amber-600 dark:text-amber-400",
-                      bg: "bg-amber-50 dark:bg-amber-900/20",
-                  },
-              ]
-            : [
-                  {
-                      title: "สถานะระบบ",
-                      value: "Active",
-                      icon: Sparkles,
-                      description: "ระบบทำงานปกติ",
-                      color: "text-amber-600 dark:text-amber-400",
-                      bg: "bg-amber-50 dark:bg-amber-900/20",
-                  },
-              ]),
-    ]
-
-    // ─── Quick Actions ───────────────────────────────────
-    const quickActions = [
-        {
-            title: "AI Chat",
-            description: "เริ่มสนทนากับ AI ที่เชื่อมต่อ Knowledge Base",
-            href: "/chat",
-            icon: MessageSquare,
-            color: "text-blue-600 dark:text-blue-400",
-            bg: "bg-blue-50 dark:bg-blue-900/20",
-            border: "border-blue-200 dark:border-blue-800",
-        },
-        ...(isAdmin
-            ? [
-                  {
-                      title: "Knowledge Base",
-                      description: "เพิ่มเอกสารและ Index ข้อมูลให้ AI",
-                      href: "/admin/knowledge",
-                      icon: FolderOpen,
-                      color: "text-emerald-600 dark:text-emerald-400",
-                      bg: "bg-emerald-50 dark:bg-emerald-900/20",
-                      border: "border-emerald-200 dark:border-emerald-800",
-                  },
-              ]
-            : [
-                  {
-                      title: "โปรไฟล์",
-                      description: "ดูและแก้ไขข้อมูลส่วนตัว",
-                      href: "/profile",
-                      icon: FolderOpen,
-                      color: "text-emerald-600 dark:text-emerald-400",
-                      bg: "bg-emerald-50 dark:bg-emerald-900/20",
-                      border: "border-emerald-200 dark:border-emerald-800",
-                  },
-              ]),
-        {
-            title: "จัดการทีม",
-            description: "ดูสมาชิกและจัดการทีมงาน",
-            href: "/management/teams",
-            icon: Users,
-            color: "text-purple-600 dark:text-purple-400",
-            bg: "bg-purple-50 dark:bg-purple-900/20",
-            border: "border-purple-200 dark:border-purple-800",
-        },
-        ...(isAdmin
-            ? [
-                  {
-                      title: "ตั้งค่าระบบ",
-                      description: "กำหนดค่า AI Model, SMTP และอื่นๆ",
-                      href: "/admin/settings",
-                      icon: Activity,
-                      color: "text-amber-600 dark:text-amber-400",
-                      bg: "bg-amber-50 dark:bg-amber-900/20",
-                      border: "border-amber-200 dark:border-amber-800",
-                  },
-              ]
-            : [
-                  {
-                      title: "ช่วยเหลือ",
-                      description: "FAQ, คู่มือและคำถามที่พบบ่อย",
-                      href: "/help",
-                      icon: Activity,
-                      color: "text-amber-600 dark:text-amber-400",
-                      bg: "bg-amber-50 dark:bg-amber-900/20",
-                      border: "border-amber-200 dark:border-amber-800",
-                  },
-              ]),
-    ]
+export default function DashboardContent({ data }: { data: DashboardData }) {
+    const { mine, work, center } = data
 
     return (
         <div className="space-y-6">
-            {/* ─── Header ─────────────────────────────── */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* ─── หัวหน้าจอ ──────────────────────────── */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-                        สวัสดี, {session.user.name} 👋
-                    </h2>
-                    <p className="text-muted-foreground mt-1">
-                        ยินดีต้อนรับสู่ AI Native App Dashboard
+                    <h1 className="text-2xl font-semibold tracking-tight">
+                        สวัสดี {data.userName}
+                    </h1>
+                    <p className="text-muted-foreground mt-1 text-sm">
+                        {data.view === "requester"
+                            ? "ติดตามสถานะเรื่องที่คุณแจ้งไว้ได้ที่นี่"
+                            : data.view === "agent"
+                              ? "สรุปงานที่อยู่ในมือคุณวันนี้"
+                              : "ภาพรวมงานบริการของศูนย์ในช่วงที่เลือก"}
                     </p>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" />
-                    {new Date().toLocaleDateString("th-TH", {
+
+                <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                    <Clock className="size-3.5" />
+                    {new Date(data.generatedAt).toLocaleDateString("th-TH", {
+                        timeZone: "Asia/Bangkok",
                         weekday: "long",
                         year: "numeric",
                         month: "long",
@@ -201,244 +72,472 @@ export default async function DashboardContent() {
                 </div>
             </div>
 
-            {/* ─── Stats Grid ─────────────────────────── */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {stats.map((stat) => (
-                    <Card key={stat.title} className="transition-shadow hover:shadow-md">
-                        <CardContent className="p-5">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">{stat.title}</p>
-                                    <p className="text-2xl font-bold mt-1 text-gray-900 dark:text-white">
-                                        {stat.value}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                        {stat.description}
-                                    </p>
-                                </div>
-                                <div className={`p-3 rounded-xl ${stat.bg}`}>
-                                    <stat.icon className={`h-5 w-5 ${stat.color}`} />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
+            {/* ─── ① ภาพรวมทั้งศูนย์ — หัวหน้าขึ้นไป (F9.4, F9.5) ─── */}
+            {center && (
+                <section className="space-y-4">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2">
+                        <h2 className="text-lg font-semibold">ภาพรวมทั้งศูนย์</h2>
+                        <RangeToggle current={data.rangeDays} />
+                    </div>
 
-            {/* ─── Quick Actions ──────────────────────── */}
-            <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                    <Zap className="h-5 w-5 text-amber-500" />
-                    Quick Actions
-                </h3>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {quickActions.map((action) => {
-                        const Icon = action.icon
-                        return (
-                            <Link key={action.title} href={action.href}>
-                                <Card
-                                    className={`group cursor-pointer transition-all hover:shadow-md border ${action.border}`}
-                                >
-                                    <CardContent className="p-4">
-                                        <div className="flex items-start gap-3">
-                                            <div className={`p-2 rounded-lg ${action.bg} shrink-0`}>
-                                                <Icon className={`h-4 w-4 ${action.color}`} />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center justify-between">
-                                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                                                        {action.title}
-                                                    </p>
-                                                    <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
-                                                </div>
-                                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                                                    {action.description}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </Link>
-                        )
-                    })}
-                </div>
-            </div>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <StatCard
+                            icon={Inbox}
+                            label={`Ticket รับเข้า (${data.rangeDays} วัน)`}
+                            value={`${center.created}`}
+                            hint={`แก้ไขแล้ว ${center.resolved} ใบในช่วงเดียวกัน`}
+                            href="/service/tickets"
+                        />
+                        <StatCard
+                            icon={ClipboardList}
+                            label="ค้างอยู่ตอนนี้"
+                            value={`${center.pending}`}
+                            hint={`ยังไม่มีคนรับ ${center.unassigned} ใบ`}
+                            href="/service/tickets?status=new"
+                            tone={center.unassigned > 0 ? "warn" : undefined}
+                        />
+                        <StatCard
+                            icon={Timer}
+                            label="SLA แก้ไขตรงเวลา"
+                            value={center.slaRate === null ? "—" : `${center.slaRate}%`}
+                            valueClass={rateClass(center.slaRate)}
+                            hint={`เลยกำหนดและยังไม่จบ ${center.breachedOpen} ใบ`}
+                            href="/management/reports/sla"
+                            tone={center.breachedOpen > 0 ? "danger" : undefined}
+                        />
+                        <StatCard
+                            icon={FileCheck2}
+                            label="คำขอรออนุมัติ"
+                            value={`${center.pendingApprovals}`}
+                            hint="รอการตัดสินใจของหัวหน้า"
+                            href="/management/requests"
+                            tone={center.pendingApprovals > 0 ? "warn" : undefined}
+                        />
+                    </div>
 
-            {/* ─── Two Column: Recent Chats + Recent Docs ─ */}
-            <div className="grid gap-5 lg:grid-cols-2">
-                {/* Recent Chat Sessions */}
-                <Card>
-                    <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <CardTitle className="text-base flex items-center gap-2">
-                                    <MessageSquare className="h-4 w-4 text-blue-500" />
-                                    การสนทนาล่าสุด
-                                </CardTitle>
-                                <CardDescription>Chat Sessions ที่อัปเดตล่าสุด</CardDescription>
-                            </div>
-                            <Link
-                                href="/chat"
-                                className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                            >
-                                ดูทั้งหมด
-                                <ArrowUpRight className="h-3 w-3" />
-                            </Link>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                        {recentSessions.length === 0 ? (
-                            <div className="text-center py-8">
-                                <Bot className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-                                <p className="text-sm text-muted-foreground">ยังไม่มีประวัติการสนทนา</p>
-                                <Link
-                                    href="/chat"
-                                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1 inline-block"
-                                >
-                                    เริ่มสนทนาใหม่ →
-                                </Link>
-                            </div>
-                        ) : (
-                            <div className="space-y-2">
-                                {recentSessions.map((s) => (
-                                    <Link key={s.id} href="/chat" className="block">
-                                        <div className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition group">
-                                            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
-                                                <MessageSquare className="h-4 w-4 text-blue-500" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                                    {s.title || "Untitled Chat"}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {s._count.messages} ข้อความ ·{" "}
-                                                    {new Date(s.updatedAt).toLocaleDateString("th-TH", {
-                                                        month: "short",
-                                                        day: "numeric",
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                    })}
-                                                </p>
-                                            </div>
-                                            <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition shrink-0" />
-                                        </div>
-                                    </Link>
-                                ))}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        <TicketTrendChart
+                            points={center.trend}
+                            granularity="day"
+                            height={240}
+                        />
+                        <GroupBarChart
+                            title="งานที่ค้างอยู่ แยกตามสถานะ"
+                            hint="นับ ณ ตอนนี้ ไม่ผูกกับช่วงเวลาที่เลือก"
+                            groups={center.byStatus}
+                            scheme="status"
+                            height={240}
+                        />
+                    </div>
 
-                {/* Recent Knowledge Documents */}
-                <Card>
-                    <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <CardTitle className="text-base flex items-center gap-2">
-                                    <FileText className="h-4 w-4 text-emerald-500" />
-                                    เอกสารล่าสุด
-                                </CardTitle>
-                                <CardDescription>Knowledge Base ที่เพิ่มล่าสุด</CardDescription>
-                            </div>
-                            <Link
-                                href={isAdmin ? "/admin/knowledge" : "/chat"}
-                                className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
-                            >
-                                ดูทั้งหมด
-                                <ArrowUpRight className="h-3 w-3" />
-                            </Link>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                        {recentDocuments.length === 0 ? (
-                            <div className="text-center py-8">
-                                <Database className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-                                <p className="text-sm text-muted-foreground">ยังไม่มีเอกสารใน Knowledge Base</p>
-                                <Link
-                                    href={isAdmin ? "/admin/knowledge" : "/chat"}
-                                    className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline mt-1 inline-block"
-                                >
-                                    เพิ่มเอกสาร →
-                                </Link>
-                            </div>
-                        ) : (
-                            <div className="space-y-2">
-                                {recentDocuments.map((doc) => (
-                                    <Link key={doc.id} href={isAdmin ? "/admin/knowledge" : "#"} className="block">
-                                        <div className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition group">
-                                            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center shrink-0">
-                                                <FileText className="h-4 w-4 text-emerald-500" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                                    {doc.title}
-                                                </p>
-                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                    {doc.fileType && (
-                                                        <span className="uppercase font-medium">
-                                                            {doc.fileType}
-                                                        </span>
-                                                    )}
-                                                    <span>·</span>
-                                                    <span>
-                                                        {new Date(doc.createdAt).toLocaleDateString("th-TH", {
-                                                            month: "short",
-                                                            day: "numeric",
-                                                        })}
-                                                    </span>
-                                                    {doc.isIndexed ? (
-                                                        <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400">
-                                                            <TrendingUp className="h-3 w-3" />
-                                                            Indexed
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-amber-600 dark:text-amber-400">Pending</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition shrink-0" />
-                                        </div>
-                                    </Link>
-                                ))}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* ─── System Info (Admin Only) ────────────── */}
-            {isAdmin && (
-                <Card className="border-dashed">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <Server className="h-4 w-4 text-gray-500" />
-                            ข้อมูลระบบ
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                            {[
-                                { label: "Next.js", value: "16.1.6" },
-                                { label: "React", value: "19.x" },
-                                { label: "Prisma", value: "7.4.1" },
-                                { label: "AI Model", value: "GPT-4o Mini" },
-                                { label: "Embedding", value: "3-small" },
-                                { label: "Vector DB", value: "pgVector" },
-                            ].map((item) => (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        <ListCard
+                            title="ภาระงานรายคน"
+                            hint="เรียงตามงานค้างในมือ"
+                            icon={UserPlus}
+                            empty="ยังไม่มีงานที่มอบหมายให้ใคร"
+                            href="/management/reports/workload"
+                            hrefLabel="ดูรายงานภาระงาน"
+                        >
+                            {center.topWorkload.map((w) => (
                                 <div
-                                    key={item.label}
-                                    className="flex items-center justify-between sm:flex-col sm:items-start gap-1 p-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700"
+                                    key={w.userId}
+                                    className="flex items-center justify-between gap-3 px-4 py-2.5"
                                 >
-                                    <span className="text-xs text-muted-foreground">{item.label}</span>
-                                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                                        {item.value}
+                                    <span className="truncate text-sm font-medium">{w.name}</span>
+                                    <span className="text-muted-foreground shrink-0 text-xs">
+                                        ค้าง {w.openNow} งาน · {w.hours} ชม.
                                     </span>
                                 </div>
                             ))}
-                        </div>
-                    </CardContent>
-                </Card>
+                        </ListCard>
+
+                        <ListCard
+                            title="ความคืบหน้าโครงการ"
+                            icon={TrendingUp}
+                            empty="ยังไม่มีโครงการที่กำลังดำเนินการ"
+                            href="/management/projects"
+                            hrefLabel="ดูโครงการทั้งหมด"
+                        >
+                            {center.projects.map((p) => (
+                                <Link
+                                    key={p.id}
+                                    href={`/management/projects/${p.id}`}
+                                    className="hover:bg-muted/50 block px-4 py-2.5 transition-colors"
+                                >
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="truncate text-sm font-medium">
+                                            {p.code} · {p.name}
+                                        </span>
+                                        <span className="text-muted-foreground shrink-0 text-xs">
+                                            {p.doneTasks}/{p.totalTasks} งาน
+                                        </span>
+                                    </div>
+                                    <div className="mt-1.5 flex items-center gap-2">
+                                        <div className="bg-muted h-1.5 flex-1 overflow-hidden rounded-full">
+                                            <div
+                                                className="bg-primary h-full rounded-full"
+                                                style={{ width: `${p.progress}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-muted-foreground text-xs">
+                                            {p.progress}%
+                                        </span>
+                                        {p.overdueTasks > 0 && (
+                                            <span className="text-sla-breached text-xs">
+                                                เลยกำหนด {p.overdueTasks}
+                                            </span>
+                                        )}
+                                    </div>
+                                </Link>
+                            ))}
+                        </ListCard>
+                    </div>
+                </section>
             )}
+
+            {/* ─── ② งานของฉัน — เจ้าหน้าที่ขึ้นไป (F9.3, F3.9) ─── */}
+            {work && (
+                <section className="space-y-4">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2">
+                        <h2 className="text-lg font-semibold">งานที่อยู่ในมือคุณ</h2>
+                        <Link
+                            href="/service/my-work"
+                            className="text-primary text-xs hover:underline"
+                        >
+                            เปิด My Work →
+                        </Link>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                        <StatCard
+                            icon={ClipboardList}
+                            label="Ticket ที่รับผิดชอบ"
+                            value={`${work.openNow}`}
+                            href="/service/my-work"
+                        />
+                        <StatCard
+                            icon={CalendarClock}
+                            label="ครบกำหนดวันนี้"
+                            value={`${work.dueToday}`}
+                            href="/service/my-work?state=today"
+                            tone={work.dueToday > 0 ? "warn" : undefined}
+                        />
+                        <StatCard
+                            icon={AlertTriangle}
+                            label="เลยกำหนดแล้ว"
+                            value={`${work.overdue}`}
+                            href="/service/my-work?state=overdue"
+                            tone={work.overdue > 0 ? "danger" : undefined}
+                        />
+                        <StatCard
+                            icon={Timer}
+                            label="ใกล้ครบ SLA"
+                            value={`${work.atRisk}`}
+                            hint="ภายใน 24 ชั่วโมง"
+                            href="/service/tickets?sort=due"
+                            tone={work.atRisk > 0 ? "warn" : undefined}
+                        />
+                        <StatCard
+                            icon={Clock}
+                            label="ชั่วโมงสัปดาห์นี้"
+                            value={`${work.hoursThisWeek}`}
+                            hint="จาก Time Log ที่บันทึกไว้"
+                            href="/service/my-work"
+                        />
+                    </div>
+
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        {/* F3.9 — งานวันนี้ */}
+                        <ListCard
+                            title="งานวันนี้"
+                            hint="Ticket, Task และ To-do ที่ครบกำหนดวันนี้"
+                            icon={CalendarClock}
+                            empty="วันนี้ไม่มีงานที่ครบกำหนด"
+                            href="/service/my-work?state=today"
+                            hrefLabel="ดูทั้งหมด"
+                        >
+                            {work.dueTodayItems.map((i) => (
+                                <WorkRow key={`${i.kind}-${i.id}`} item={i} />
+                            ))}
+                        </ListCard>
+
+                        {/* F3.9 — งานเลยกำหนด */}
+                        <ListCard
+                            title="งานเลยกำหนด"
+                            hint="ต้องเคลียร์ก่อนงานอื่น"
+                            icon={AlertTriangle}
+                            empty="ไม่มีงานเลยกำหนด"
+                            href="/service/my-work?state=overdue"
+                            hrefLabel="ดูทั้งหมด"
+                        >
+                            {work.overdueItems.map((i) => (
+                                <WorkRow key={`${i.kind}-${i.id}`} item={i} overdue />
+                            ))}
+                        </ListCard>
+                    </div>
+
+                    <ListCard
+                        title="คิวงานถัดไป"
+                        hint="เรียงตามความสำคัญและกำหนดแก้ไข"
+                        icon={ClipboardList}
+                        empty="ไม่มี Ticket ค้างในมือ"
+                        href="/service/tickets?sort=queue"
+                        hrefLabel="ดูคิวทั้งหมด"
+                    >
+                        {work.queue.map((t) => (
+                            <TicketRow key={t.id} ticket={t} contextLabel="ผู้แจ้ง" />
+                        ))}
+                    </ListCard>
+                </section>
+            )}
+
+            {/* ─── ③ เรื่องที่ฉันแจ้ง — ทุก role (F9.2) ─── */}
+            <section className="space-y-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2">
+                    <h2 className="text-lg font-semibold">เรื่องที่ฉันแจ้ง</h2>
+                    <Button asChild size="sm">
+                        <Link href="/service/tickets/new">
+                            <FilePlus2 className="size-4" />
+                            แจ้งปัญหาใหม่
+                        </Link>
+                    </Button>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3">
+                    <StatCard
+                        icon={ClipboardList}
+                        label="กำลังดำเนินการ"
+                        value={`${mine.open}`}
+                        href="/service/tickets"
+                    />
+                    <StatCard
+                        icon={CheckCircle2}
+                        label="แก้ไขแล้ว รอยืนยัน"
+                        value={`${mine.waitingConfirm}`}
+                        hint="กดยืนยันเพื่อปิดงานได้เลย"
+                        href="/service/tickets?status=resolved"
+                        tone={mine.waitingConfirm > 0 ? "warn" : undefined}
+                    />
+                    <StatCard
+                        icon={Inbox}
+                        label="แจ้งไปแล้วทั้งหมด"
+                        value={`${mine.total}`}
+                        href="/service/tickets"
+                    />
+                </div>
+
+                <ListCard
+                    title="เรื่องล่าสุดของฉัน"
+                    icon={Inbox}
+                    empty="ยังไม่เคยแจ้งเรื่องเข้ามา — กดปุ่ม “แจ้งปัญหาใหม่” เพื่อเริ่มต้น"
+                    href="/service/tickets"
+                    hrefLabel="ดูทั้งหมด"
+                >
+                    {mine.recent.map((t) => (
+                        <TicketRow key={t.id} ticket={t} contextLabel="หมวดหมู่" />
+                    ))}
+                </ListCard>
+            </section>
         </div>
+    )
+}
+
+// ── ชิ้นส่วนย่อย ─────────────────────────────────────────────────────
+
+/// ปุ่มสลับช่วงย้อนหลังของ KPI และกราฟ (F9.5) — เป็นลิงก์ เพื่อให้ server คำนวณใหม่
+function RangeToggle({ current }: { current: number }) {
+    return (
+        <div className="flex items-center gap-1 text-xs">
+            <span className="text-muted-foreground mr-1">ช่วงข้อมูล</span>
+            {[7, 30].map((days) => (
+                <Link
+                    key={days}
+                    href={`/dashboard?range=${days}`}
+                    className={
+                        days === current
+                            ? "bg-primary text-primary-foreground rounded-md px-2.5 py-1 font-medium"
+                            : "hover:bg-muted rounded-md px-2.5 py-1"
+                    }
+                >
+                    {days} วัน
+                </Link>
+            ))}
+        </div>
+    )
+}
+
+/// การ์ดตัวเลขเดียว — `tone` ใช้เน้นเมื่อค่านั้นต้องการการลงมือทำ
+function StatCard({
+    icon: Icon,
+    label,
+    value,
+    hint,
+    href,
+    tone,
+    valueClass,
+}: {
+    icon: React.ComponentType<{ className?: string }>
+    label: string
+    value: string
+    hint?: string
+    href?: string
+    tone?: "warn" | "danger"
+    valueClass?: string
+}) {
+    const toneClass =
+        tone === "danger"
+            ? "text-sla-breached"
+            : tone === "warn"
+              ? "text-sla-atrisk"
+              : undefined
+
+    const body = (
+        <Card className={href ? "hover:border-primary/40 h-full transition-colors" : "h-full"}>
+            <CardContent>
+                <div className="flex items-start justify-between gap-2">
+                    <p className="text-muted-foreground text-sm">{label}</p>
+                    <Icon className={`size-4 shrink-0 ${toneClass ?? "text-muted-foreground"}`} />
+                </div>
+                <p className={`mt-1 text-2xl font-semibold ${valueClass ?? toneClass ?? ""}`}>
+                    {value}
+                </p>
+                {hint && <p className="text-muted-foreground mt-1 text-xs">{hint}</p>}
+            </CardContent>
+        </Card>
+    )
+
+    return href ? (
+        <Link href={href} className="block">
+            {body}
+        </Link>
+    ) : (
+        body
+    )
+}
+
+/// กรอบรายการที่ใช้ซ้ำทุก widget — เว้นวรรคภายในเป็นหน้าที่ของแถวแต่ละชนิดเอง
+function ListCard({
+    title,
+    hint,
+    icon: Icon,
+    empty,
+    href,
+    hrefLabel,
+    children,
+}: {
+    title: string
+    hint?: string
+    icon: React.ComponentType<{ className?: string }>
+    empty: string
+    href?: string
+    hrefLabel?: string
+    children: React.ReactNode
+}) {
+    const rows = Array.isArray(children) ? children.flat() : [children]
+    const isEmpty = rows.filter(Boolean).length === 0
+
+    return (
+        <Card className="overflow-hidden py-0">
+            <CardHeader className="bg-muted/40 flex flex-row items-center justify-between gap-2 border-b py-3">
+                <div className="min-w-0">
+                    <p className="flex items-center gap-2 font-medium">
+                        <Icon className="text-muted-foreground size-4 shrink-0" />
+                        {title}
+                    </p>
+                    {hint && <p className="text-muted-foreground mt-0.5 text-xs">{hint}</p>}
+                </div>
+                {href && (
+                    <Link
+                        href={href}
+                        className="text-primary flex shrink-0 items-center gap-1 text-xs hover:underline"
+                    >
+                        {hrefLabel ?? "ดูทั้งหมด"}
+                        <ArrowUpRight className="size-3" />
+                    </Link>
+                )}
+            </CardHeader>
+            <CardContent className="p-0">
+                {isEmpty ? (
+                    <p className="text-muted-foreground py-10 text-center text-sm">{empty}</p>
+                ) : (
+                    <div className="divide-y">{children}</div>
+                )}
+            </CardContent>
+        </Card>
+    )
+}
+
+function TicketRow({
+    ticket,
+    contextLabel,
+}: {
+    ticket: DashboardTicketBrief
+    contextLabel: string
+}) {
+    return (
+        <Link
+            href={`/service/tickets/${ticket.id}`}
+            className="hover:bg-muted/50 block px-4 py-2.5 transition-colors"
+        >
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="text-muted-foreground font-mono text-xs">{ticket.ticketNo}</p>
+                    <p className="mt-0.5 truncate text-sm font-medium">{ticket.title}</p>
+                    {ticket.context && (
+                        <p className="text-muted-foreground mt-0.5 text-xs">
+                            {contextLabel} · {ticket.context}
+                        </p>
+                    )}
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                    <StatusBadge status={ticket.status} />
+                    <PriorityBadge priority={ticket.priority} />
+                </div>
+            </div>
+            {ticket.resolutionDueAt && (
+                <p className="text-muted-foreground mt-1 text-xs">
+                    กำหนดแก้ไข {formatThaiDateTime(ticket.resolutionDueAt)}
+                </p>
+            )}
+        </Link>
+    )
+}
+
+/// แถวของ "งานวันนี้ / งานเลยกำหนด" — รวมทั้ง Ticket, Task และ To-do (F3.9)
+function WorkRow({ item, overdue = false }: { item: WorkItem; overdue?: boolean }) {
+    const KIND_LABEL: Record<WorkItem["kind"], string> = {
+        ticket: "Ticket",
+        task: "งานโครงการ",
+        todo: "To-do",
+    }
+
+    const body = (
+        <div className="flex items-start justify-between gap-3 px-4 py-2.5">
+            <div className="min-w-0">
+                <p className="text-muted-foreground text-xs">
+                    {KIND_LABEL[item.kind]}
+                    {item.code && ` · ${item.code}`}
+                </p>
+                <p className="mt-0.5 truncate text-sm font-medium">{item.title}</p>
+                {item.dueDate && (
+                    <p
+                        className={`mt-0.5 text-xs ${overdue ? "text-sla-breached" : "text-muted-foreground"}`}
+                    >
+                        กำหนด {formatThaiDateTime(item.dueDate)}
+                    </p>
+                )}
+            </div>
+            <PriorityBadge priority={item.priority} className="shrink-0" />
+        </div>
+    )
+
+    // To-do ไม่มีหน้าของตัวเอง จึงไม่ทำเป็นลิงก์
+    return item.href ? (
+        <Link href={item.href} className="hover:bg-muted/50 block transition-colors">
+            {body}
+        </Link>
+    ) : (
+        body
     )
 }

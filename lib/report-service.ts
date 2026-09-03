@@ -96,7 +96,7 @@ function round1(value: number): number {
 
 // ── ฟิลด์ที่รายงานต้องใช้จาก Ticket ──────────────────────────────────
 
-const reportTicketSelect = {
+export const reportTicketSelect = {
     id: true,
     priority: true,
     status: true,
@@ -111,7 +111,7 @@ const reportTicketSelect = {
     category: { select: { name: true } },
 } satisfies Prisma.TicketSelect
 
-type ReportTicket = Prisma.TicketGetPayload<{ select: typeof reportTicketSelect }>
+export type ReportTicket = Prisma.TicketGetPayload<{ select: typeof reportTicketSelect }>
 
 // ── ขอบเขตตามสิทธิ์ (spec §7 — "รายงาน/Dashboard รวม") ───────────────
 
@@ -217,7 +217,7 @@ function buildTicketSection(
 // ── ② SLA Compliance (F7.17) ─────────────────────────────────────────
 
 /// คิด % จากใบที่ "รู้ผลแล้ว" เท่านั้น เหมือน api/reports/sla (ดู lib/sla-service.ts)
-function tallySla(list: ReportTicket[], now: Date) {
+export function tallySla(list: ReportTicket[], now: Date) {
     let responseMeasured = 0
     let responseMet = 0
     let resolutionMeasured = 0
@@ -596,7 +596,7 @@ interface TrendBucket {
 }
 
 /// จัดใบลงถังตามวันหรือเดือน แล้วคิด % แก้ไขตรงเวลาของแต่ละถัง
-function buildTrend(
+export function buildTrend(
     rows: ReportTicket[],
     resolvedAtList: Date[],
     period: ReportPeriod,
