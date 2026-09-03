@@ -346,12 +346,20 @@ api/my-work/
 
 ## 7. RBAC Matrix (5 Roles)
 
+ระบบมี 5 role เรียงตามลำดับชั้นสิทธิ์ `student` (0) < `user` (1) < `agent` (2) < `manager` (3) < `admin` (4)
+กำหนดไว้ที่ `lib/rbac.ts` (`ROLES`, `ROLE_RANK`) — ผู้ใช้หนึ่งคนถือได้หลาย role พร้อมกัน โดยเก็บเป็น
+สตริงคั่นด้วยจุลภาคในคอลัมน์ `user.role` (เช่น `"agent,manager"`) แล้วแยกด้วย `parseRoles()`
+
+<a id="71-สิทธิ์ระดับการกระทำ"></a>
+
+### 7.1 สิทธิ์ระดับการกระทำ (Action-level)
+
 | Action | student | user | agent | manager | admin |
 |---|:---:|:---:|:---:|:---:|:---:|
 | สร้าง Ticket | ✅ | ✅ | ✅ | ✅ | ✅ |
 | ดู Ticket ของตัวเอง | ✅ | ✅ | ✅ | ✅ | ✅ |
 | ดู Ticket ทั้งหมด | ❌ | ❌ | ✅ | ✅ | ✅ |
-| รับงาน / เปลี่ยนสถานะ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| รับงาน / เปลี่ยนสถานะ | ❌ | ❌ | ⚠️ ¹ | ✅ | ✅ |
 | มอบหมาย / โยกย้ายงาน | ❌ | ❌ | ⚠️ ของตัวเอง | ✅ | ✅ |
 | My Work / Time Log | ❌ | ❌ | ✅ | ✅ | ✅ |
 | อ่าน KB (visibility = all) | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -364,6 +372,112 @@ api/my-work/
 | รายงาน / Dashboard รวม | ❌ | ❌ | ⚠️ ของตัวเอง | ✅ | ✅ |
 | ตั้งค่า SLA / Catalog / ปฏิทิน | ❌ | ❌ | ❌ | ❌ | ✅ |
 | จัดการผู้ใช้ | ❌ | ❌ | ❌ | ❌ | ✅ |
+
+> ¹ `canUpdateTicket()` (`lib/rbac.ts:137-141`) อนุญาตให้ `agent` แก้ได้ทั้ง **งานที่ตัวเองถือ** และ
+> **งานที่ยังไม่มีผู้รับผิดชอบ** (`assigneeId == null`) — จงใจให้กว้างกว่า "ของตัวเอง" เพราะจำเป็นกับ
+> การหยิบงานออกจากคิวทีม (`/service/tickets/queue`) ส่วน `manager` ขึ้นไปแก้ได้ทุกใบ
+
+<a id="72-ผังกลุ่มสิทธิ์เข้าถึงหน้าจอ"></a>
+
+### 7.2 ผังกลุ่มสิทธิ์เข้าถึงหน้าจอ (Screen Access Groups)
+
+จัดเส้นทางทั้ง **43 หน้าจอ** เป็น 9 กลุ่มตามระดับสิทธิ์ต่ำสุดที่เข้าได้
+**ตารางนี้เป็นเกณฑ์เดียว** ที่ sidebar / middleware / guard ในหน้า / API ต้องอ้างอิงให้ตรงกัน
+
+| # | กลุ่ม | คีย์ | หน้าจอ | เข้าได้ |
+|---|---|---|---|---|
+| 1 | สาธารณะ | `PUBLIC` | `/` · `/auth/signin` · `/auth/signup` · `/auth/forgot-password` · `/auth/reset-password` · `/auth/verify-email` · `/auth/verify-2fa` | ไม่ต้อง login |
+| 2 | ใช้ร่วมทุกคน | `COMMON` | `/dashboard` · `/search` · `/chat` · `/profile` · `/help` | ทุก role ที่ login — เนื้อหากรองตามสิทธิ์ในตัวเอง |
+| 3 | บริการตนเอง | `SELF_SERVICE` | `/service/tickets` · `/service/tickets/new` · `/service/tickets/[id]` · `/service/kb` · `/service/kb/[slug]` | ทุก role ที่ login — คุมด้วย row-level (`ticketScopeWhere`, `kbScopeWhere`) |
+| 4 | งานเจ้าหน้าที่ | `STAFF_WORK` | `/service/my-work` · `/service/tickets/queue` · `/management/kb` · `/management/kb/new` · `/management/kb/[id]/edit` | `agent` ขึ้นไป |
+| 5 | งานธุรการศูนย์ | `OPERATIONS` | `/management/assets` · `/management/assets/[id]` · `/management/assets/[id]/label` · `/management/requests` · `/management/requests/new` · `/management/requests/[id]` · `/management/reports` · `/management/reports/summary` · `/management/reports/sla` · `/management/reports/workload` | `agent` ขึ้นไปเข้าหน้าได้ · เขียน / อนุมัติ / export = `manager` ขึ้นไป |
+| 6 | งานพัฒนา (SDLC) | `SDLC` | `/management/projects` · `/management/projects/[id]` · `/management/teams` | `agent` ขึ้นไป (อ่าน) · จัดการโครงการ/ทีม = `manager` ขึ้นไป |
+| 7 | ลูกค้าสัมพันธ์ | `CRM` | `/management/lead` | `manager` ขึ้นไป |
+| 8 | ตั้งค่าบริการ | `SERVICE_CONFIG` | `/admin/catalog` · `/admin/sla` · `/admin/calendar` | `admin` |
+| 9 | ผู้ดูแลระบบ | `SYSTEM_ADMIN` | `/admin/users` · `/admin/knowledge` · `/admin/line-groups` · `/admin/settings` | `admin` |
+
+**หมายเหตุประกอบตาราง**
+
+- **กลุ่ม 2 และ 3 เปิดให้ทุก role โดยตั้งใจ** — ความปลอดภัยอยู่ที่การกรองข้อมูล ไม่ใช่การกันหน้าจอ
+  (`/search` กรองผลลัพธ์ตามสิทธิ์ในตัวมันเอง · `/dashboard` เลือกชุดวิดเจ็ตจาก `viewOf()` ใน
+  `lib/dashboard-service.ts:57-60` เป็น `manager` / `agent` / `requester`)
+- **กลุ่ม 6 ปัจจุบันไม่ตรงกันระหว่างชั้น** — `sidebar-data.ts` แสดงเมนู "โครงการพัฒนา / ทีมงาน" เฉพาะ
+  `manager` ขึ้นไป แต่ API ใช้ `SDLC_ROLES = ["agent","manager","admin"]` (`lib/project-service.ts:197`)
+  และ §7.1 ระบุว่า `agent` อ่านได้ + แก้ task ตัวเองได้ → ของจริงเพี้ยนจาก spec
+  **ต้องแก้ sidebar ให้เปิดกลุ่ม 6 ถึง `agent`** และแยก "ผู้สนใจ (Lead)" ออกไปกลุ่ม 7 ซึ่งเป็น `manager` ขึ้นไปจริง
+- หน้าจอในกลุ่ม 5 ที่ `agent` เข้าได้แต่แก้ไม่ได้ ต้องซ่อน/ปิดปุ่มเขียนด้วย ไม่ใช่ปล่อยให้กดแล้วได้ 403
+- เส้นทางที่ไม่ปรากฏใน sidebar แต่เข้าถึงได้จริงต้องอยู่ในตารางนี้ด้วย — ปัจจุบันมี
+  `/service/tickets/queue`, `/management/kb/new`, `/management/kb/[id]/edit`, `/management/assets/[id]`,
+  `/management/assets/[id]/label`, `/management/requests/new`, `/management/requests/[id]`,
+  `/management/projects/[id]`, `/management/reports/{summary,sla,workload}`, `/profile`
+
+<a id="73-ผลตรวจสอบสิทธิ์"></a>
+
+### 7.3 ผลตรวจสอบสิทธิ์ (3 กันยายน 2569)
+
+ตรวจทั้งระบบหลัง Phase 8 จบ — **โครงสิทธิ์ออกแบบครบดีแล้ว จึงไม่ต้องเพิ่ม role ใหม่**
+(row-level scoping มีครบทุกโดเมน: `ticketScopeWhere`, `kbScopeWhere`, `approvalScopeWhere`,
+`ReportScope`, `canAccessTicket` / `canUpdateTicket` / `canAssignTicket`)
+แต่ **การบังคับใช้ยังไม่ครบ 4 เรื่อง** เรียงตามความรุนแรง:
+
+#### ① หน้าจอไม่ถูกกันฝั่ง server
+
+ไม่มี `middleware.ts` ในโปรเจกต์ และมีเพียง **4 จาก 43 หน้า** ที่ตรวจ role ฝั่ง server
+(`admin/users`, `admin/settings`, `admin/line-groups`, `dashboard`) ส่วน `app/(main)/layout.tsx`
+เช็คแค่ว่ามี session เท่านั้น
+
+ผลคือ `student` พิมพ์ URL ตรงเข้า `/admin/sla`, `/admin/catalog`, `/admin/calendar`, `/admin/knowledge`
+และ `/management/*` ทุกหน้า **ได้หน้าจอจริง** (API จะตอบ 403 ทีหลัง แต่โครงหน้า ปุ่ม และรูปร่างข้อมูล
+หลุดออกไปแล้ว) — ที่กันอยู่ตอนนี้คือ `filterSectionsByRole()` ซึ่งเพียงซ่อนเมนูฝั่ง client
+ไม่ใช่การควบคุมการเข้าถึง
+
+#### ② API ที่ไม่ตรวจสิทธิ์เลย ทั้งที่แตะข้อมูลจริง
+
+| Route | ความเสี่ยง | ควรเป็น |
+|---|---|---|
+| `POST /api/search` | ค้นเชิงความหมายทับคลังเอกสาร RAG ทั้งหมดโดยไม่ต้อง login | `requireAuth()` + จำกัด KB `agent_only` ด้วย `isStaff()` แบบเดียวกับ `api/chat/route.ts:46` |
+| `PUT`/`DELETE /api/knowledge/[id]` · `POST /api/knowledge/[id]/index` | แก้/ลบ/re-index เอกสาร RAG ได้โดยไม่ต้อง login | `admin` (ให้ตรงกับหน้า `/admin/knowledge`) |
+| `GET /api/leads` · `GET`/`PATCH /api/leads/[id]` | ข้อมูลผู้สนใจทั้งหมดเปิดสาธารณะ | `manager` ขึ้นไป |
+| `GET`/`POST /api/line/groups` · `PATCH`/`DELETE /api/line/groups/[id]` | อ่าน/แก้/ลบกลุ่ม LINE ได้โดยไม่ต้อง login | `admin` |
+| `GET`/`POST /api/users` · `GET`/`DELETE /api/users/[id]` | stub ค้างจากก่อน ITSM คืนข้อมูลปลอม John/Jane | **ลบทิ้ง** — ของจริงใช้ better-auth admin plugin |
+| `POST /api/admin/change-role` | ใช้ `session.user.role !== "admin"` ซึ่ง **พังกับ multi-role** เช่น `"manager,admin"` (ที่อื่นใช้ `parseRoles()` ทั้งหมด) และ `validRoles` ค้างที่ 3 ค่า | `requireRole(["admin"])` + `ROLES` ครบ 5 หรือลบทิ้งถ้าไม่มีผู้เรียก |
+
+> `POST /api/leads` และ `POST /api/contact` เปิดสาธารณะ **โดยตั้งใจ** (ฟอร์มบนหน้า landing) ห้ามเผลอปิด ·
+> `POST /api/line/webhook` ตรวจลายเซ็น HMAC อยู่แล้ว ไม่ต้องแก้
+
+#### ③ role `student` และ `agent` ตั้งให้ใครไม่ได้
+
+ทั้งสอง role ถูกนิยามครบใน `lib/permissions.ts`, `lib/auth.ts`, `lib/rbac.ts` และ `sidebar-data.ts`
+แต่รายการ role ในชั้นจัดการผู้ใช้ยังค้างที่ `["user","manager","admin"]` จากก่อน ITSM:
+
+- `app/(main)/admin/users/UsersManagement.tsx:40` — `ALL_ROLES` (และ `RoleBadge` บรรทัด 312 ไม่มีสี/ไอคอนของสองตัวนี้)
+- `app/api/admin/change-role/route.ts:35` — `validRoles`
+- `lib/auth-client.ts:10` — `adminClient({ ac, roles: { admin, manager, user } })` ลงทะเบียนแค่ 3 จาก 5
+- `app/(main)/admin/settings/SettingContent.tsx:462-465` — รายการแสดงผลอย่างเดียว
+
+→ **ครึ่งหนึ่งของ matrix §7.1 ยังใช้จริงไม่ได้** เพราะไม่มีวิธีตั้ง role สองตัวนี้ให้ผู้ใช้จากหน้าจอ
+
+#### ④ ค่าคงที่ role กระจัดกระจายจนเพี้ยนกันเอง
+
+array `["agent","manager","admin"]` และ `["manager","admin"]` ถูกเขียนซ้ำราว **85 จุด** — ~70 จุดใน
+`requireRole()` ของ API route · ~15 จุดในคอมโพเนนต์ฝั่ง client ที่คำนวณ `isStaff` / `isManager` / `canManage`
+เอง · อีกชุดคือ `STAFF` / `MANAGER` / `ADMIN` ใน `sidebar-data.ts:42-44` และ `SDLC_ROLES` ใน
+`lib/project-service.ts:197`
+
+สาเหตุที่ฝั่ง client ต้องคัดลอกเองทั้งที่ `lib/rbac.ts` มี `isStaff()` / `isManager()` ให้แล้ว คือ
+`lib/rbac.ts` import `next/server` และ `next/headers` ที่ระดับ module จึง import จาก client component ไม่ได้
+ผลของการกระจายตัวนี้เห็นได้จากกลุ่ม 6 ใน §7.2 ที่ sidebar กับ API ไม่ตรงกันแล้ว
+
+#### หมายเหตุ: `lib/permissions.ts` ไม่ใช่ตัวบังคับใช้สิทธิ์
+
+`lib/permissions.ts` ประกาศ statement (`ticket`, `task`, `kb`, `asset`, `approval`, `report`, `sla`) และผูก
+`ac.newRole()` ให้ครบทั้ง 5 role ตรงตาม §7.1 — แต่ **ไม่มีโค้ดในแอปเรียก `hasPermission()` หรือ
+`checkRolePermission()` เลยสักจุด** การบังคับใช้จริงทั้งหมดเป็นการเทียบชื่อ role ผ่าน `requireRole()`
+ใน `lib/rbac.ts`
+
+ไฟล์นี้จึงมีบทบาทเป็น **(ก)** เอกสารสิทธิ์ที่อ่านเป็นโค้ดได้ และ **(ข)** สิทธิ์ที่ better-auth admin plugin
+ใช้กับ endpoint ของตัวเอง (`listUsers`, `setRole`, `banUser`, `impersonateUser` ฯลฯ)
+การแก้ไฟล์นี้อย่างเดียว **ไม่เปลี่ยนพฤติกรรมของ API ในแอป** — ต้องแก้ `requireRole()` ควบคู่เสมอ
 
 ---
 
