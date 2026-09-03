@@ -99,7 +99,7 @@ ai-native/
 │   │   ├── management/       projects/  teams/  lead/
 │   │   └── admin/            users/  knowledge/  line-groups/  settings/
 │   ├── api/                  auth/ chat/ knowledge/ leads/ line/ search/
-│   │                         users/ admin/change-role/ contact/
+│   │                         contact/
 │   └── generated/prisma/
 ├── components/ui/            button, card, input, label  ← มีแค่ 4 ตัว
 ├── components/chat/          ChatButton, ChatWindow
@@ -441,6 +441,8 @@ api/my-work/
 #### ② API ที่ไม่ตรวจสิทธิ์เลย ทั้งที่แตะข้อมูลจริง — ✅ แก้แล้ว (Phase 9)
 
 > ตอนนี้: ทุกแถวในตารางถูกแก้ตามคอลัมน์ "ควรเป็น" แล้ว · `/api/users` ทั้งสองไฟล์ถูกลบทิ้ง ·
+> `POST /api/admin/change-role` ถูกลบทิ้งใน Phase 9 follow-up (ไม่มีผู้เรียกในโค้ด — หน้า `/admin/users`
+> ใช้ better-auth admin plugin `setRole` อยู่แล้ว) ·
 > ไล่ตรวจทุก `route.ts` ใต้ `app/api` แล้วเหลือเส้นเดียวที่ไม่มี guard คือ `POST /api/contact`
 > ซึ่งเปิดสาธารณะโดยตั้งใจ
 
@@ -451,7 +453,7 @@ api/my-work/
 | `GET /api/leads` · `GET`/`PATCH /api/leads/[id]` | ข้อมูลผู้สนใจทั้งหมดเปิดสาธารณะ | `manager` ขึ้นไป |
 | `GET`/`POST /api/line/groups` · `PATCH`/`DELETE /api/line/groups/[id]` | อ่าน/แก้/ลบกลุ่ม LINE ได้โดยไม่ต้อง login | `admin` |
 | `GET`/`POST /api/users` · `GET`/`DELETE /api/users/[id]` | stub ค้างจากก่อน ITSM คืนข้อมูลปลอม John/Jane | **ลบทิ้ง** — ของจริงใช้ better-auth admin plugin |
-| `POST /api/admin/change-role` | ใช้ `session.user.role !== "admin"` ซึ่ง **พังกับ multi-role** เช่น `"manager,admin"` (ที่อื่นใช้ `parseRoles()` ทั้งหมด) และ `validRoles` ค้างที่ 3 ค่า | `requireRole(["admin"])` + `ROLES` ครบ 5 หรือลบทิ้งถ้าไม่มีผู้เรียก |
+| `POST /api/admin/change-role` | ใช้ `session.user.role !== "admin"` ซึ่ง **พังกับ multi-role** เช่น `"manager,admin"` (ที่อื่นใช้ `parseRoles()` ทั้งหมด) และ `validRoles` ค้างที่ 3 ค่า | **ลบทิ้ง** (Phase 9 follow-up) — ไม่มีผู้เรียกในโค้ด · หน้า `/admin/users` ใช้ better-auth admin plugin `setRole` |
 
 > `POST /api/leads` และ `POST /api/contact` เปิดสาธารณะ **โดยตั้งใจ** (ฟอร์มบนหน้า landing) ห้ามเผลอปิด ·
 > `POST /api/line/webhook` ตรวจลายเซ็น HMAC อยู่แล้ว ไม่ต้องแก้
@@ -465,7 +467,7 @@ api/my-work/
 แต่รายการ role ในชั้นจัดการผู้ใช้ยังค้างที่ `["user","manager","admin"]` จากก่อน ITSM:
 
 - `app/(main)/admin/users/UsersManagement.tsx:40` — `ALL_ROLES` (และ `RoleBadge` บรรทัด 312 ไม่มีสี/ไอคอนของสองตัวนี้)
-- `app/api/admin/change-role/route.ts:35` — `validRoles`
+- ~~`app/api/admin/change-role/route.ts:35` — `validRoles`~~ (route ถูกลบทิ้งใน Phase 9 follow-up)
 - `lib/auth-client.ts:10` — `adminClient({ ac, roles: { admin, manager, user } })` ลงทะเบียนแค่ 3 จาก 5
 - `app/(main)/admin/settings/SettingContent.tsx:462-465` — รายการแสดงผลอย่างเดียว
 

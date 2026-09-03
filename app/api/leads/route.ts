@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. บันทึก Lead ลง PostgreSQL ผ่าน Prisma
-    const lead = await prisma.lead.create({
+    await prisma.lead.create({
       data: {
         name,
         email,
@@ -46,12 +46,13 @@ export async function POST(request: NextRequest) {
     // 3. ส่ง Lead ไปยัง n8n Webhook (ถ้าตั้งค่าไว้)
     // const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL
     // if (n8nWebhookUrl) {
+    //   const created = await prisma.lead.create({ ... })  // เก็บผลลัพธ์ไว้ส่งต่อ
     //   await fetch(n8nWebhookUrl, {
     //     method: "POST",
     //     headers: { "Content-Type": "application/json" },
     //     body: JSON.stringify({
-    //       ...lead,
-    //       timestamp: lead.createdAt.toISOString(),
+    //       ...created,
+    //       timestamp: created.createdAt.toISOString(),
     //     }),
     //   })
     // }

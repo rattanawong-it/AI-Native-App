@@ -107,6 +107,10 @@ role จริงจาก session ในฐานข้อมูล **ห้า
 
 ### 2.6 `change-role` เก็บค่าลง DB แบบ normalize
 
+> **หมายเหตุ follow-up (3 ก.ย. 2569):** route `POST /api/admin/change-role` ถูกลบทิ้งแล้ว
+> เพราะไม่มีผู้เรียก — ดู §6 ข้อ 3 · หัวข้อนี้คงไว้เป็นบันทึกเหตุผลตอนที่ยังมี route อยู่
+
+
 รับหลาย role คั่นจุลภาคได้ตามรูปแบบที่คอลัมน์ `user.role` ใช้จริง แต่ก่อนบันทึกจะเรียงตามลำดับ
 ใน `ROLES` และตัดค่าซ้ำทิ้ง — ค่าที่เก็บจึงมีรูปแบบเดียวเสมอ (`"agent,admin"` ไม่ใช่ `"admin,agent"`)
 ทำให้เทียบและอ่านง่ายเวลาไล่ปัญหา · ค่าที่สะกดผิดถูกตีกลับเป็น 400 แทนที่จะถูก `parseRoles()`
@@ -132,15 +136,17 @@ endpoint ของตัวเอง เฟสนี้จึงแตะเฉ�
 | `lib/screen-guard.ts` | `requireScreen()` สำหรับ Server Component |
 | `middleware.ts` | กันชั้นแรกที่ขอบ |
 
-### ไฟล์ที่ลบ (2 ไฟล์)
+### ไฟล์ที่ลบ (2 ไฟล์ ในเฟส · +1 ใน follow-up)
 
 `app/api/users/route.ts` · `app/api/users/[id]/route.ts` — stub คืนข้อมูลปลอม ไม่มีผู้เรียก
+
+follow-up: `app/api/admin/change-role/route.ts` — ไม่มีผู้เรียก (ดู §6 ข้อ 3)
 
 ### ไฟล์เดิมที่แก้
 
 - **กันหน้าจอ (10):** `admin/layout.tsx` · `management/layout.tsx` · `admin/{users,settings,line-groups}/page.tsx` · `management/lead/page.tsx` · `service/{my-work,tickets/queue}/page.tsx` · `auth/signin/{page.tsx,LoginForm.tsx}` (รับ `callbackUrl`)
-- **ปิด API (11):** `api/search` · `api/knowledge/{route,[id],[id]/index,upload}` · `api/leads/{route,[id]}` · `api/line/groups/{route,[id]}` · `api/admin/change-role`
-- **role ครบ 5 (4):** `admin/users/UsersManagement.tsx` · `admin/settings/SettingContent.tsx` · `lib/auth-client.ts` · `api/admin/change-role/route.ts`
+- **ปิด API (11):** `api/search` · `api/knowledge/{route,[id],[id]/index,upload}` · `api/leads/{route,[id]}` · `api/line/groups/{route,[id]}` · ~~`api/admin/change-role`~~ (ลบทิ้งใน follow-up)
+- **role ครบ 5 (4):** `admin/users/UsersManagement.tsx` · `admin/settings/SettingContent.tsx` · `lib/auth-client.ts` · ~~`api/admin/change-role/route.ts`~~ (ลบทิ้งใน follow-up)
 - **รวมค่าคงที่:** `lib/rbac.ts` · `lib/project-service.ts` · `sidebar-data.ts` · คอมโพเนนต์ฝั่ง client 14 ไฟล์ · API route 41 ไฟล์
 
 ---
@@ -218,7 +224,34 @@ better-auth) เหลือเส้นเดียวที่ไม่มี 
 
 | เรื่อง | สถานะ |
 |---|---|
-| ทดสอบ login เป็น `agent` / `student` / `user` / `manager` จริง | **ยังไม่ได้ทำ** — ฐานข้อมูลไม่มีบัญชี `agent`/`student` และบัญชี non-admin ใช้ Google OAuth จึงล็อกอินแทนไม่ได้ (ดู §4.1 จ.) · ถ้าต้องการทดสอบจริงต้องเลือกทางใดทางหนึ่ง: สร้างบัญชีทดสอบชั่วคราวแล้วลบทิ้ง หรือใช้ Impersonate ในหน้า `/admin/users` |
-| `lib/permissions.ts` ยังไม่ถูกใช้บังคับสิทธิ์ | คงไว้ตามเดิม — ถ้าจะย้ายไปใช้ `hasPermission()` จริงต้องเปิดเป็นงานแยก |
-| `POST /api/admin/change-role` ซ้ำซ้อนกับ better-auth `setRole` | หน้า `/admin/users` ใช้ admin plugin เป็นหลัก เส้นนี้เหลือไว้เผื่อเรียกจากสคริปต์ — ถ้ายืนยันว่าไม่มีผู้เรียกแล้วควรลบทิ้ง |
-| warning `'lead' is assigned a value but never used` ใน `api/leads/route.ts` | เป็น warning ไม่ใช่ error — ไม่แก้ในเฟสนี้เพื่อไม่ให้ diff บวมเกินขอบเขต |
+| ทดสอบ login เป็น `agent` / `student` / `user` / `manager` จริง | ดู §6 ข้อ 1 |
+| `lib/permissions.ts` ยังไม่ถูกใช้บังคับสิทธิ์ | **เปิดเป็นงานแยก** (ตัดสิน 3 ก.ย. 2569) — ถ้าจะย้ายไปใช้ `hasPermission()` จริงต้องทำเป็น issue/เฟสของตัวเอง ดู §6 ข้อ 2 |
+| `POST /api/admin/change-role` ซ้ำซ้อนกับ better-auth `setRole` | **ลบทิ้งแล้ว** ดู §6 ข้อ 3 |
+| warning `'lead' is assigned a value but never used` ใน `api/leads/route.ts` | **แก้แล้ว** ดู §6 ข้อ 4 |
+
+---
+
+## 6. Phase 9 follow-up (branch `feat/itsm-phase-9-followup` · 3 ก.ย. 2569)
+
+เคลียร์ 4 ข้อค้างใน §5
+
+### 1. ทดสอบ login เป็น role อื่นจริง
+
+_(รอผลทดสอบ)_
+
+### 2. `lib/permissions.ts` — เปิดเป็นงานแยก
+
+ผู้ใช้ยืนยันให้คงไว้ตามเดิม การย้ายกลไกบังคับใช้จาก `requireRole()` ไปเป็น `hasPermission()`
+มีขอบเขตกว้างและเสี่ยง regression จึงไม่ทำในเฟสนี้ — ต้องเปิดเป็น issue/เฟสของตัวเองถ้าจะทำ
+
+### 3. ลบ `POST /api/admin/change-role`
+
+ไล่ทั้ง repo แล้ว **ไม่มีโค้ดฝั่งไหนเรียกเส้นนี้** — หน้า `/admin/users` เปลี่ยน role ผ่าน
+better-auth admin plugin (`authClient.admin.setRole`) ซึ่งมี guard + validation ของตัวเอง
+จึงลบ `app/api/admin/change-role/route.ts` ทิ้ง (โฟลเดอร์ `app/api/admin/` ว่างจึงหายไปทั้งอัน)
+อัปเดตการอ้างอิงใน `docs/spec.md` §7.3 ② / ③ และตารางในเฟสนี้ (§2.2 / §3)
+
+### 4. แก้ warning `'lead' unused` ใน `api/leads/route.ts`
+
+`const lead = await prisma.lead.create(...)` → `await prisma.lead.create(...)` (ไม่ได้ใช้ค่า
+ที่คืนมา) และปรับคอมเมนต์บล็อก n8n webhook ให้สอดคล้อง · `npx eslint app/api/leads/route.ts` ผ่าน
