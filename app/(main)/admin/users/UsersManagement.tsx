@@ -19,8 +19,11 @@ import {
     MoreHorizontal,
     X,
     Loader2,
+    GraduationCap,
+    Wrench,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ROLES, ROLE_LABELS, type Role } from "@/lib/roles"
 
 // ============================================================
 // Types
@@ -37,8 +40,10 @@ interface User {
     createdAt: string
 }
 
-const ALL_ROLES = ["user", "manager", "admin"] as const
-type RoleType = (typeof ALL_ROLES)[number]
+// รายการ role ดึงจาก lib/roles.ts ทั้งชุด — เดิมค้างอยู่ที่ 3 ค่าจากก่อน ITSM
+// ทำให้ role `student` และ `agent` ที่นิยามไว้ครบทุกชั้นกลับตั้งให้ใครไม่ได้เลย
+const ALL_ROLES = ROLES
+type RoleType = Role
 
 type ModalType =
     | "create"
@@ -310,16 +315,21 @@ export default function UsersManagement() {
 
     // ── Role badge ───────────────────────────────────────────
     const RoleBadge = ({ role }: { role: string }) => {
+        // ไล่สีตามลำดับชั้นสิทธิ์ใน lib/roles.ts — เข้มขึ้นตามสิทธิ์ที่สูงขึ้น
         const colors: Record<string, string> = {
             admin: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
             manager:
                 "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+            agent: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
             user: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+            student: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
         }
         const iconMap: Record<string, React.ReactNode> = {
             admin: <ShieldAlert className="h-3 w-3" />,
             manager: <Shield className="h-3 w-3" />,
+            agent: <Wrench className="h-3 w-3" />,
             user: <UserCheck className="h-3 w-3" />,
+            student: <GraduationCap className="h-3 w-3" />,
         }
         const roles = role.split(",").map((r) => r.trim())
         return (
@@ -366,6 +376,8 @@ export default function UsersManagement() {
                         className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-primary accent-primary"
                     />
                     <RoleBadge role={role} />
+                    {/* ชื่อภาษาไทยกำกับ — ชื่อ role เป็นภาษาอังกฤษอย่างเดียวอ่านไม่ออกว่าใครเป็นใคร */}
+                    <span className="text-sm text-muted-foreground">{ROLE_LABELS[role]}</span>
                 </label>
             ))}
         </div>
