@@ -7,7 +7,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireRole, badRequest, notFound, ADMIN_ROLES } from "@/lib/rbac"
 import { updateCategorySchema, firstIssueMessage } from "@/lib/ticket-schema"
-import { categorySelect } from "@/lib/ticket-service"
+import {
+    categorySelect,
+    findUnassignableUsers,
+    syncCategoryAssignees,
+} from "@/lib/ticket-service"
 
 export async function PATCH(
     request: NextRequest,
@@ -48,25 +52,48 @@ export async function PATCH(
             if (parent.parentId) return badRequest("หมวดย่อยซ้อนได้เพียงชั้นเดียว")
         }
 
-        const category = await prisma.serviceCategory.update({
-            where: { id },
-            data: {
-                ...(input.name !== undefined ? { name: input.name } : {}),
-                ...(input.slug !== undefined ? { slug: input.slug } : {}),
-                ...(input.parentId !== undefined ? { parentId: input.parentId ?? null } : {}),
-                ...(input.description !== undefined
-                    ? { description: input.description ?? null }
-                    : {}),
-                ...(input.defaultTeamId !== undefined
-                    ? { defaultTeamId: input.defaultTeamId ?? null }
-                    : {}),
-                ...(input.defaultAssigneeId !== undefined
-                    ? { defaultAssigneeId: input.defaultAssigneeId ?? null }
-                    : {}),
-                ...(input.active !== undefined ? { active: input.active } : {}),
-                ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
-            },
-            select: categorySelect,
+        // ผู้รับผิดชอบเริ่มต้น (F2.12) — ส่ง assigneeIds มาเมื่อใด ถือว่าแทนที่รายชื่อเดิมทั้งชุด
+        const assigneeIds =
+            input.assigneeIds !== undefined
+                ? [
+                      ...new Set([
+                          ...input.assigneeIds,
+                          ...(input.defaultAssigneeId ? [input.defaultAssigneeId] : []),
+                      ]),
+                  ]
+                : input.defaultAssigneeId !== undefined
+                  ? input.defaultAssigneeId
+                      ? [input.defaultAssigneeId]
+                      : []
+                  : null
+        if (assigneeIds) {
+            const invalid = await findUnassignableUsers(assigneeIds)
+            if (invalid.length > 0) {
+                return badRequest("มีผู้รับผิดชอบที่เลือกไว้ไม่ใช่เจ้าหน้าที่ที่รับงานได้")
+            }
+        }
+
+        const category = await prisma.$transaction(async (tx) => {
+            await tx.serviceCategory.update({
+                where: { id },
+                data: {
+                    ...(input.name !== undefined ? { name: input.name } : {}),
+                    ...(input.slug !== undefined ? { slug: input.slug } : {}),
+                    ...(input.parentId !== undefined ? { parentId: input.parentId ?? null } : {}),
+                    ...(input.description !== undefined
+                        ? { description: input.description ?? null }
+                        : {}),
+                    ...(input.defaultTeamId !== undefined
+                        ? { defaultTeamId: input.defaultTeamId ?? null }
+                        : {}),
+                    ...(input.active !== undefined ? { active: input.active } : {}),
+                    ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
+                },
+                select: { id: true },
+            })
+            // syncCategoryAssignees เขียน defaultAssigneeId (deprecated) ให้ตรงกับรายชื่อใหม่ด้วย
+            if (assigneeIds) await syncCategoryAssignees(tx, id, assigneeIds)
+            return tx.serviceCategory.findUniqueOrThrow({ where: { id }, select: categorySelect })
         })
 
         return NextResponse.json({ category })

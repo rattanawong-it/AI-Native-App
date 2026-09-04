@@ -85,7 +85,10 @@ export interface Category {
     active: boolean
     sortOrder: number
     defaultTeam: { id: string; name: string } | null
+    /// @deprecated ใช้ assignees แทน (ข้อ 19) — คงไว้เพื่อความเข้ากันได้
     defaultAssignee: { id: string; name: string } | null
+    /// ผู้รับผิดชอบเริ่มต้นหลายคนของหมวดนี้ (F2.12)
+    assignees: { user: { id: string; name: string; image: string | null } }[]
     _count: { tickets: number }
 }
 

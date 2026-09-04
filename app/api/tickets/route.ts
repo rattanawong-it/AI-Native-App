@@ -166,7 +166,8 @@ export async function POST(request: NextRequest) {
                 actorId: user.id,
                 action: "assigned",
                 toValue: auto.assigneeId,
-                note: "มอบหมายอัตโนมัติตามหมวดหมู่บริการ",
+                // เหตุผลที่เลือกคนนี้มาจาก resolveAutoAssign เพื่อให้ตรวจย้อนหลังได้ (F2.11)
+                note: auto.reason ?? "มอบหมายอัตโนมัติตามหมวดหมู่บริการ",
             })
         }
 
