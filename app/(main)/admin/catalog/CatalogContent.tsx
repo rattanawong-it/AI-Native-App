@@ -1,7 +1,7 @@
 "use client"
 
-// หน้าจัดการ Service Catalog — หมวดหลัก / หมวดย่อย / ผู้รับผิดชอบเริ่มต้น
-// อ้างอิง F1.8 (Service Catalog CRUD) และ F2.7 (ค่าที่ใช้ auto-assign)
+// หน้าจัดการ Service Catalog — หมวดหลัก / หมวดย่อย / ผู้รับผิดชอบเริ่มต้น (เลือกได้หลายคน)
+// อ้างอิง F1.8 (Service Catalog CRUD), F2.7 + F2.11 (ค่าที่ใช้ auto-assign ตามภาระงาน), F2.12
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
@@ -54,7 +54,8 @@ interface FormState {
     parentId: string
     description: string
     defaultTeamId: string
-    defaultAssigneeId: string
+    /// ผู้รับผิดชอบเริ่มต้นหลายคน — auto-assign เลือกคนที่ภาระงานน้อยที่สุดจากรายชื่อนี้ (F2.11)
+    assigneeIds: string[]
     active: boolean
     sortOrder: number
 }
@@ -65,7 +66,7 @@ const EMPTY_FORM: FormState = {
     parentId: "",
     description: "",
     defaultTeamId: "",
-    defaultAssigneeId: "",
+    assigneeIds: [],
     active: true,
     sortOrder: 0,
 }
@@ -134,7 +135,7 @@ export default function CatalogContent() {
             parentId: c.parentId ?? "",
             description: c.description ?? "",
             defaultTeamId: c.defaultTeamId ?? "",
-            defaultAssigneeId: c.defaultAssigneeId ?? "",
+            assigneeIds: c.assignees.map((a) => a.user.id),
             active: c.active,
             sortOrder: c.sortOrder,
         })
@@ -157,7 +158,7 @@ export default function CatalogContent() {
                 parentId: form.parentId || null,
                 description: form.description.trim() || null,
                 defaultTeamId: form.defaultTeamId || null,
-                defaultAssigneeId: form.defaultAssigneeId || null,
+                assigneeIds: form.assigneeIds,
                 active: form.active,
                 sortOrder: form.sortOrder,
             }
@@ -262,7 +263,8 @@ export default function CatalogContent() {
                                         )}
                                     </div>
                                     <p className="text-muted-foreground mt-0.5 text-xs">
-                                        {children.length} หมวดย่อย · {parent._count.tickets} Ticket
+                                        {children.length} หมวดย่อย · {parent._count.tickets} Ticket ·
+                                        ผู้รับผิดชอบ: {assigneeLabel(parent)}
                                     </p>
                                 </div>
                                 <div className="flex gap-1">
@@ -314,7 +316,7 @@ export default function CatalogContent() {
                                             </div>
                                             <div className="text-muted-foreground w-[200px] text-xs">
                                                 <p>ทีม: {c.defaultTeam?.name ?? "—"}</p>
-                                                <p>ผู้รับผิดชอบ: {c.defaultAssignee?.name ?? "—"}</p>
+                                                <p>ผู้รับผิดชอบ: {assigneeLabel(c)}</p>
                                             </div>
                                             <span className="text-muted-foreground w-20 text-xs">
                                                 {c._count.tickets} Ticket
@@ -406,41 +408,93 @@ export default function CatalogContent() {
                             />
                         </div>
 
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div>
-                                <Label className="mb-1.5">ทีมที่รับผิดชอบเริ่มต้น</Label>
-                                <select
-                                    value={form.defaultTeamId}
-                                    onChange={(e) =>
-                                        setForm((f) => ({ ...f, defaultTeamId: e.target.value }))
-                                    }
-                                    className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
-                                >
-                                    <option value="">— ไม่ระบุ —</option>
-                                    {teams.map((t) => (
-                                        <option key={t.id} value={t.id}>
-                                            {t.name}
-                                        </option>
-                                    ))}
-                                </select>
+                        <div>
+                            <Label className="mb-1.5">ทีมที่รับผิดชอบเริ่มต้น</Label>
+                            <select
+                                value={form.defaultTeamId}
+                                onChange={(e) =>
+                                    setForm((f) => ({ ...f, defaultTeamId: e.target.value }))
+                                }
+                                className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+                            >
+                                <option value="">— ไม่ระบุ —</option>
+                                {teams.map((t) => (
+                                    <option key={t.id} value={t.id}>
+                                        {t.name}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-muted-foreground mt-1.5 text-xs">
+                                ใช้เมื่อไม่มีผู้รับผิดชอบที่รับงานได้ในรายชื่อด้านล่าง
+                            </p>
+                        </div>
+
+                        <div>
+                            <div className="mb-1.5 flex items-center justify-between gap-2">
+                                <Label>ผู้รับผิดชอบเริ่มต้น (auto-assign)</Label>
+                                {form.assigneeIds.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setForm((f) => ({ ...f, assigneeIds: [] }))}
+                                        className="text-muted-foreground hover:text-foreground text-xs underline"
+                                    >
+                                        ล้างทั้งหมด
+                                    </button>
+                                )}
                             </div>
-                            <div>
-                                <Label className="mb-1.5">เจ้าหน้าที่เริ่มต้น (auto-assign)</Label>
-                                <select
-                                    value={form.defaultAssigneeId}
-                                    onChange={(e) =>
-                                        setForm((f) => ({ ...f, defaultAssigneeId: e.target.value }))
-                                    }
-                                    className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
-                                >
-                                    <option value="">— ไม่ระบุ —</option>
-                                    {agents.map((a) => (
-                                        <option key={a.id} value={a.id}>
-                                            {a.name}
-                                        </option>
-                                    ))}
-                                </select>
+                            <p className="text-muted-foreground mb-2 text-xs">
+                                เลือกได้หลายคน — เมื่อมี Ticket เข้าหมวดนี้
+                                ระบบจะมอบหมายให้คนที่ถืองานอยู่น้อยที่สุดโดยอัตโนมัติ
+                                (เท่ากันจะให้คนที่เว้นว่างจากหมวดนี้นานที่สุด)
+                            </p>
+                            <div className="max-h-52 overflow-y-auto rounded-md border">
+                                {agents.length === 0 ? (
+                                    <p className="text-muted-foreground px-3 py-4 text-sm">
+                                        ยังไม่มีเจ้าหน้าที่ในระบบ
+                                    </p>
+                                ) : (
+                                    agents.map((a, i) => {
+                                        const checked = form.assigneeIds.includes(a.id)
+                                        return (
+                                            <label
+                                                key={a.id}
+                                                className={
+                                                    "hover:bg-muted/50 flex cursor-pointer items-center gap-3 px-3 py-2" +
+                                                    (i > 0 ? " border-t" : "")
+                                                }
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={() =>
+                                                        setForm((f) => ({
+                                                            ...f,
+                                                            assigneeIds: checked
+                                                                ? f.assigneeIds.filter((id) => id !== a.id)
+                                                                : [...f.assigneeIds, a.id],
+                                                        }))
+                                                    }
+                                                    className="size-4 shrink-0"
+                                                />
+                                                <span className="min-w-0 flex-1 truncate text-sm">
+                                                    {a.name}
+                                                    <span className="text-muted-foreground ml-2 text-xs">
+                                                        {a.position ?? a.role}
+                                                    </span>
+                                                </span>
+                                                <span className="text-muted-foreground shrink-0 text-xs">
+                                                    ถืออยู่ {a.openTickets} งาน
+                                                </span>
+                                            </label>
+                                        )
+                                    })
+                                )}
                             </div>
+                            <p className="text-muted-foreground mt-1.5 text-xs">
+                                เลือกแล้ว {form.assigneeIds.length} คน
+                                {form.assigneeIds.length === 0 &&
+                                    " — ไม่เลือกเลย ระบบจะมอบหมายตามทีมที่ตั้งไว้แทน"}
+                            </p>
                         </div>
 
                         <div className="grid gap-4 sm:grid-cols-2">
@@ -502,6 +556,14 @@ export default function CatalogContent() {
             </AlertDialog>
         </div>
     )
+}
+
+/// สรุปชื่อผู้รับผิดชอบของหมวดให้พอดีบรรทัดเดียว — เกิน 2 คนย่อเป็น "+N"
+function assigneeLabel(c: Category) {
+    const names = c.assignees.map((a) => a.user.name)
+    if (names.length === 0) return "—"
+    if (names.length <= 2) return names.join(", ")
+    return `${names.slice(0, 2).join(", ")} +${names.length - 2}`
 }
 
 function RowActions({

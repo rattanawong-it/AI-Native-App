@@ -99,6 +99,8 @@ export interface DirectoryAgent {
     image: string | null
     position: string | null
     role: string
+    /// จำนวน Ticket ที่ถืออยู่ (assigned + in_progress) — โชว์ประกอบการเลือกผู้รับผิดชอบ (F2.12)
+    openTickets: number
 }
 
 export interface DirectoryTeam {
