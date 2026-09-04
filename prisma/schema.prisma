@@ -45,6 +45,7 @@ model User {
   // ── ITSM relations ──
   department         Department?       @relation(fields: [departmentId], references: [id])
   categoriesAssigned ServiceCategory[] @relation("CategoryDefaultAssignee")
+  categoryAssignments ServiceCategoryAssignee[] // ผู้รับผิดชอบเริ่มต้นของหมวดหมู่ (หลายคนต่อหมวด — ข้อ 19)
   ticketsRequested   Ticket[]          @relation("TicketRequester")
   ticketsAssigned    Ticket[]          @relation("TicketAssignee")
   ticketComments     TicketComment[]
@@ -255,7 +256,7 @@ model ServiceCategory {
   parentId          String? // null = หมวดหลัก
   description       String?
   defaultTeamId     String? // ทีมที่รับผิดชอบเริ่มต้น
-  defaultAssigneeId String? // เจ้าหน้าที่ที่รับผิดชอบเริ่มต้น (auto-assign)
+  defaultAssigneeId String? // @deprecated ตั้งแต่ข้อ 19 — auto-assign ใช้ ServiceCategoryAssignee แทน คงไว้เพื่อความเข้ากันได้/ย้อนกลับ
   active            Boolean @default(true)
   sortOrder         Int     @default(0)
 
@@ -266,6 +267,7 @@ model ServiceCategory {
   children        ServiceCategory[] @relation("CategoryTree")
   defaultTeam     Team?             @relation("CategoryDefaultTeam", fields: [defaultTeamId], references: [id])
   defaultAssignee User?             @relation("CategoryDefaultAssignee", fields: [defaultAssigneeId], references: [id])
+  assignees       ServiceCategoryAssignee[] // ผู้รับผิดชอบเริ่มต้นหลายคน (ข้อ 19 — ใช้กับ auto-assign)
 
   tickets     Ticket[]
   slaPolicies SlaPolicy[]
@@ -274,6 +276,23 @@ model ServiceCategory {
   @@index([parentId])
   @@index([active, sortOrder])
   @@map("service_category")
+}
+
+/// ผู้รับผิดชอบเริ่มต้นของหมวดหมู่บริการ — 1 หมวดมีได้หลายคน (ข้อ 19)
+/// auto-assign เลือกคนที่ภาระงานน้อยที่สุดจากรายชื่อนี้ (ดู spec §5.1 และ F2.11)
+model ServiceCategoryAssignee {
+  id         String   @id @default(cuid())
+  categoryId String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  category ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, userId])
+  @@index([categoryId])
+  @@index([userId])
+  @@map("service_category_assignee")
 }
 
 /// นโยบาย SLA — กำหนดเวลาตอบกลับ/แก้ไข ต่อ priority (และ/หรือต่อหมวดหมู่)

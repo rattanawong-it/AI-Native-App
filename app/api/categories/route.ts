@@ -6,7 +6,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requireRole, badRequest, ADMIN_ROLES } from "@/lib/rbac"
 import { createCategorySchema, firstIssueMessage } from "@/lib/ticket-schema"
-import { categorySelect } from "@/lib/ticket-service"
+import {
+    categorySelect,
+    findUnassignableUsers,
+    syncCategoryAssignees,
+} from "@/lib/ticket-service"
 
 export async function GET(request: NextRequest) {
     const guard = await requireAuth()
@@ -54,18 +58,36 @@ export async function POST(request: NextRequest) {
             if (parent.parentId) return badRequest("หมวดย่อยซ้อนได้เพียงชั้นเดียว")
         }
 
-        const category = await prisma.serviceCategory.create({
-            data: {
-                name: input.name,
-                slug: input.slug,
-                parentId: input.parentId ?? null,
-                description: input.description ?? null,
-                defaultTeamId: input.defaultTeamId ?? null,
-                defaultAssigneeId: input.defaultAssigneeId ?? null,
-                active: input.active,
-                sortOrder: input.sortOrder,
-            },
-            select: categorySelect,
+        // ผู้รับผิดชอบเริ่มต้น (F2.12) — รับได้หลายคน แต่ยังรองรับ defaultAssigneeId เดิมของ client เก่า
+        const assigneeIds = [
+            ...new Set([
+                ...input.assigneeIds,
+                ...(input.defaultAssigneeId ? [input.defaultAssigneeId] : []),
+            ]),
+        ]
+        const invalid = await findUnassignableUsers(assigneeIds)
+        if (invalid.length > 0) {
+            return badRequest("มีผู้รับผิดชอบที่เลือกไว้ไม่ใช่เจ้าหน้าที่ที่รับงานได้")
+        }
+
+        const category = await prisma.$transaction(async (tx) => {
+            const created = await tx.serviceCategory.create({
+                data: {
+                    name: input.name,
+                    slug: input.slug,
+                    parentId: input.parentId ?? null,
+                    description: input.description ?? null,
+                    defaultTeamId: input.defaultTeamId ?? null,
+                    active: input.active,
+                    sortOrder: input.sortOrder,
+                },
+                select: { id: true },
+            })
+            await syncCategoryAssignees(tx, created.id, assigneeIds)
+            return tx.serviceCategory.findUniqueOrThrow({
+                where: { id: created.id },
+                select: categorySelect,
+            })
         })
 
         return NextResponse.json({ category }, { status: 201 })

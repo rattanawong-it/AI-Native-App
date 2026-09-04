@@ -151,7 +151,10 @@ export const createCategorySchema = z.object({
     parentId: z.string().min(1).nullish(),
     description: z.string().trim().max(500).nullish(),
     defaultTeamId: z.string().min(1).nullish(),
+    /// @deprecated ใช้ assigneeIds แทน — ยังรับไว้เพื่อความเข้ากันได้กับ client เดิม
     defaultAssigneeId: z.string().min(1).nullish(),
+    /// ผู้รับผิดชอบเริ่มต้นหลายคน (F2.12) — auto-assign เลือกคนที่ภาระงานน้อยที่สุดจากรายชื่อนี้
+    assigneeIds: z.array(z.string().min(1)).max(50, "เลือกผู้รับผิดชอบได้ไม่เกิน 50 คน").default([]),
     active: z.boolean().default(true),
     sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
 })

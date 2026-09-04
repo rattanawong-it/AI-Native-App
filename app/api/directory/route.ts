@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireRole, STAFF_ROLES } from "@/lib/rbac"
+import { ASSIGNABLE_USER_WHERE, WORKLOAD_STATUSES } from "@/lib/ticket-service"
 
 const personSelect = {
     id: true,
@@ -20,15 +21,9 @@ const personSelect = {
     role: true,
 } as const
 
-/// ผู้ใช้ที่ถือ role ระดับเจ้าหน้าที่ขึ้นไป — role เก็บเป็น string คั่น comma ได้
-const STAFF_ROLE_FILTER = {
-    OR: [
-        { role: { contains: "agent" } },
-        { role: { contains: "manager" } },
-        { role: { contains: "admin" } },
-        { isAgent: true },
-    ],
-}
+/// ผู้ใช้ที่ถือ role ระดับเจ้าหน้าที่ขึ้นไปและยังรับงานได้
+/// ใช้เงื่อนไขชุดเดียวกับ auto-assign เพื่อให้รายชื่อในหน้าจอตรงกับคนที่ระบบมอบงานให้จริง
+const STAFF_ROLE_FILTER = ASSIGNABLE_USER_WHERE
 
 export async function GET(request: NextRequest) {
     const guard = await requireRole([...STAFF_ROLES])
@@ -70,7 +65,17 @@ export async function GET(request: NextRequest) {
             prisma.user.findMany({
                 where: STAFF_ROLE_FILTER,
                 orderBy: { name: "asc" },
-                select: personSelect,
+                select: {
+                    ...personSelect,
+                    // จำนวนงานที่ถืออยู่ — ใช้โชว์ประกอบการเลือกผู้รับผิดชอบในหน้า Catalog (F2.12)
+                    _count: {
+                        select: {
+                            ticketsAssigned: {
+                                where: { status: { in: [...WORKLOAD_STATUSES] } },
+                            },
+                        },
+                    },
+                },
             }),
             scope === "agents"
                 ? Promise.resolve([])
@@ -81,7 +86,13 @@ export async function GET(request: NextRequest) {
                   }),
         ])
 
-        return NextResponse.json({ agents, teams })
+        // แปลง _count เป็น openTickets เพื่อให้ฝั่ง UI อ่านง่ายและ contract เดิมไม่เปลี่ยน
+        const agentsWithLoad = agents.map(({ _count, ...agent }) => ({
+            ...agent,
+            openTickets: _count.ticketsAssigned,
+        }))
+
+        return NextResponse.json({ agents: agentsWithLoad, teams })
     } catch (error) {
         console.error("Directory GET Error:", error)
         return NextResponse.json({ error: "ไม่สามารถโหลดรายชื่อได้" }, { status: 500 })

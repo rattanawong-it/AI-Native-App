@@ -1,7 +1,7 @@
 // lib/ticket-service.ts
 // ตรรกะกลางของ Ticket ที่ API หลายเส้นใช้ร่วมกัน
 //   - หา SLA Policy ที่ตรงกับ priority/หมวดหมู่ แล้วคำนวณกำหนดเวลา (F1.2, F4.5)
-//   - Auto-assign ตาม ServiceCategory (F2.7)
+//   - Auto-assign ตาม ServiceCategory — เลือกคนที่ภาระงานน้อยที่สุด (F2.7, F2.11)
 //   - บันทึก TicketActivity (audit log)
 //   - ประกอบ where ของหน้ารายการ + เรียงคิวงาน (F1.3, F1.4, F2.5)
 // อ้างอิง docs/spec.md §5.2, §8 ①②
@@ -67,40 +67,191 @@ export async function computeDueDates(
     return calculateDueDates(from, responseMinutes, resolutionMinutes)
 }
 
-// ── Auto-assign (F2.7) ───────────────────────────────────────────────
+// ── Auto-assign (F2.7 + F2.11) ───────────────────────────────────────
+
+/// สถานะที่ถือว่า "ยังถืองานอยู่" — ใช้เป็นตัววัดภาระงานตอน auto-assign (spec §5.1 ข้อ 3)
+/// ไม่นับ "new" เพราะยังไม่มีผู้รับผิดชอบ และไม่นับ resolved/closed เพราะปิดงานแล้ว
+export const WORKLOAD_STATUSES = ["assigned", "in_progress"] as const
+
+/// เงื่อนไขผู้ใช้ที่ "รับงานได้จริง" — เป็นเจ้าหน้าที่และไม่ถูกระงับบัญชี
+/// role เก็บเป็น string คั่น comma ได้ จึงเทียบด้วย contains (ใช้ร่วมกับ api/directory)
+export const ASSIGNABLE_USER_WHERE = {
+    AND: [
+        { OR: [{ banned: null }, { banned: false }] },
+        {
+            OR: [
+                { role: { contains: "agent" } },
+                { role: { contains: "manager" } },
+                { role: { contains: "admin" } },
+                { isAgent: true },
+            ],
+        },
+    ],
+} satisfies Prisma.UserWhereInput
 
 export interface AutoAssignResult {
     assigneeId: string | null
     teamId: string | null
+    /// เหตุผลที่เลือกคนนี้ — บันทึกลง TicketActivity เพื่อตรวจย้อนหลังได้ (spec §5.1 ข้อ 8)
+    reason: string | null
 }
 
-/// หาเจ้าหน้าที่/ทีมเริ่มต้นจากหมวดหมู่บริการ — ปิดได้ที่ AppSetting `ticket.auto_assign`
+const NO_ASSIGN: AutoAssignResult = { assigneeId: null, teamId: null, reason: null }
+
+/// หาผู้รับผิดชอบให้ Ticket ใหม่ตามหมวดหมู่บริการ — ปิดได้ที่ AppSetting `ticket.auto_assign`
+///
+/// ลำดับการตัดสิน (spec §5.1 "กติกา Auto-assign เมื่อหมวดหมู่มีผู้รับผิดชอบหลายคน"):
+///   1. อ่านผู้รับผิดชอบของหมวด — ไม่มีเลยและไม่มีทีม ให้ไต่ขึ้นไปใช้ของหมวดหลัก
+///   2. คัดเฉพาะคนที่ยังรับงานได้จริง (เป็นเจ้าหน้าที่ + ไม่ถูกระงับ)
+///   3. เลือกคนที่ภาระงานน้อยที่สุด — นับ Ticket ที่ยังถืออยู่ "ข้ามทุกหมวดหมู่"
+///   4. เท่ากัน → คนที่ได้ Ticket ในหมวดนั้นล่าสุดนานที่สุด → createdAt ของการผูก → userId
+///   5. ไม่มีใครรับได้ → ใช้ทีมเริ่มต้น → ไม่มีอีก ปล่อยว่างรอ manual assign
+///
+/// ⚠️ ใช้เฉพาะตอนสร้าง Ticket เท่านั้น — การ reassign ด้วยมือ (F2.8) ไม่ผ่านฟังก์ชันนี้
 export async function resolveAutoAssign(categoryId: string): Promise<AutoAssignResult> {
     const enabled = await getAppSetting<boolean>("ticket.auto_assign", true)
-    if (!enabled) return { assigneeId: null, teamId: null }
+    if (!enabled) return NO_ASSIGN
+
+    const categorySource = {
+        id: true,
+        parentId: true,
+        defaultTeamId: true,
+        defaultAssigneeId: true,
+        createdAt: true,
+        assignees: {
+            select: { userId: true, createdAt: true },
+            orderBy: { createdAt: "asc" },
+        },
+    } satisfies Prisma.ServiceCategorySelect
 
     const category = await prisma.serviceCategory.findUnique({
         where: { id: categoryId },
-        select: { defaultAssigneeId: true, defaultTeamId: true, parentId: true },
+        select: categorySource,
     })
-    if (!category) return { assigneeId: null, teamId: null }
+    if (!category) return NO_ASSIGN
 
-    // ถ้าหมวดย่อยไม่ได้ตั้งค่าไว้ ให้ไล่ขึ้นไปใช้ค่าของหมวดหลัก
-    if (!category.defaultAssigneeId && !category.defaultTeamId && category.parentId) {
+    // ถ้าหมวดย่อยไม่ได้ตั้งค่าไว้เลย ให้ไต่ขึ้นไปใช้ค่าของหมวดหลัก (พฤติกรรมเดิม)
+    let source = category
+    if (category.assignees.length === 0 && !category.defaultTeamId && category.parentId) {
         const parent = await prisma.serviceCategory.findUnique({
             where: { id: category.parentId },
-            select: { defaultAssigneeId: true, defaultTeamId: true },
+            select: categorySource,
         })
+        if (parent) source = parent
+    }
+
+    const teamId = source.defaultTeamId
+    const fallbackTeam: AutoAssignResult = teamId
+        ? { assigneeId: null, teamId, reason: null }
+        : NO_ASSIGN
+
+    // รายชื่อผู้รับผิดชอบ — ถ้ายังไม่มีในตารางใหม่ ให้รับค่า defaultAssigneeId เดิม (deprecated)
+    const members =
+        source.assignees.length > 0
+            ? source.assignees
+            : source.defaultAssigneeId
+              ? [{ userId: source.defaultAssigneeId, createdAt: source.createdAt }]
+              : []
+    if (members.length === 0) return fallbackTeam
+
+    const memberIds = members.map((m) => m.userId)
+    const eligible = await prisma.user.findMany({
+        where: { id: { in: memberIds }, ...ASSIGNABLE_USER_WHERE },
+        select: { id: true },
+    })
+    if (eligible.length === 0) return fallbackTeam
+
+    const eligibleIds = new Set(eligible.map((u) => u.id))
+    const candidates = members.filter((m) => eligibleIds.has(m.userId))
+
+    if (candidates.length === 1) {
         return {
-            assigneeId: parent?.defaultAssigneeId ?? null,
-            teamId: parent?.defaultTeamId ?? null,
+            assigneeId: candidates[0].userId,
+            teamId,
+            reason: "มอบหมายอัตโนมัติ — ผู้รับผิดชอบเริ่มต้นของหมวดหมู่บริการ",
         }
     }
 
+    // ขอบเขตของ tie-breaker = หมวดต้นทางที่ให้รายชื่อมา + หมวดย่อยที่สืบทอดรายชื่อนี้
+    const children = await prisma.serviceCategory.findMany({
+        where: { parentId: source.id },
+        select: { id: true },
+    })
+    const scopeIds = [...new Set([source.id, categoryId, ...children.map((c) => c.id)])]
+
+    const candidateIds = candidates.map((c) => c.userId)
+    const [workloads, lastAssigned] = await Promise.all([
+        // ภาระงาน — นับข้ามทุกหมวดหมู่ เพราะภาระงานเป็นของ "คน" ไม่ใช่ของหมวด
+        prisma.ticket.groupBy({
+            by: ["assigneeId"],
+            where: { assigneeId: { in: candidateIds }, status: { in: [...WORKLOAD_STATUSES] } },
+            _count: { _all: true },
+        }),
+        // ครั้งล่าสุดที่แต่ละคนได้รับ Ticket ในหมวดนี้ — ใช้ตัดสินเมื่อภาระงานเท่ากัน
+        prisma.ticket.groupBy({
+            by: ["assigneeId"],
+            where: { assigneeId: { in: candidateIds }, categoryId: { in: scopeIds } },
+            _max: { createdAt: true },
+        }),
+    ])
+
+    const workloadOf = new Map(workloads.map((w) => [w.assigneeId, w._count._all]))
+    const lastAt = new Map(lastAssigned.map((t) => [t.assigneeId, t._max.createdAt?.getTime()]))
+
+    const ranked = [...candidates].sort((a, b) => {
+        const loadDiff = (workloadOf.get(a.userId) ?? 0) - (workloadOf.get(b.userId) ?? 0)
+        if (loadDiff !== 0) return loadDiff
+        // ยังไม่เคยได้รับ Ticket ในหมวดนี้ = รอมานานที่สุด จึงได้ก่อน
+        const lastDiff = (lastAt.get(a.userId) ?? 0) - (lastAt.get(b.userId) ?? 0)
+        if (lastDiff !== 0) return lastDiff
+        const createdDiff = a.createdAt.getTime() - b.createdAt.getTime()
+        if (createdDiff !== 0) return createdDiff
+        return a.userId.localeCompare(b.userId)
+    })
+
+    const winner = ranked[0]
+    const load = workloadOf.get(winner.userId) ?? 0
     return {
-        assigneeId: category.defaultAssigneeId,
-        teamId: category.defaultTeamId,
+        assigneeId: winner.userId,
+        teamId,
+        reason: `มอบหมายอัตโนมัติ — ภาระงานน้อยที่สุด (${load} งาน) จากผู้รับผิดชอบ ${candidates.length} คน`,
     }
+}
+
+// ── ผู้รับผิดชอบเริ่มต้นของหมวดหมู่ (F2.12) ─────────────────────────
+
+/// คืน userId ที่ "รับงานไม่ได้" (ไม่ใช่เจ้าหน้าที่ / ถูกระงับ / ไม่มีตัวตน) เพื่อแจ้ง error กลับ
+export async function findUnassignableUsers(userIds: string[]): Promise<string[]> {
+    const unique = [...new Set(userIds)]
+    if (unique.length === 0) return []
+    const ok = await prisma.user.findMany({
+        where: { id: { in: unique }, ...ASSIGNABLE_USER_WHERE },
+        select: { id: true },
+    })
+    const okIds = new Set(ok.map((u) => u.id))
+    return unique.filter((id) => !okIds.has(id))
+}
+
+/// ตั้งรายชื่อผู้รับผิดชอบของหมวดให้ตรงกับ userIds — ลบที่เกิน เพิ่มที่ขาด
+///
+/// ซิงก์ `defaultAssigneeId` (deprecated) ให้ชี้คนแรกในรายชื่อไปด้วย เพื่อไม่ให้ค่าเก่าค้าง
+/// แล้วย้อนมาเป็นผู้รับผิดชอบเงาตอน fallback เมื่อ admin ล้างรายชื่อออกจนหมด
+export async function syncCategoryAssignees(db: Db, categoryId: string, userIds: string[]) {
+    const unique = [...new Set(userIds)]
+
+    await db.serviceCategoryAssignee.deleteMany({
+        where: unique.length > 0 ? { categoryId, userId: { notIn: unique } } : { categoryId },
+    })
+    if (unique.length > 0) {
+        await db.serviceCategoryAssignee.createMany({
+            data: unique.map((userId) => ({ categoryId, userId })),
+            skipDuplicates: true,
+        })
+    }
+    await db.serviceCategory.update({
+        where: { id: categoryId },
+        data: { defaultAssigneeId: unique[0] ?? null },
+    })
 }
 
 // ── Audit log ────────────────────────────────────────────────────────
@@ -198,6 +349,11 @@ export const categorySelect = {
     sortOrder: true,
     defaultTeam: { select: { id: true, name: true } },
     defaultAssignee: { select: { id: true, name: true } },
+    // ผู้รับผิดชอบเริ่มต้นหลายคน (F2.12) — เรียงตามลำดับที่เพิ่มเข้าหมวด
+    assignees: {
+        select: { user: { select: { id: true, name: true, image: true } } },
+        orderBy: { createdAt: "asc" },
+    },
     _count: { select: { tickets: true } },
 } satisfies Prisma.ServiceCategorySelect
 
