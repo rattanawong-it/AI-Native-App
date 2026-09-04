@@ -4,7 +4,7 @@
 > **จัดทำโดย:** Product Manager / System Analyst / Software Architect
 > **วันที่:** 29 สิงหาคม 2569
 > **โครงการฐาน:** `ai-native/` (Next.js 16 + TypeScript + Prisma + PostgreSQL + Tailwind v4 + shadcn/ui)
-> **สถานะเอกสาร:** v1.1 — ผ่านการสัมภาษณ์เก็บ requirements แล้ว 18 ข้อ · Phase 0 เสร็จ · เพิ่ม §16 มาตรฐาน Git & Commit (1 กันยายน 2569)
+> **สถานะเอกสาร:** v1.2 — ผ่านการสัมภาษณ์เก็บ requirements แล้ว 19 ข้อ · Phase 0 เสร็จ · เพิ่ม §16 มาตรฐาน Git & Commit (1 กันยายน 2569) · เพิ่มข้อ 19 ผู้รับผิดชอบหลายคน + auto-assign ตามภาระงาน (4 กันยายน 2569)
 
 ---
 
@@ -12,7 +12,7 @@
 
 1. [Context — ทำไมต้องพัฒนาระบบนี้](#1-context)
 2. [As-Is — สรุประบบเดิม](#2-as-is)
-3. [ผลการสัมภาษณ์ — สรุปข้อตกลง 18 ข้อ](#3-ผลการสัมภาษณ์)
+3. [ผลการสัมภาษณ์ — สรุปข้อตกลง 19 ข้อ](#3-ผลการสัมภาษณ์)
 4. [รายการที่ต้องแจ้งก่อนแก้ไข (M1–M13)](#4-รายการที่ต้องแจ้งก่อนแก้)
 5. [Data Model ที่ออกแบบ](#5-data-model)
 6. [โครงสร้าง Route ใหม่](#6-โครงสร้าง-route-ใหม่)
@@ -146,7 +146,7 @@ ai-native/
 
 <a id="3-ผลการสัมภาษณ์"></a>
 
-## 3. ผลการสัมภาษณ์ — สรุปข้อตกลง 18 ข้อ
+## 3. ผลการสัมภาษณ์ — สรุปข้อตกลง 19 ข้อ
 
 | # | ประเด็น | ข้อสรุป |
 |---|---|---|
@@ -156,7 +156,7 @@ ai-native/
 | 4 | Priority | **Impact × Urgency Matrix (ITIL)** — คำนวณอัตโนมัติ |
 | 5 | SLA Clock | **นับเฉพาะเวลาทำการ** (Business Hours) + ต้องมี Holiday Calendar |
 | 6 | SLA Metrics | Response Time + Resolution Time (**ไม่ทำ** Warning / Auto-escalation ในเฟสนี้) |
-| 7 | Assignment | **Auto-assign ตามหมวดหมู่** + หัวหน้า/เจ้าหน้าที่โยกย้าย (reassign) ได้ |
+| 7 | Assignment | **Auto-assign ตามหมวดหมู่** + หัวหน้า/เจ้าหน้าที่โยกย้าย (reassign) ได้ — เงื่อนไขเมื่อหมวดหมู่มีผู้รับผิดชอบหลายคน ดู**ข้อ 19** |
 | 8 | Ticket Workflow | **5 สถานะ**: New → Assigned → In Progress → Resolved → Closed |
 | 9 | To-do List | **My Work รวม**: Ticket ที่ได้รับมอบหมาย + SDLC Task + Personal Task |
 | 10 | Time Log | **Manual** — กรอกชั่วโมง + สิ่งที่ทำ เมื่อปิดงาน |
@@ -168,6 +168,7 @@ ai-native/
 | 16 | Roles | **5 roles**: `student` / `user` / `agent` / `manager` / `admin` |
 | 17 | โครงสร้าง URL | กลุ่มใหม่ `(main)/service/*` + ต่อยอด `management/` และ `admin/` |
 | 18 | Deliverable | เอกสาร Requirements + Checklist (ยังไม่เขียนโค้ด) |
+| 19 | ผู้รับผิดชอบหลายคน + Auto-assign ตามภาระงาน | หมวดหมู่ใน Service Catalog กำหนด**ผู้รับผิดชอบเริ่มต้นได้มากกว่า 1 คน** — เมื่อมี Ticket ใหม่เข้าหมวดนั้น ระบบเลือก**คนที่ภาระงานน้อยที่สุด** (นับ Ticket ที่ `status ∈ (assigned, in_progress)`) · เท่ากันตัดสินด้วย**คนที่ได้ Ticket ในหมวดนั้นล่าสุดนานที่สุด** · **บังคับเฉพาะตอน auto-assign — ไม่กระทบการ reassign ด้วยมือตามข้อ 7** (ตกลง 4 กันยายน 2569 — รายละเอียด §5.1, F2.10–F2.12) |
 
 ---
 
@@ -207,11 +208,30 @@ ai-native/
 | Model | Fields หลัก |
 |---|---|
 | `Department` | `id, name, code @unique, active` |
-| `ServiceCategory` | `id, name, slug @unique, parentId?` (self-relation หมวดย่อย), `description, defaultTeamId?, defaultAssigneeId?, active, sortOrder` |
+| `ServiceCategory` | `id, name, slug @unique, parentId?` (self-relation หมวดย่อย), `description, defaultTeamId?, active, sortOrder` + `defaultAssigneeId?` **(deprecated ตั้งแต่ข้อ 19 — คงไว้เพื่อความเข้ากันได้ ไม่ใช้ตัดสิน auto-assign แล้ว)** |
+| `ServiceCategoryAssignee` | `id, categoryId, userId, createdAt` · `@@unique([categoryId, userId])` · `@@index([categoryId])` — **ผู้รับผิดชอบเริ่มต้นหลายคนต่อหมวด (ข้อ 19)** |
 | `SlaPolicy` | `id, name, priority (critical/high/medium/low), categoryId?, responseMinutes, resolutionMinutes, active` |
 | `BusinessHour` | `id, dayOfWeek (0–6), startTime "08:30", endTime "16:30", isWorkingDay` |
 | `Holiday` | `id, date @unique, name, isRecurring` |
 | `AppSetting` | `id, key @unique, value Json, description` |
+
+**กติกา Auto-assign เมื่อหมวดหมู่มีผู้รับผิดชอบหลายคน (ข้อ 19 — F2.10–F2.12)**
+
+> ขอบเขต: **ใช้เฉพาะตอน auto-assign ตอนสร้าง Ticket เท่านั้น** — การ reassign ด้วยมือของหัวหน้า/เจ้าหน้าที่ (F2.8) ยังเลือกใครก็ได้อย่างอิสระเหมือนเดิมตามข้อ 7
+
+1. อ่านรายชื่อผู้รับผิดชอบของหมวดจาก `ServiceCategoryAssignee` — ถ้าหมวดย่อยไม่มีเลย ให้ไต่ขึ้นไปใช้ของหมวดหลัก (พฤติกรรม fallback เดิม)
+2. คัดเฉพาะผู้ที่ยัง**รับงานได้จริง** — ต้องยังเป็นเจ้าหน้าที่ (`role` มี `agent`/`manager`/`admin` หรือ `isAgent = true`) และไม่ถูก `banned`
+3. **ภาระงาน** ของแต่ละคน = จำนวน `Ticket` ที่ `assigneeId = user` และ `status ∈ (assigned, in_progress)` ณ เวลาที่คำนวณ — **นับข้ามทุกหมวดหมู่** (ภาระงานคือของทั้งคน ไม่ใช่ของหมวด) และไม่นับ `resolved` / `closed`
+4. เลือกคนที่ภาระงาน**น้อยที่สุด**
+5. **Tie-breaker** เมื่อภาระงานเท่ากัน: เลือกคนที่ได้รับ Ticket **ในหมวดนั้น**ครั้งล่าสุด**นานที่สุด** (คนที่ยังไม่เคยได้รับเลยถือว่า "นานที่สุด" ⇒ ได้ก่อน) · ถ้ายังเท่ากันอีก ตัดสินด้วย `ServiceCategoryAssignee.createdAt` แล้วตามด้วย `userId` เพื่อให้ผลลัพธ์คงที่ (deterministic — เขียนเทสต์ได้)
+6. **Fallback ตามลำดับเดิม** — มีผู้รับผิดชอบ 1 คน ⇒ ใช้คนนั้น · ไม่มีเลย ⇒ ใช้ `defaultTeamId` · ไม่มีทั้งคู่ ⇒ ปล่อยว่างรอ manual assign (`status = new`)
+7. ปิดทั้งกลไกได้ที่ `AppSetting "ticket.auto_assign"` เหมือนเดิม
+8. บันทึก `TicketActivity` action `assigned` พร้อมเหตุผลที่เลือก (เช่น `"มอบหมายอัตโนมัติ — ภาระงานน้อยที่สุด (2 งาน) จากผู้รับผิดชอบ 3 คน"`) เพื่อให้ตรวจสอบย้อนหลังได้
+
+**แผน migrate ข้อมูลเดิม (ตรวจ DB จริงเมื่อ 4 กันยายน 2569: 25 หมวด · 8 หมวดตั้ง `defaultAssigneeId` ไว้ · 25 หมวดมี `defaultTeamId`)**
+
+- migration คัดลอกด้วย `INSERT INTO service_category_assignee (…) SELECT … FROM service_category WHERE default_assignee_id IS NOT NULL` — **ไม่มี `DROP` / `TRUNCATE`** ตาม §16.5 ข้อ 3
+- **คง `defaultAssigneeId` ไว้** (deprecated) เพื่อให้ย้อนกลับได้ถ้ามีปัญหา — ค่อยพิจารณาลบในเฟสถัดไปเมื่อยืนยันว่านิ่งแล้ว
 
 ### 5.2 กลุ่ม Helpdesk
 
@@ -534,7 +554,7 @@ array `["agent","manager","admin"]` และ `["manager","admin"]` ถูกเ
 - [x] **F1.5** หน้า `service/tickets/[id]` — รายละเอียด + Timeline (Activity log) + สถานะ SLA
 - [x] **F1.6** ระบบ Comment — `POST /api/tickets/[id]/comments` + toggle "บันทึกภายใน" (`isInternal`)
 - [ ] **F1.7** ระบบแนบไฟล์ — upload/download/ลบ (จำกัดชนิด + ขนาดไฟล์) — *เลื่อนออกจาก Phase 1 ตามที่ตกลง (รอสรุปที่เก็บไฟล์)*
-- [x] **F1.8** Service Catalog CRUD — หน้า `admin/catalog` (หมวดหลัก + หมวดย่อย + ผู้รับผิดชอบเริ่มต้น)
+- [x] **F1.8** Service Catalog CRUD — หน้า `admin/catalog` (หมวดหลัก + หมวดย่อย + ผู้รับผิดชอบเริ่มต้น) — *ขยายเป็นผู้รับผิดชอบหลายคนใน F2.12*
 - [x] **F1.9** รับแจ้งผ่าน **LINE** — ขยาย `api/line/webhook` สร้าง Ticket จากข้อความ + ผูก `lineUserId` **[M9]** — *ทำใน Phase 4 พร้อมงาน LINE Notification*
 - [x] **F1.10** สร้าง Ticket แทนผู้อื่น (อีเมล/โทร/Walk-in) — เจ้าหน้าที่เลือก requester + ระบุ `channel`
 - [x] **F1.11** ค้นหา Ticket แบบ full-text (title + description)
@@ -555,8 +575,12 @@ array `["agent","manager","admin"]` และ `["manager","admin"]` ถูกเ
   - `in_progress → resolved` (ต้องกรอก `resolutionNote` + Time Log)
   - `resolved → closed`
 - [x] **F2.7** Auto-assign engine — ตาม `ServiceCategory.defaultAssigneeId` / `defaultTeamId`
+  - ↳ **ขยายด้วยข้อ 19** — หมวดหมู่มีผู้รับผิดชอบได้หลายคน แล้วเลือกคนที่ภาระงานน้อยที่สุด ดู **F2.10–F2.12**
 - [x] **F2.8** Reassign — หัวหน้าโยกย้ายงาน + บันทึก activity log
 - [x] **F2.9** หน้า "คิวงานทีม" — จัดกลุ่มตาม Priority + แสดงภาระงานรายคน
+- [ ] **F2.10** เพิ่ม model `ServiceCategoryAssignee` (many-to-many หมวดหมู่ ↔ ผู้รับผิดชอบ) + migration คัดลอก `defaultAssigneeId` เดิม 8 แถวเข้าตารางใหม่ (ห้ามมี `DROP`/`TRUNCATE`) **[M1]**
+- [ ] **F2.11** ขยาย `resolveAutoAssign()` — เลือกผู้รับผิดชอบที่**ภาระงานน้อยที่สุด** (นับ Ticket `assigned`+`in_progress`) · tie-breaker = ได้ Ticket ในหมวดนั้นล่าสุดนานที่สุด · fallback เดิม (1 คน → `defaultTeamId` → ว่าง) · **ไม่กระทบ reassign ด้วยมือ (F2.8)** — ดูกติกาเต็มใน §5.1
+- [ ] **F2.12** หน้า `admin/catalog` — เปลี่ยนช่อง "ผู้รับผิดชอบเริ่มต้น" เป็น **multi-select** เลือกได้หลายคน + แสดงภาระงานปัจจุบันของแต่ละคนประกอบการเลือก (ขยาย F1.8)
 
 ---
 
@@ -799,6 +823,9 @@ REQUEST_PREFIX=RQ
 4. **หมวดย่อยของ Service Catalog** — มีรายการหมวดย่อยจริงที่ต้องการ seed หรือไม่?
 5. **ค่า SLA จริงของหน่วยงาน** — ใช้ค่าเริ่มต้นที่เสนอในข้อ 5.2 หรือมีประกาศ SLA ของศูนย์อยู่แล้ว?
 6. **จำนวนเจ้าหน้าที่ในศูนย์** — มีกี่คน แบ่งเป็นกี่ทีม? (มีผลกับ auto-assign)
+7. **เพดานงานต่อคน** — ต้องมีขีดจำกัดจำนวน Ticket ที่ 1 คนถือพร้อมกันหรือไม่? ถ้าทุกคนในหมวดเต็มเพดาน ให้ปล่อยว่างรอ manual assign หรือมอบให้คนที่น้อยที่สุดอยู่ดี? *(ยังไม่สรุป — เฟสนี้ยังไม่ทำเพดาน)*
+8. **ถ่วงน้ำหนักตาม Priority** — ควรนับ Ticket `critical` หนักกว่า `low` หรือไม่? ปัจจุบันตกลงว่า**นับเป็น 1 งานเท่ากันหมด** ตามข้อ 19 *(ถ้าต้องการถ่วงน้ำหนักภายหลัง แก้ที่ `resolveAutoAssign()` จุดเดียว)*
+9. **ผู้รับผิดชอบที่ลาหยุด** — ยังไม่มี model สถานะ "ไม่พร้อมรับงาน" (ลา/ลาพักร้อน) ระบบจึงยังมอบงานให้คนที่ลาได้ ต้องเพิ่มหรือไม่? *(นอกขอบเขตข้อ 19)*
 
 ---
 
