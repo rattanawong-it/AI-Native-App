@@ -578,9 +578,9 @@ array `["agent","manager","admin"]` และ `["manager","admin"]` ถูกเ
   - ↳ **ขยายด้วยข้อ 19** — หมวดหมู่มีผู้รับผิดชอบได้หลายคน แล้วเลือกคนที่ภาระงานน้อยที่สุด ดู **F2.10–F2.12**
 - [x] **F2.8** Reassign — หัวหน้าโยกย้ายงาน + บันทึก activity log
 - [x] **F2.9** หน้า "คิวงานทีม" — จัดกลุ่มตาม Priority + แสดงภาระงานรายคน
-- [ ] **F2.10** เพิ่ม model `ServiceCategoryAssignee` (many-to-many หมวดหมู่ ↔ ผู้รับผิดชอบ) + migration คัดลอก `defaultAssigneeId` เดิม 8 แถวเข้าตารางใหม่ (ห้ามมี `DROP`/`TRUNCATE`) **[M1]**
-- [ ] **F2.11** ขยาย `resolveAutoAssign()` — เลือกผู้รับผิดชอบที่**ภาระงานน้อยที่สุด** (นับ Ticket `assigned`+`in_progress`) · tie-breaker = ได้ Ticket ในหมวดนั้นล่าสุดนานที่สุด · fallback เดิม (1 คน → `defaultTeamId` → ว่าง) · **ไม่กระทบ reassign ด้วยมือ (F2.8)** — ดูกติกาเต็มใน §5.1
-- [ ] **F2.12** หน้า `admin/catalog` — เปลี่ยนช่อง "ผู้รับผิดชอบเริ่มต้น" เป็น **multi-select** เลือกได้หลายคน + แสดงภาระงานปัจจุบันของแต่ละคนประกอบการเลือก (ขยาย F1.8)
+- [x] **F2.10** เพิ่ม model `ServiceCategoryAssignee` (many-to-many หมวดหมู่ ↔ ผู้รับผิดชอบ) + migration คัดลอก `defaultAssigneeId` เดิม 8 แถวเข้าตารางใหม่ (ห้ามมี `DROP`/`TRUNCATE`) **[M1]**
+- [x] **F2.11** ขยาย `resolveAutoAssign()` — เลือกผู้รับผิดชอบที่**ภาระงานน้อยที่สุด** (นับ Ticket `assigned`+`in_progress`) · tie-breaker = ได้ Ticket ในหมวดนั้นล่าสุดนานที่สุด · fallback เดิม (1 คน → `defaultTeamId` → ว่าง) · **ไม่กระทบ reassign ด้วยมือ (F2.8)** — ดูกติกาเต็มใน §5.1
+- [x] **F2.12** หน้า `admin/catalog` — เปลี่ยนช่อง "ผู้รับผิดชอบเริ่มต้น" เป็น **multi-select** เลือกได้หลายคน + แสดงภาระงานปัจจุบันของแต่ละคนประกอบการเลือก (ขยาย F1.8)
 
 ---
 
