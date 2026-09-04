@@ -11,7 +11,6 @@ import {
     HelpCircle,
     ClipboardList,
     Ticket,
-    FilePlus2,
     ListTodo,
     BookOpen,
     BookMarked,
@@ -59,7 +58,6 @@ export const sidebarData: NavSectionType[] = [
         title: "งานบริการ",
         items: [
             { title: "Ticket ทั้งหมด", href: "/service/tickets", icon: Ticket },
-            { title: "แจ้งปัญหาใหม่", href: "/service/tickets/new", icon: FilePlus2 },
             { title: "My Work", href: "/service/my-work", icon: ListTodo, allowedRoles: STAFF },
         ],
     },

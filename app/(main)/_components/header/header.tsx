@@ -12,6 +12,7 @@ export function Header() {
     // หน้าที่ไม่อยู่ใน sidebar แต่ต้องแสดง title
     const pageTitles: Record<string, string> = {
         "/profile": "โปรไฟล์ของฉัน",
+        "/service/tickets/new": "แจ้งปัญหาใหม่",
         "/service/tickets/queue": "คิวงานทีม",
     }
 
