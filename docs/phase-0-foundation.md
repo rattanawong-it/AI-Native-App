@@ -99,7 +99,7 @@ Index ตาม NFR8 ครบ: `Ticket(status, priority, assigneeId, createdAt)
 | Section | เมนู | เห็นได้โดย |
 |---|---|---|
 | *(ไม่มีหัวข้อ)* | แดชบอร์ด | ทุก role |
-| **งานบริการ** | Ticket ทั้งหมด · แจ้งปัญหาใหม่ | ทุก role |
+| **งานบริการ** | Ticket ทั้งหมด | ทุก role |
 | | My Work | `agent` `manager` `admin` |
 | **ฐานความรู้** | Knowledge Base | ทุก role |
 | AI & ข้อมูล | แชท AI | ทุก role |
@@ -110,6 +110,8 @@ Index ตาม NFR8 ครบ: `Ticket(status, priority, assigneeId, createdAt)
 | *(bottom)* | ช่วยเหลือ | ทุก role |
 
 > `header.tsx` ดึงชื่อหน้าจาก `sidebarData` อยู่แล้ว หัวข้อบน AppBar จึงเปลี่ยนเป็นไทยตามไปด้วยโดยไม่ต้องแก้ไฟล์
+>
+> _อัปเดต (fix/sidebar-remove-new-ticket-menu):_ ตัดเมนู "แจ้งปัญหาใหม่" ออกจาก sidebar เพราะซ้ำกับปุ่ม "+ แจ้งปัญหาใหม่" มุมขวาบนหน้า Ticket ทั้งหมด · route `/service/tickets/new` ยังอยู่ครบ · เพิ่ม `/service/tickets/new` ลง `pageTitles` ใน `header.tsx` ให้หัวข้อ AppBar ยังเป็น "แจ้งปัญหาใหม่" (ไม่งั้นจะตกไป match pattern `/service/tickets/[id]` กลายเป็น "รายละเอียด Ticket")
 
 ---
 

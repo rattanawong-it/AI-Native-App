@@ -407,9 +407,10 @@ api/my-work/
   ส่วน "ผู้สนใจ (Lead)" แยกออกไปเป็นกลุ่ม 7 ซึ่งเป็น `manager` ขึ้นไปแล้ว
 - หน้าจอในกลุ่ม 5 ที่ `agent` เข้าได้แต่แก้ไม่ได้ ต้องซ่อน/ปิดปุ่มเขียนด้วย ไม่ใช่ปล่อยให้กดแล้วได้ 403
 - เส้นทางที่ไม่ปรากฏใน sidebar แต่เข้าถึงได้จริงต้องอยู่ในตารางนี้ด้วย — ปัจจุบันมี
-  `/service/tickets/queue`, `/management/kb/new`, `/management/kb/[id]/edit`, `/management/assets/[id]`,
+  `/service/tickets/new`, `/service/tickets/queue`, `/management/kb/new`, `/management/kb/[id]/edit`, `/management/assets/[id]`,
   `/management/assets/[id]/label`, `/management/requests/new`, `/management/requests/[id]`,
   `/management/projects/[id]`, `/management/reports/{summary,sla,workload}`, `/profile`
+  > `/service/tickets/new` เดิมมีเมนูใน sidebar — ตัดออกแล้ว (ซ้ำกับปุ่ม "+ แจ้งปัญหาใหม่" มุมขวาบนหน้า Ticket ทั้งหมด) · เข้าจากปุ่มนั้นและปุ่มบน Dashboard แทน
 
 <a id="73-ผลตรวจสอบสิทธิ์"></a>
 
