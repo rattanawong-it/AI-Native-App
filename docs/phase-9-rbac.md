@@ -211,12 +211,13 @@ better-auth) เหลือเส้นเดียวที่ไม่มี 
 
 ไล่ `page.tsx` ทั้ง 36 ไฟล์ใต้ `app/(main)` ว่าถูกกันด้วยอะไร — ครบทุกไฟล์ ไม่มีหน้าไหนหลุด
 
-### จ. ที่ยังทดสอบไม่ได้
+### จ. ที่ยังทดสอบไม่ได้ตอนปิดเฟส — **ทดสอบครบแล้วใน follow-up**
 
-ฐานข้อมูลจริงมีผู้ใช้ 8 คน เป็น `admin` 5 · `manager` 1 · `user` 2 — **ไม่มีบัญชี `agent` และ
-`student` เลย** และบัญชีที่ไม่ใช่ admin ล็อกอินด้วย Google OAuth จึงเข้าระบบแทนไม่ได้
-การทดสอบ "login เป็น role อื่นแล้วถูกตีกลับจริง" จึงยังไม่ได้ทำผ่านเบราว์เซอร์
-(ข้อ ค. ครอบคลุมตรรกะเดียวกันแบบครบทุกช่อง แต่ไม่ใช่การกดใช้จริง)
+ตอนปิดเฟส (3 ก.ย.) ฐานข้อมูลจริงไม่มีบัญชี `agent`/`student` และ non-admin ล็อกอินด้วย Google
+OAuth จึงยังไม่ได้ทดสอบ "login เป็น role อื่นแล้วถูกตีกลับจริง" ผ่านเบราว์เซอร์
+
+**4 ก.ย. 2569:** ทดสอบครบทั้ง 4 role (`manager` / `agent` / `user` / `student`) ผ่าน Impersonate
+แล้ว — ดู §6 ข้อ 1
 
 ---
 
@@ -224,7 +225,7 @@ better-auth) เหลือเส้นเดียวที่ไม่มี 
 
 | เรื่อง | สถานะ |
 |---|---|
-| ทดสอบ login เป็น `agent` / `student` / `user` / `manager` จริง | ดู §6 ข้อ 1 |
+| ทดสอบ login เป็น `agent` / `student` / `user` / `manager` จริง | **ทำแล้ว** (4 ก.ย. 2569 ผ่าน Impersonate) ดู §6 ข้อ 1 |
 | `lib/permissions.ts` ยังไม่ถูกใช้บังคับสิทธิ์ | **เปิดเป็นงานแยก** (ตัดสิน 3 ก.ย. 2569) — ถ้าจะย้ายไปใช้ `hasPermission()` จริงต้องทำเป็น issue/เฟสของตัวเอง ดู §6 ข้อ 2 |
 | `POST /api/admin/change-role` ซ้ำซ้อนกับ better-auth `setRole` | **ลบทิ้งแล้ว** ดู §6 ข้อ 3 |
 | warning `'lead' is assigned a value but never used` ใน `api/leads/route.ts` | **แก้แล้ว** ดู §6 ข้อ 4 |
@@ -237,7 +238,30 @@ better-auth) เหลือเส้นเดียวที่ไม่มี 
 
 ### 1. ทดสอบ login เป็น role อื่นจริง
 
-_(รอผลทดสอบ)_
+**ทำแล้ว 4 กันยายน 2569** — ทดสอบผ่านเบราว์เซอร์กับ dev server ที่ต่อฐานข้อมูล Neon จริง
+
+ฐานข้อมูลจริงไม่มีบัญชี `agent`/`student` และบัญชี non-admin ล็อกอินด้วย Google OAuth
+จึงเข้าเป็น role นั้นตรงๆ ไม่ได้ ผู้ดูแลจึงตั้งบัญชีทดสอบ 1 ตัว (`matee332@gmail.com`) วน role
+ให้ครบทีละตัว แล้วผู้ทดสอบ **login เป็น admin จริง + ใช้ Impersonate** ของ better-auth admin
+plugin เข้าเป็นแต่ละ role — session ที่ได้เป็น role นั้นจริง (`get-session` คืน `role` ตามที่ตั้ง)
+การกันจึงเป็นการกัน role จริง ไม่ใช่แค่เรียกฟังก์ชันตรวจ
+
+ทุก role: เปิดหน้าที่ควรเข้าได้ → 200 อยู่ที่ path เดิม · เปิดหน้าที่ไม่ถึงสิทธิ์ → เด้งไป `/dashboard`
+(guard ใน `lib/screen-guard.ts`) · ยิง API ข้ามสิทธิ์ → 403
+
+| Role (บัญชี) | เข้าได้ (200, ไม่เด้ง) | ถูกตีกลับ → `/dashboard` | API |
+|---|---|---|---|
+| **manager** (`thitikan.piy`) | `/management/lead` · `/management/assets` · `/management/projects` · `/service/my-work` | `/admin/users` · `/admin/sla` | `GET /api/leads` **200** · knowledge / line·groups **403** · search 200 |
+| **agent** (`matee332` = agent) | `/management/assets` · `/service/my-work` | `/admin/users` · `/management/lead` | knowledge / leads / line·groups **403** · tickets 200 · search 200 |
+| **user** (`65110004`) | `/service/tickets` · `/dashboard` | `/admin/users` · `/management/assets` · `/management/lead` · `/service/my-work` · `/service/tickets/queue` | knowledge / leads / line·groups **403** · tickets 200 · search 200 |
+| **student** (`matee332` = student) | `/service/tickets` · `/service/kb` | `/admin/users` · `/management/assets` · `/management/kb` · `/service/my-work` | knowledge / leads / line·groups **403** · tickets 200 · search 200 |
+
+ผลตรงกับผัง §7.2 ทุกช่อง — รวมเคส prefix ซ้อน (`/service/tickets/queue` = STAFF_WORK เด้ง user/student
+ออก แต่ `/service/tickets` = SELF_SERVICE เข้าได้ · `/management/lead` = CRM เด้ง agent ออกแต่ `/management/assets` เข้าได้)
+Client sidebar กรองเมนูตาม role ถูกต้องด้วย (student เห็นแค่กลุ่มบริการตนเอง)
+
+_เคส "ยังไม่ login" ทดสอบไว้แล้วใน §4.1 ก. · branch นี้ไม่แตะ `middleware.ts` จึงไม่ต้องรันซ้ำ_
+_บัญชีทดสอบ `matee332@gmail.com` — ผู้ดูแลเป็นผู้ตั้ง role เอง ผู้ทดสอบไม่ได้แก้ role ของบัญชีใด_
 
 ### 2. `lib/permissions.ts` — เปิดเป็นงานแยก
 
