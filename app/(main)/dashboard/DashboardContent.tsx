@@ -30,6 +30,7 @@ import { PriorityBadge, StatusBadge } from "@/components/ticket/ticket-badges"
 import { GroupBarChart, TicketTrendChart } from "@/components/report/report-charts"
 import { formatThaiDateTime } from "@/lib/ticket-types"
 import type { WorkItem } from "@/lib/worklog-service"
+import { formatMinutes } from "@/lib/worklog-types"
 import type { DashboardData, DashboardTicketBrief } from "@/lib/dashboard-types"
 
 /// เกณฑ์สี % ตรงเวลาชุดเดียวกับรายงาน SLA
@@ -146,7 +147,7 @@ export default function DashboardContent({ data }: { data: DashboardData }) {
                                 >
                                     <span className="truncate text-sm font-medium">{w.name}</span>
                                     <span className="text-muted-foreground shrink-0 text-xs">
-                                        ค้าง {w.openNow} งาน · {w.hours} ชม.
+                                        ค้าง {w.openNow} งาน · {formatMinutes(w.minutes)}
                                     </span>
                                 </div>
                             ))}
@@ -240,8 +241,8 @@ export default function DashboardContent({ data }: { data: DashboardData }) {
                         />
                         <StatCard
                             icon={Clock}
-                            label="ชั่วโมงสัปดาห์นี้"
-                            value={`${work.hoursThisWeek}`}
+                            label="เวลาทำงานสัปดาห์นี้"
+                            value={formatMinutes(work.minutesThisWeek)}
                             hint="จาก Time Log ที่บันทึกไว้"
                             href="/service/my-work"
                         />

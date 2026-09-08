@@ -159,7 +159,7 @@ ai-native/
 | 7 | Assignment | **Auto-assign ตามหมวดหมู่** + หัวหน้า/เจ้าหน้าที่โยกย้าย (reassign) ได้ — เงื่อนไขเมื่อหมวดหมู่มีผู้รับผิดชอบหลายคน ดู**ข้อ 19** |
 | 8 | Ticket Workflow | **5 สถานะ**: New → Assigned → In Progress → Resolved → Closed |
 | 9 | To-do List | **My Work รวม**: Ticket ที่ได้รับมอบหมาย + SDLC Task + Personal Task |
-| 10 | Time Log | **Manual** — กรอกชั่วโมง + สิ่งที่ทำ เมื่อปิดงาน |
+| 10 | Time Log | **Manual** — กรอกจำนวนนาที + สิ่งที่ทำ เมื่อปิดงาน |
 | 11 | SDLC Model | **Agile / Sprint + Kanban Board** (Backlog → To Do → Doing → Review → Done) |
 | 12 | Helpdesk ↔ SDLC | **แปลง Ticket → Backlog Task** ได้ พร้อมเก็บลิงก์อ้างอิงกลับ |
 | 13 | Knowledge Base | สร้าง **`KbArticle` model ใหม่** + เมื่อ Publish ให้ sync เข้า RAG (pgvector) |
@@ -264,7 +264,7 @@ ai-native/
 | Model | Fields หลัก |
 |---|---|
 | `TodoItem` | `id, ownerId, title, note?, dueDate?, priority, isDone, doneAt?, createdAt` |
-| `WorkLog` | `id, userId, workDate, hours Decimal(5,2), description, refType (ticket/task/todo/other), ticketId?, taskId?, todoId?, createdAt` |
+| `WorkLog` | `id, userId, workDate, minutes Int (นาที, 1–1440), description, refType (ticket/task/todo/other — `other` = งานประจำ), ticketId?, taskId?, todoId?, createdAt` |
 
 > **My Work** = union query ของ `Ticket` (assigneeId = me) + `Task` (assigneeId = me) + `TodoItem` (ownerId = me)
 
@@ -590,9 +590,9 @@ array `["agent","manager","admin"]` และ `["manager","admin"]` ถูกเ
 - [x] **F3.2** มุมมองรวม (All) — เรียงตาม due date + priority ข้ามทั้ง 3 ประเภท
 - [x] **F3.3** CRUD `TodoItem` — งานส่วนตัว (หัวข้อ, บันทึก, กำหนดส่ง, priority, ติ๊กเสร็จ)
 - [x] **F3.4** ติ๊กเสร็จ / ยกเลิกติ๊ก + บันทึก `doneAt`
-- [x] **F3.5** ฟอร์มบันทึก **Time Log** (Manual) — วันที่, จำนวนชั่วโมง, สิ่งที่ทำ, ผูกกับ Ticket/Task/Todo
+- [x] **F3.5** ฟอร์มบันทึก **Time Log** (Manual) — วันที่, จำนวนนาที, สิ่งที่ทำ, ผูกกับ Ticket/Task/Todo
 - [x] **F3.6** บังคับบันทึก Time Log เมื่อเปลี่ยนสถานะ Ticket เป็น `resolved`
-- [x] **F3.7** สรุปชั่วโมงทำงานรายวัน/สัปดาห์/เดือนของตัวเอง
+- [x] **F3.7** สรุปเวลาทำงาน (นาที) รายวัน/สัปดาห์/เดือนของตัวเอง
 - [x] **F3.8** หัวหน้าดู Time Log ของทีม — รายงานภาระงานรายคน
 - [x] **F3.9** Widget "งานวันนี้" + "งานเลยกำหนด" บน Dashboard **[M8]** — *ทำใน Phase 8 พร้อมกับการเขียน `DashboardContent.tsx` ใหม่ทั้งไฟล์*
 
@@ -682,7 +682,7 @@ array `["agent","manager","admin"]` และ `["manager","admin"]` ถูกเ
 - [x] **F7.15** หน้า `management/reports` เลือกช่วงเวลา (เดือน / ไตรมาส / กำหนดเอง)
 - [x] **F7.16** รายงานสรุป Ticket — จำนวนรับ/ปิด/ค้าง แยกตามหมวด/Priority/ช่องทาง
 - [x] **F7.17** รายงาน SLA Compliance — % ตรงเวลา + รายการ Breach
-- [x] **F7.18** รายงานภาระงานเจ้าหน้าที่ — จำนวนงาน + ชั่วโมงจาก Time Log
+- [x] **F7.18** รายงานภาระงานเจ้าหน้าที่ — จำนวนงาน + เวลา (นาที) จาก Time Log
 - [x] **F7.19** รายงานความคืบหน้าโครงการ SDLC
 - [x] **F7.20** รายงานครุภัณฑ์ + คำขออนุมัติ
 - [x] **F7.21** กราฟ (`recharts`) — แนวโน้มรายเดือน, สัดส่วนตามหมวด, SLA trend
@@ -708,7 +708,7 @@ array `["agent","manager","admin"]` และ `["manager","admin"]` ถูกเ
 
 - [x] **F9.1** Dashboard แยกตาม role **[M8]**
 - [x] **F9.2** `student`/`user` — Ticket ของฉัน + สถานะ + ลิงก์แจ้งใหม่
-- [x] **F9.3** `agent` — งานที่รับผิดชอบ, ใกล้ครบ SLA, งานวันนี้, ชั่วโมงสัปดาห์นี้
+- [x] **F9.3** `agent` — งานที่รับผิดชอบ, ใกล้ครบ SLA, งานวันนี้, เวลาทำงานสัปดาห์นี้
 - [x] **F9.4** `manager`/`admin` — KPI รวม: Ticket เข้า/ปิด/ค้าง, % SLA, ภาระงานรายคน, ความคืบหน้าโครงการ, คำขอรออนุมัติ
 - [x] **F9.5** กราฟแนวโน้ม 7/30 วัน
 - [x] **F9.6** Global search — ค้นหาข้าม Ticket / KB / Project / Asset

@@ -21,11 +21,9 @@ import {
     type ReportTicket,
 } from "@/lib/report-service"
 import {
-    decimalToNumber,
     isDueToday,
     isOverdue,
     loadWorkItems,
-    roundHours,
     summaryRange,
     compareWorkItems,
 } from "@/lib/worklog-service"
@@ -122,7 +120,7 @@ async function buildWork(userId: string, now: Date): Promise<WorkSection> {
     const today = thaiToday()
     const week = summaryRange(today, "week")
 
-    const [openTickets, atRisk, hoursAgg, items] = await Promise.all([
+    const [openTickets, atRisk, minutesAgg, items] = await Promise.all([
         prisma.ticket.findMany({
             where: { assigneeId: userId, status: { in: OPEN_STATUSES } },
             select: briefSelect,
@@ -148,7 +146,7 @@ async function buildWork(userId: string, now: Date): Promise<WorkSection> {
                     lte: new Date(`${week.to}T00:00:00.000Z`),
                 },
             },
-            _sum: { hours: true },
+            _sum: { minutes: true },
         }),
         // ใช้ตัวโหลดตัวเดียวกับหน้า My Work — งานวันนี้/เลยกำหนดสองที่จึงตรงกันเสมอ
         loadWorkItems(userId),
@@ -167,7 +165,7 @@ async function buildWork(userId: string, now: Date): Promise<WorkSection> {
         dueToday: dueTodayItems.length,
         overdue: overdueItems.length,
         atRisk,
-        hoursThisWeek: roundHours(decimalToNumber(hoursAgg._sum.hours)),
+        minutesThisWeek: minutesAgg._sum.minutes ?? 0,
         queue,
         dueTodayItems: dueTodayItems.slice(0, LIST_LIMIT),
         overdueItems: overdueItems.slice(0, LIST_LIMIT),
@@ -190,7 +188,7 @@ async function buildCenter(rangeDays: number, now: Date): Promise<CenterSection>
         pendingApprovals,
         statusGroups,
         openByAssignee,
-        hourGroups,
+        minuteGroups,
         projects,
         taskGroups,
         overdueTaskGroups,
@@ -228,7 +226,7 @@ async function buildCenter(rangeDays: number, now: Date): Promise<CenterSection>
                     lte: new Date(`${to}T00:00:00.000Z`),
                 },
             },
-            _sum: { hours: true },
+            _sum: { minutes: true },
         }),
         prisma.project.findMany({
             where: { status: { in: ["planning", "active", "on_hold"] } },
@@ -257,18 +255,18 @@ async function buildCenter(rangeDays: number, now: Date): Promise<CenterSection>
         now
     )
 
-    // ภาระงานรายคน — รวมงานค้างในมือกับชั่วโมงที่ลงในช่วงนี้เข้าด้วยกัน
-    const workload = new Map<string, { userId: string; name: string; openNow: number; hours: number }>()
+    // ภาระงานรายคน — รวมงานค้างในมือกับเวลา (นาที) ที่ลงในช่วงนี้เข้าด้วยกัน
+    const workload = new Map<string, { userId: string; name: string; openNow: number; minutes: number }>()
     const ensure = (userId: string) => {
         let row = workload.get(userId)
         if (!row) {
-            row = { userId, name: userId, openNow: 0, hours: 0 }
+            row = { userId, name: userId, openNow: 0, minutes: 0 }
             workload.set(userId, row)
         }
         return row
     }
     for (const g of openByAssignee) if (g.assigneeId) ensure(g.assigneeId).openNow = g._count._all
-    for (const g of hourGroups) ensure(g.userId).hours = roundHours(decimalToNumber(g._sum.hours))
+    for (const g of minuteGroups) ensure(g.userId).minutes = g._sum.minutes ?? 0
 
     const users = await prisma.user.findMany({
         where: { id: { in: [...workload.keys()] } },
@@ -305,7 +303,7 @@ async function buildCenter(rangeDays: number, now: Date): Promise<CenterSection>
             }))
             .sort((a, b) => b.count - a.count),
         topWorkload: [...workload.values()]
-            .sort((a, b) => b.openNow - a.openNow || b.hours - a.hours)
+            .sort((a, b) => b.openNow - a.openNow || b.minutes - a.minutes)
             .slice(0, LIST_LIMIT),
         projects: projects.map((p) => {
             const t = totals.get(p.id) ?? { total: 0, done: 0 }

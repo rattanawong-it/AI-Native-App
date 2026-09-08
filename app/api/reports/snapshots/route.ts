@@ -25,6 +25,16 @@ import type {
 /// จำนวน Snapshot ที่คืนต่อครั้ง — เรียงใหม่สุดก่อน
 const MAX_SNAPSHOTS = 60
 
+/// เวลาทำงานรวมของ Snapshot หนึ่งใบเป็น "นาที"
+///
+/// Snapshot ที่บันทึกไว้ก่อนเปลี่ยนหน่วยเวลาเก็บเป็น `totalHours` (ชั่วโมง)
+/// จึงคูณ 60 กลับมาให้ ตารางเทียบย้อนหลังจะได้ไม่มีช่องว่างเปล่า
+function workloadMinutes(workload: SummaryReport["workload"]): number {
+    if (typeof workload.totalMinutes === "number") return workload.totalMinutes
+    const legacyHours = (workload as { totalHours?: number }).totalHours
+    return typeof legacyHours === "number" ? Math.round(legacyHours * 60) : 0
+}
+
 /// ดึงตัวเลขหลักออกจากรายงานที่เก็บไว้ เพื่อโชว์ในตารางเทียบโดยไม่ต้องเปิดรายงานเต็ม
 function toHighlights(report: SummaryReport): SnapshotHighlights {
     return {
@@ -32,7 +42,7 @@ function toHighlights(report: SummaryReport): SnapshotHighlights {
         ticketsResolved: report.tickets.resolved.value,
         ticketsPending: report.tickets.pending.value,
         slaResolutionRate: report.sla.resolutionRate,
-        totalHours: report.workload.totalHours,
+        totalMinutes: workloadMinutes(report.workload),
         approvalsApproved: report.approvals.approved.value,
     }
 }
@@ -44,7 +54,7 @@ function safeHighlights(dataJson: unknown): { label: string; highlights: Snapsho
         ticketsResolved: 0,
         ticketsPending: 0,
         slaResolutionRate: null,
-        totalHours: 0,
+        totalMinutes: 0,
         approvalsApproved: 0,
     }
 

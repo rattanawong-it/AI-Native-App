@@ -105,7 +105,7 @@ export async function PATCH(
         //
         // นับรวมบันทึกเวลาที่เคยลงไว้กับใบนี้แล้วด้วย (เจ้าหน้าที่บางคนลงเวลาระหว่างทำงาน
         // ไม่ได้รอลงตอนปิด) จึงไม่บังคับให้กรอกซ้ำ
-        if (input.status === "resolved" && !(input.workHours && input.workHours > 0)) {
+        if (input.status === "resolved" && !(input.workMinutes && input.workMinutes > 0)) {
             const required = await getAppSetting<boolean>(
                 "ticket.require_worklog_on_resolve",
                 true
@@ -114,7 +114,7 @@ export async function PATCH(
                 const logged = await prisma.workLog.count({ where: { ticketId: id } })
                 if (logged === 0) {
                     return badRequest(
-                        "ระบบกำหนดให้บันทึกชั่วโมงที่ใช้ทำงานก่อนปิดงาน กรุณากรอกจำนวนชั่วโมง"
+                        "ระบบกำหนดให้บันทึกเวลาที่ใช้ทำงานก่อนปิดงาน กรุณากรอกจำนวนนาที"
                     )
                 }
             }
@@ -167,13 +167,13 @@ export async function PATCH(
                 note: input.note ?? (to === "resolved" ? input.resolutionNote : null) ?? null,
             })
 
-            // บันทึกชั่วโมงทำงานถ้ากรอกมาพร้อมการปิดงาน (F2.6 — เชื่อมกับ Time Log ใน F3.5)
-            if (to === "resolved" && input.workHours && input.workHours > 0) {
+            // บันทึกเวลาทำงาน (นาที) ถ้ากรอกมาพร้อมการปิดงาน (F2.6 — เชื่อมกับ Time Log ใน F3.5)
+            if (to === "resolved" && input.workMinutes && input.workMinutes > 0) {
                 await tx.workLog.create({
                     data: {
                         userId: user.id,
                         workDate: new Date(now.toISOString().slice(0, 10)),
-                        hours: input.workHours,
+                        minutes: input.workMinutes,
                         description: input.resolutionNote ?? `แก้ไข ${current.ticketNo}`,
                         refType: "ticket",
                         ticketId: id,

@@ -11,12 +11,7 @@ import { prisma } from "@/lib/prisma"
 import { requireRole, badRequest, forbidden, isManager, STAFF_ROLES } from "@/lib/rbac"
 import { firstIssueMessage, searchParamsToObject } from "@/lib/ticket-schema"
 import { createWorkLogSchema, listWorkLogsQuerySchema } from "@/lib/worklog-schema"
-import {
-    decimalToNumber,
-    toWorkLogDto,
-    validateWorkLogRef,
-    workLogSelect,
-} from "@/lib/worklog-service"
+import { toWorkLogDto, validateWorkLogRef, workLogSelect } from "@/lib/worklog-service"
 import { utcDate } from "@/lib/sla-service"
 
 export async function GET(request: NextRequest) {
@@ -57,14 +52,14 @@ export async function GET(request: NextRequest) {
                 take: query.pageSize,
             }),
             prisma.workLog.count({ where }),
-            prisma.workLog.aggregate({ where, _sum: { hours: true } }),
+            prisma.workLog.aggregate({ where, _sum: { minutes: true } }),
         ])
 
         return NextResponse.json({
             workLogs: rows.map(toWorkLogDto),
             total,
-            // ชั่วโมงรวมของ "ทุกแถวที่ตรงเงื่อนไข" ไม่ใช่เฉพาะหน้าที่แสดง
-            totalHours: decimalToNumber(sum._sum.hours),
+            // นาทีรวมของ "ทุกแถวที่ตรงเงื่อนไข" ไม่ใช่เฉพาะหน้าที่แสดง
+            totalMinutes: sum._sum.minutes ?? 0,
             page: query.page,
             pageSize: query.pageSize,
             totalPages: Math.max(1, Math.ceil(total / query.pageSize)),
@@ -99,7 +94,7 @@ export async function POST(request: NextRequest) {
             data: {
                 userId: user.id,
                 workDate: utcDate(input.workDate),
-                hours: input.hours,
+                minutes: input.minutes,
                 description: input.description,
                 refType: input.refType,
                 // เก็บเฉพาะ id ที่ตรงกับ refType — กันข้อมูลค้างเมื่อผู้ใช้สลับประเภทในฟอร์ม

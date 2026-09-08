@@ -1,9 +1,9 @@
 // lib/worklog-service.ts
 // ตรรกะกลางของ My Work / To-do / Time Log ที่ API หลายเส้นใช้ร่วมกัน
 //   - select ของ TodoItem / WorkLog ที่ส่งให้ UI
-//   - แปลง Decimal(5,2) เป็น number ก่อนส่งออก JSON
+//   - แปลง Decimal เป็น number ก่อนส่งออก JSON
 //   - รวมงาน 3 ประเภทเป็นรายการเดียว แล้วเรียงตามกำหนดส่ง (F3.1, F3.2)
-//   - สรุปชั่วโมงทำงานรายวัน/สัปดาห์/เดือน (F3.7, F3.8)
+//   - สรุปเวลาทำงาน (นาที) รายวัน/สัปดาห์/เดือน (F3.7, F3.8)
 // อ้างอิง docs/spec.md §5.3, §8 ③
 
 import type { Prisma } from "@/app/generated/prisma/client"
@@ -47,7 +47,7 @@ export const workLogSelect = {
     id: true,
     userId: true,
     workDate: true,
-    hours: true,
+    minutes: true,
     description: true,
     refType: true,
     ticketId: true,
@@ -62,12 +62,12 @@ export const workLogSelect = {
 
 export type WorkLogRow = Prisma.WorkLogGetPayload<{ select: typeof workLogSelect }>
 
-/// รูปร่างที่ส่งออกทาง JSON — `hours` เป็น number และ `workDate` เป็น "YYYY-MM-DD"
+/// รูปร่างที่ส่งออกทาง JSON — `minutes` เป็นนาที และ `workDate` เป็น "YYYY-MM-DD"
 export interface WorkLogDto {
     id: string
     userId: string
     workDate: string
-    hours: number
+    minutes: number
     description: string
     refType: string
     refLabel: string
@@ -105,7 +105,7 @@ export function toWorkLogDto(row: WorkLogRow): WorkLogDto {
         id: row.id,
         userId: row.userId,
         workDate: workDateKey(row.workDate),
-        hours: decimalToNumber(row.hours),
+        minutes: row.minutes,
         description: row.description,
         refType: row.refType,
         refLabel: WORKLOG_REF_LABEL[refType] ?? row.refType,
@@ -210,7 +210,7 @@ export function isDueToday(item: WorkItem, todayIso: string): boolean {
     return thaiDayKey(new Date(item.dueDate)) === todayIso
 }
 
-// ── สรุปชั่วโมงทำงาน (F3.7, F3.8) ────────────────────────────────────
+// ── สรุปเวลาทำงาน (F3.7, F3.8) ───────────────────────────────────────
 
 /// ช่วงวันที่ที่ใช้สรุป — คำนวณจากวันอ้างอิงหนึ่งวันกับหน่วยเวลาที่เลือก
 export function summaryRange(dateIso: string, period: "day" | "week" | "month"): {
@@ -228,33 +228,26 @@ export function summaryRange(dateIso: string, period: "day" | "week" | "month"):
     return { from: startOfThaiMonth(dateIso), to: endOfThaiMonth(dateIso), label: "เดือนนี้" }
 }
 
-/// ชั่วโมงรวมของกลุ่มหนึ่ง (วัน / ประเภทงาน / คน)
-export interface HoursBucket {
+/// นาทีรวมของกลุ่มหนึ่ง (วัน / ประเภทงาน / คน)
+export interface MinutesBucket {
     key: string
     label: string
-    hours: number
+    minutes: number
     entries: number
 }
 
-/// รวมชั่วโมงเข้ากลุ่มตามคีย์ที่กำหนด แล้วคืนเป็น array เรียงตามคีย์
-export function bucketHours(
-    rows: { key: string; label: string; hours: number }[]
-): HoursBucket[] {
-    const map = new Map<string, HoursBucket>()
+/// รวมนาทีเข้ากลุ่มตามคีย์ที่กำหนด แล้วคืนเป็น array เรียงตามคีย์
+export function bucketMinutes(
+    rows: { key: string; label: string; minutes: number }[]
+): MinutesBucket[] {
+    const map = new Map<string, MinutesBucket>()
     for (const r of rows) {
-        const bucket = map.get(r.key) ?? { key: r.key, label: r.label, hours: 0, entries: 0 }
-        bucket.hours += r.hours
+        const bucket = map.get(r.key) ?? { key: r.key, label: r.label, minutes: 0, entries: 0 }
+        bucket.minutes += r.minutes
         bucket.entries += 1
         map.set(r.key, bucket)
     }
-    return [...map.values()]
-        .map((b) => ({ ...b, hours: roundHours(b.hours) }))
-        .sort((a, b) => a.key.localeCompare(b.key))
-}
-
-/// ปัดเป็นทศนิยม 2 ตำแหน่ง — กันเศษทศนิยมลอยจากการบวก float
-export function roundHours(value: number): number {
-    return Math.round(value * 100) / 100
+    return [...map.values()].sort((a, b) => a.key.localeCompare(b.key))
 }
 
 /// ทุกวันในช่วง (รวมวันที่ไม่มีบันทึก) เพื่อให้กราฟ/ตารางไม่ขาดช่วง

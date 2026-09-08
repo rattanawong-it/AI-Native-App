@@ -39,7 +39,7 @@ export interface WorkSection {
     overdue: number
     /// ครบกำหนดแก้ไขภายใน 24 ชั่วโมงข้างหน้า และยังไม่ได้แก้
     atRisk: number
-    hoursThisWeek: number
+    minutesThisWeek: number
     /// คิวงานเรียงตามความเร่ง — ความสำคัญสูงก่อน ครบกำหนดเร็วกว่าก่อน
     queue: DashboardTicketBrief[]
     dueTodayItems: WorkItem[]
@@ -59,7 +59,7 @@ export interface CenterSection {
     pendingApprovals: number
     trend: TrendPoint[]
     byStatus: CountGroup[]
-    topWorkload: { userId: string; name: string; openNow: number; hours: number }[]
+    topWorkload: { userId: string; name: string; openNow: number; minutes: number }[]
     projects: {
         id: string
         code: string

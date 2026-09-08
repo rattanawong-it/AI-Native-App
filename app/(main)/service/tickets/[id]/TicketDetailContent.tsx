@@ -649,8 +649,8 @@ export default function TicketDetailContent({ ticketId }: { ticketId: string }) 
                 onOpenChange={setResolveOpen}
                 busy={busy}
                 requireWorkLog={requireWorkLog}
-                onSubmit={async (resolutionNote, workHours) => {
-                    const ok = await changeStatus("resolved", { resolutionNote, workHours })
+                onSubmit={async (resolutionNote, workMinutes) => {
+                    const ok = await changeStatus("resolved", { resolutionNote, workMinutes })
                     if (ok) setResolveOpen(false)
                 }}
             />
@@ -968,7 +968,7 @@ function PriorityDialog({
     )
 }
 
-/// F2.6 — ปิดงานต้องกรอกสรุปการแก้ไข · F3.6 — ชั่วโมงทำงานบังคับเมื่อเปิดกฎไว้
+/// F2.6 — ปิดงานต้องกรอกสรุปการแก้ไข · F3.6 — เวลาทำงาน (นาที) บังคับเมื่อเปิดกฎไว้
 function ResolveDialog({
     open,
     onOpenChange,
@@ -979,15 +979,20 @@ function ResolveDialog({
     open: boolean
     onOpenChange: (v: boolean) => void
     busy: boolean
-    /// true = ต้องกรอกชั่วโมงก่อนจึงจะกดปิดงานได้ (AppSetting ticket.require_worklog_on_resolve)
+    /// true = ต้องกรอกจำนวนนาทีก่อนจึงจะกดปิดงานได้ (AppSetting ticket.require_worklog_on_resolve)
     requireWorkLog: boolean
-    onSubmit: (resolutionNote: string, workHours?: number) => Promise<void>
+    onSubmit: (resolutionNote: string, workMinutes?: number) => Promise<void>
 }) {
     const [note, setNote] = useState("")
-    const [hours, setHours] = useState("")
+    const [minutes, setMinutes] = useState("")
 
-    const hoursValue = Number(hours)
-    const hoursOk = !requireWorkLog || (hours !== "" && hoursValue > 0 && hoursValue <= 24)
+    const minutesValue = Number(minutes)
+    const minutesOk =
+        !requireWorkLog ||
+        (minutes !== "" &&
+            Number.isInteger(minutesValue) &&
+            minutesValue > 0 &&
+            minutesValue <= 1440)
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -995,7 +1000,7 @@ function ResolveDialog({
                 <DialogHeader>
                     <DialogTitle>บันทึกการแก้ไขเสร็จสิ้น</DialogTitle>
                     <DialogDescription>
-                        สรุปวิธีการแก้ไขเพื่อเก็บเป็นองค์ความรู้ และบันทึกชั่วโมงที่ใช้ทำงาน
+                        สรุปวิธีการแก้ไขเพื่อเก็บเป็นองค์ความรู้ และบันทึกเวลาที่ใช้ทำงานเป็นนาที
                     </DialogDescription>
                 </DialogHeader>
 
@@ -1011,21 +1016,21 @@ function ResolveDialog({
                     </div>
                     <div>
                         <Label className="mb-1.5">
-                            ชั่วโมงที่ใช้ {requireWorkLog ? "" : "(ไม่บังคับ)"}
+                            จำนวนนาทีที่ใช้ {requireWorkLog ? "" : "(ไม่บังคับ)"}
                         </Label>
                         <Input
                             type="number"
-                            min={0}
-                            max={24}
-                            step={0.25}
-                            value={hours}
-                            onChange={(e) => setHours(e.target.value)}
-                            placeholder="เช่น 1.5"
+                            min={1}
+                            max={1440}
+                            step={5}
+                            value={minutes}
+                            onChange={(e) => setMinutes(e.target.value)}
+                            placeholder="เช่น 90"
                             className="w-32"
                         />
                         <p className="text-muted-foreground mt-1 text-xs">
                             {requireWorkLog
-                                ? "ระบบกำหนดให้บันทึกชั่วโมงที่ใช้ทำงานก่อนปิดงาน (บันทึกเป็น Time Log ผูกกับ Ticket ใบนี้)"
+                                ? "ระบบกำหนดให้บันทึกเวลาที่ใช้ทำงานก่อนปิดงาน (บันทึกเป็น Time Log ผูกกับ Ticket ใบนี้)"
                                 : "บันทึกเป็น Time Log ผูกกับ Ticket ใบนี้"}
                         </p>
                     </div>
@@ -1037,9 +1042,9 @@ function ResolveDialog({
                     </Button>
                     <Button
                         onClick={() =>
-                            void onSubmit(note.trim(), hours ? Number(hours) : undefined)
+                            void onSubmit(note.trim(), minutes ? Number(minutes) : undefined)
                         }
-                        disabled={busy || note.trim().length < 5 || !hoursOk}
+                        disabled={busy || note.trim().length < 5 || !minutesOk}
                     >
                         {busy ? (
                             <Loader2 className="size-4 animate-spin" />

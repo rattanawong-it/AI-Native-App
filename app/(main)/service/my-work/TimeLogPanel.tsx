@@ -1,10 +1,11 @@
 "use client"
 
 // แท็บ "บันทึกเวลา" ของหน้า My Work
-// อ้างอิง F3.5 (ฟอร์มบันทึก Time Log แบบ Manual) และ F3.7 (สรุปชั่วโมงรายวัน/สัปดาห์/เดือน)
+// อ้างอิง F3.5 (ฟอร์มบันทึก Time Log แบบ Manual) และ F3.7 (สรุปเวลารายวัน/สัปดาห์/เดือน)
 //
+// หน่วยเวลาของ Time Log คิดเป็น "นาที" ทั้งระบบ
 // การผูกงาน: เลือกประเภทก่อน แล้วเลือกงานจากรายการที่ดึงมาจากงานของตัวเอง
-// ประเภท "งานอื่นๆ" ไม่ต้องผูกกับอะไร ใช้กับงานที่ไม่มีใบสั่งงาน เช่น ประชุม/อบรม
+// ประเภท "งานประจำ" ไม่ต้องผูกกับอะไร ใช้กับงานที่ไม่มีใบสั่งงาน เช่น ประชุม/อบรม
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
@@ -36,7 +37,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { readError, formatThaiDate } from "@/lib/ticket-types"
 import {
-    formatHours,
+    formatMinutes,
     type MyWorkResponse,
     type WorkItem,
     type WorkLogListResponse,
@@ -49,7 +50,7 @@ const REF_TYPES = [
     { key: "ticket", label: "Ticket" },
     { key: "task", label: "Task โครงการ" },
     { key: "todo", label: "งานส่วนตัว" },
-    { key: "other", label: "งานอื่นๆ" },
+    { key: "other", label: "งานประจำ" },
 ] as const
 
 const PERIODS = [
@@ -63,7 +64,7 @@ type Period = (typeof PERIODS)[number]["key"]
 interface FormState {
     id?: string
     workDate: string
-    hours: string
+    minutes: string
     description: string
     refType: string
     refId: string
@@ -77,7 +78,7 @@ function todayInput(): string {
 function emptyForm(): FormState {
     return {
         workDate: todayInput(),
-        hours: "",
+        minutes: "",
         description: "",
         refType: "ticket",
         refId: "",
@@ -88,7 +89,7 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
     const [period, setPeriod] = useState<Period>("week")
     const [summary, setSummary] = useState<WorkLogSummary | null>(null)
     const [logs, setLogs] = useState<WorkLogRow[]>([])
-    const [totalHours, setTotalHours] = useState(0)
+    const [totalMinutes, setTotalMinutes] = useState(0)
     const [loading, setLoading] = useState(true)
     const [busy, setBusy] = useState(false)
 
@@ -106,7 +107,7 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
                 `/api/worklogs/summary?period=${period}&scope=own`
             )
             if (!summaryRes.ok) {
-                toast.error(await readError(summaryRes, "ไม่สามารถสรุปชั่วโมงทำงานได้"))
+                toast.error(await readError(summaryRes, "ไม่สามารถสรุปเวลาทำงานได้"))
                 return
             }
             const s = (await summaryRes.json()) as WorkLogSummary
@@ -121,7 +122,7 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
             }
             const list = (await listRes.json()) as WorkLogListResponse
             setLogs(list.workLogs)
-            setTotalHours(list.totalHours)
+            setTotalMinutes(list.totalMinutes)
         } catch {
             toast.error("เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ")
         } finally {
@@ -140,7 +141,7 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
                 const res = await fetch("/api/my-work?kind=all&state=open&limit=200")
                 if (res.ok) setWorkItems(((await res.json()) as MyWorkResponse).items)
             } catch {
-                // เลือกงานไม่ได้ก็ยังบันทึกแบบ "งานอื่นๆ" ได้ จึงไม่ต้องเตือน
+                // เลือกงานไม่ได้ก็ยังบันทึกแบบ "งานประจำ" ได้ จึงไม่ต้องเตือน
             }
         })()
     }, [])
@@ -160,7 +161,7 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
         setForm({
             id: log.id,
             workDate: log.workDate,
-            hours: String(log.hours),
+            minutes: String(log.minutes),
             description: log.description,
             refType: log.refType,
             refId: log.ticketId ?? log.taskId ?? log.todoId ?? "",
@@ -173,7 +174,7 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
         try {
             const payload = {
                 workDate: form.workDate,
-                hours: Number(form.hours),
+                minutes: Number(form.minutes),
                 description: form.description.trim(),
                 refType: form.refType,
                 ticketId: form.refType === "ticket" ? form.refId || null : null,
@@ -221,14 +222,15 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
     }
 
     /// ความสูงของแท่งในกราฟรายวัน คิดเทียบกับวันที่ทำมากที่สุดในช่วง
-    const maxDayHours = useMemo(
-        () => Math.max(1, ...(summary?.byDay ?? []).map((d) => d.hours)),
+    const maxDayMinutes = useMemo(
+        () => Math.max(1, ...(summary?.byDay ?? []).map((d) => d.minutes)),
         [summary]
     )
 
     const formValid =
         form.description.trim().length >= 3 &&
-        Number(form.hours) > 0 &&
+        Number.isInteger(Number(form.minutes)) &&
+        Number(form.minutes) > 0 &&
         (form.refType === "other" || form.refId !== "")
 
     return (
@@ -255,11 +257,11 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
                 </Button>
             </div>
 
-            {/* สรุปชั่วโมง (F3.7) */}
+            {/* สรุปเวลาทำงาน (F3.7) */}
             <div className="grid gap-4 lg:grid-cols-3">
                 <Card className="lg:col-span-2">
                     <CardHeader className="pb-0">
-                        <p className="text-sm font-medium">ชั่วโมงทำงานรายวัน</p>
+                        <p className="text-sm font-medium">เวลาทำงานรายวัน (นาที)</p>
                         <p className="text-muted-foreground text-xs">
                             {summary
                                 ? `${formatThaiDate(summary.range.from)} – ${formatThaiDate(summary.range.to)}`
@@ -279,16 +281,16 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
                                     <div
                                         key={d.key}
                                         className="flex min-w-[28px] flex-1 flex-col items-center gap-1"
-                                        title={`${d.label} · ${formatHours(d.hours)}`}
+                                        title={`${d.label} · ${formatMinutes(d.minutes)}`}
                                     >
                                         <div
                                             className={
-                                                d.hours > 0
+                                                d.minutes > 0
                                                     ? "bg-brand w-full rounded-t"
                                                     : "bg-muted w-full rounded-t"
                                             }
                                             style={{
-                                                height: `${Math.max(2, (d.hours / maxDayHours) * 88)}px`,
+                                                height: `${Math.max(2, (d.minutes / maxDayMinutes) * 88)}px`,
                                             }}
                                         />
                                         <span className="text-muted-foreground text-[10px] whitespace-nowrap">
@@ -312,10 +314,10 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
                             <>
                                 <div className="flex items-baseline gap-2">
                                     <span className="text-3xl font-semibold">
-                                        {summary.totalHours}
+                                        {summary.totalMinutes.toLocaleString("th-TH")}
                                     </span>
                                     <span className="text-muted-foreground text-sm">
-                                        ชั่วโมง · {summary.totalEntries} รายการ ·{" "}
+                                        นาที · {summary.totalEntries} รายการ ·{" "}
                                         {summary.daysLogged} วันที่ลงเวลา
                                     </span>
                                 </div>
@@ -334,7 +336,7 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
                                                     {r.label}
                                                 </span>
                                                 <span className="font-medium">
-                                                    {formatHours(r.hours)}
+                                                    {formatMinutes(r.minutes)}
                                                 </span>
                                             </div>
                                         ))
@@ -351,7 +353,7 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
                 <CardContent className="p-0">
                     <div className="text-muted-foreground bg-muted/50 flex items-center justify-between px-6 py-3 text-xs font-medium">
                         <span>บันทึกเวลาในช่วงที่เลือก</span>
-                        <span>รวม {formatHours(totalHours)}</span>
+                        <span>รวม {formatMinutes(totalMinutes)}</span>
                     </div>
                     {loading ? (
                         <div className="space-y-3 p-6">
@@ -373,7 +375,7 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
                                 }
                             >
                                 <div className="w-24 shrink-0">
-                                    <p className="text-sm font-medium">{formatHours(log.hours)}</p>
+                                    <p className="text-sm font-medium">{formatMinutes(log.minutes)}</p>
                                     <p className="text-muted-foreground text-xs">
                                         {formatThaiDate(log.workDate)}
                                     </p>
@@ -428,7 +430,7 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
                             {form.id ? "แก้ไขบันทึกเวลา" : "บันทึกเวลาทำงาน"}
                         </DialogTitle>
                         <DialogDescription>
-                            กรอกวันที่ทำงาน จำนวนชั่วโมง และสิ่งที่ทำ พร้อมผูกกับงานที่เกี่ยวข้อง
+                            กรอกวันที่ทำงาน จำนวนนาที และสิ่งที่ทำ พร้อมผูกกับงานที่เกี่ยวข้อง
                         </DialogDescription>
                     </DialogHeader>
 
@@ -443,15 +445,15 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
                                 />
                             </div>
                             <div>
-                                <Label className="mb-1.5">จำนวนชั่วโมง</Label>
+                                <Label className="mb-1.5">จำนวนนาที</Label>
                                 <Input
                                     type="number"
-                                    min={0.25}
-                                    max={24}
-                                    step={0.25}
-                                    value={form.hours}
-                                    onChange={(e) => setForm({ ...form, hours: e.target.value })}
-                                    placeholder="เช่น 1.5"
+                                    min={1}
+                                    max={1440}
+                                    step={5}
+                                    value={form.minutes}
+                                    onChange={(e) => setForm({ ...form, minutes: e.target.value })}
+                                    placeholder="เช่น 90"
                                 />
                             </div>
                         </div>
@@ -513,7 +515,7 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
                         {form.id && form.refType !== "other" && form.refId === "" && (
                             <p className="text-sla-breached text-xs">
                                 บันทึกนี้เคยผูกกับงานที่ไม่อยู่ในรายการงานค้างแล้ว
-                                กรุณาเลือกงานใหม่หรือเปลี่ยนประเภทเป็น &ldquo;งานอื่นๆ&rdquo;
+                                กรุณาเลือกงานใหม่หรือเปลี่ยนประเภทเป็น &ldquo;งานประจำ&rdquo;
                             </p>
                         )}
                     </div>
@@ -537,7 +539,7 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
                         <AlertDialogTitle>ลบบันทึกเวลานี้?</AlertDialogTitle>
                         <AlertDialogDescription>
                             {deleting
-                                ? `${formatThaiDate(deleting.workDate)} · ${formatHours(deleting.hours)} — ${deleting.description}`
+                                ? `${formatThaiDate(deleting.workDate)} · ${formatMinutes(deleting.minutes)} — ${deleting.description}`
                                 : ""}
                         </AlertDialogDescription>
                     </AlertDialogHeader>

@@ -291,7 +291,7 @@ async function buildWorkloadSection(
     const scopedAssignee: Prisma.TicketWhereInput =
         scope.kind === "all" ? { assigneeId: { not: null } } : { assigneeId: scope.userId }
 
-    const [assignedGroups, resolvedGroups, openGroups, hourGroups] = await Promise.all([
+    const [assignedGroups, resolvedGroups, openGroups, minuteGroups] = await Promise.all([
         prisma.ticket.groupBy({
             by: ["assigneeId"],
             where: { ...scopedAssignee, createdAt: { gte: start, lte: end } },
@@ -316,7 +316,7 @@ async function buildWorkloadSection(
                 workDate: workDateRange(period),
                 ...(scope.kind === "own" ? { userId: scope.userId } : {}),
             },
-            _sum: { hours: true },
+            _sum: { minutes: true },
         }),
     ])
 
@@ -324,7 +324,7 @@ async function buildWorkloadSection(
     const ensure = (userId: string): WorkloadRow => {
         let row = rows.get(userId)
         if (!row) {
-            row = { userId, name: userId, assigned: 0, resolved: 0, openNow: 0, hours: 0 }
+            row = { userId, name: userId, assigned: 0, resolved: 0, openNow: 0, minutes: 0 }
             rows.set(userId, row)
         }
         return row
@@ -333,7 +333,7 @@ async function buildWorkloadSection(
     for (const g of assignedGroups) if (g.assigneeId) ensure(g.assigneeId).assigned = g._count._all
     for (const g of resolvedGroups) if (g.assigneeId) ensure(g.assigneeId).resolved = g._count._all
     for (const g of openGroups) if (g.assigneeId) ensure(g.assigneeId).openNow = g._count._all
-    for (const g of hourGroups) ensure(g.userId).hours = round1(decimalToNumber(g._sum.hours))
+    for (const g of minuteGroups) ensure(g.userId).minutes = g._sum.minutes ?? 0
 
     // เติมชื่อคนทีเดียว — groupBy คืนมาแค่ id
     const users = await prisma.user.findMany({
@@ -346,12 +346,13 @@ async function buildWorkloadSection(
     }
 
     const list = [...rows.values()].sort(
-        (a, b) => b.hours - a.hours || b.assigned - a.assigned || a.name.localeCompare(b.name, "th")
+        (a, b) =>
+            b.minutes - a.minutes || b.assigned - a.assigned || a.name.localeCompare(b.name, "th")
     )
 
     return {
         rows: list,
-        totalHours: round1(list.reduce((sum, r) => sum + r.hours, 0)),
+        totalMinutes: list.reduce((sum, r) => sum + r.minutes, 0),
     }
 }
 
@@ -399,7 +400,7 @@ async function buildProjectSection(
                     workDate: workDateRange(period),
                     ...(scope.kind === "own" ? { userId: scope.userId } : {}),
                 },
-                select: { hours: true, task: { select: { projectId: true } } },
+                select: { minutes: true, task: { select: { projectId: true } } },
             }),
             // ยังไม่มีคอลัมน์ "ปิดงานเมื่อไร" ใน Task — ใช้ updatedAt ของใบที่สถานะเป็น done
             // เป็นตัวแทน (ใบที่ถูกแก้อย่างอื่นหลังปิดงานจะถูกนับเข้าช่วงที่แก้ล่าสุดแทน)
@@ -429,11 +430,11 @@ async function buildProjectSection(
 
     const overdue = new Map(overdueGroups.map((g) => [g.projectId, g._count._all]))
 
-    const hours = new Map<string, number>()
+    const minutes = new Map<string, number>()
     for (const log of workLogs) {
         const pid = log.task?.projectId
         if (!pid) continue
-        hours.set(pid, (hours.get(pid) ?? 0) + decimalToNumber(log.hours))
+        minutes.set(pid, (minutes.get(pid) ?? 0) + log.minutes)
     }
 
     const rows: ProjectProgressRow[] = projects.map((p) => {
@@ -447,7 +448,7 @@ async function buildProjectSection(
             totalTasks: t.total,
             doneTasks: t.done,
             overdueTasks: overdue.get(p.id) ?? 0,
-            hours: round1(hours.get(p.id) ?? 0),
+            minutes: minutes.get(p.id) ?? 0,
             endDate: p.endDate ? p.endDate.toISOString() : null,
         }
     })

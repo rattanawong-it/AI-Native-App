@@ -111,8 +111,8 @@ export function buildWorkbook(report: SummaryReport): ExcelJS.Workbook {
         delta: "—",
     })
     overview.addRow({
-        label: "ชั่วโมงทำงานที่บันทึกไว้",
-        value: report.workload.totalHours,
+        label: "เวลาทำงานที่บันทึกไว้ (นาที)",
+        value: report.workload.totalMinutes,
         previous: "—",
         delta: "—",
     })
@@ -153,7 +153,7 @@ export function buildWorkbook(report: SummaryReport): ExcelJS.Workbook {
         { header: "ได้รับมอบหมาย", key: "assigned", width: 16 },
         { header: "แก้ไขแล้ว", key: "resolved", width: 14 },
         { header: "ค้างในมือตอนนี้", key: "openNow", width: 16 },
-        { header: "ชั่วโมงที่บันทึก", key: "hours", width: 16 },
+        { header: "นาทีที่บันทึก", key: "minutes", width: 16 },
     ]
     styleHeader(workload)
     for (const r of report.workload.rows) {
@@ -162,7 +162,7 @@ export function buildWorkbook(report: SummaryReport): ExcelJS.Workbook {
             assigned: r.assigned,
             resolved: r.resolved,
             openNow: r.openNow,
-            hours: r.hours,
+            minutes: r.minutes,
         })
     }
 
@@ -176,7 +176,7 @@ export function buildWorkbook(report: SummaryReport): ExcelJS.Workbook {
         { header: "งานทั้งหมด", key: "totalTasks", width: 14 },
         { header: "งานที่เสร็จ", key: "doneTasks", width: 14 },
         { header: "งานเลยกำหนด", key: "overdueTasks", width: 14 },
-        { header: "ชั่วโมงในช่วงนี้", key: "hours", width: 16 },
+        { header: "นาทีในช่วงนี้", key: "minutes", width: 16 },
     ]
     styleHeader(projects)
     for (const p of report.projects.rows) {
@@ -188,7 +188,7 @@ export function buildWorkbook(report: SummaryReport): ExcelJS.Workbook {
             totalTasks: p.totalTasks,
             doneTasks: p.doneTasks,
             overdueTasks: p.overdueTasks,
-            hours: p.hours,
+            minutes: p.minutes,
         })
     }
 

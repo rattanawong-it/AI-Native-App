@@ -154,7 +154,10 @@ export function toTaskDetailDto(row: TaskDetailRow, loggedHours = 0) {
 
 // ── ชั่วโมงที่ลงจริง (เชื่อมกับ Time Log ของเฟส 3) ────────────────────
 
-/// รวมชั่วโมงจาก `WorkLog` ของหลายงานในคิวรีเดียว แล้วคืนเป็นแผนที่ id → ชั่วโมง
+/// รวมเวลาจาก `WorkLog` ของหลายงานในคิวรีเดียว แล้วคืนเป็นแผนที่ id → ชั่วโมง
+///
+/// `WorkLog.minutes` เก็บเป็นนาที แต่การ์ดบนกระดานเทียบกับ `Task.estimateHours`
+/// ซึ่งเป็นชั่วโมง จึงหารกลับเป็นชั่วโมง (ทศนิยม 2 ตำแหน่ง) ตรงจุดนี้จุดเดียว
 ///
 /// แยกออกมาเป็นคิวรีต่างหากแทนการใส่ใน select เพราะ Prisma รวมค่าใน `select` ไม่ได้
 /// และการดึง WorkLog ทุกแถวมานับเองจะหนักเกินจำเป็นเมื่อกระดานมีการ์ดหลายสิบใบ
@@ -164,12 +167,12 @@ export async function loggedHoursByTask(taskIds: string[]): Promise<Map<string, 
     const rows = await prisma.workLog.groupBy({
         by: ["taskId"],
         where: { taskId: { in: taskIds } },
-        _sum: { hours: true },
+        _sum: { minutes: true },
     })
 
     const map = new Map<string, number>()
     for (const r of rows) {
-        if (r.taskId) map.set(r.taskId, decimalOrNull(r._sum.hours) ?? 0)
+        if (r.taskId) map.set(r.taskId, Math.round(((r._sum.minutes ?? 0) / 60) * 100) / 100)
     }
     return map
 }

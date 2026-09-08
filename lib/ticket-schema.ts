@@ -61,8 +61,8 @@ export const changeStatusSchema = z
         note: z.string().trim().max(500).optional(),
         /// สรุปการแก้ไข — บังคับเมื่อ status = resolved
         resolutionNote: z.string().trim().max(5000).optional(),
-        /// ชั่วโมงที่ใช้ทำงาน — บันทึกเป็น WorkLog ถ้ากรอกมา (F2.6 / เชื่อมกับ F3.5)
-        workHours: z.coerce.number().min(0).max(24).optional(),
+        /// เวลาที่ใช้ทำงานเป็นนาที — บันทึกเป็น WorkLog ถ้ากรอกมา (F2.6 / เชื่อมกับ F3.5)
+        workMinutes: z.coerce.number().int().min(0).max(1440).optional(),
     })
     .refine((v) => v.status !== "resolved" || (v.resolutionNote?.length ?? 0) >= 5, {
         path: ["resolutionNote"],

@@ -1,7 +1,7 @@
 "use client"
 
 // หน้า "งานของฉัน" — รวม Ticket ที่ได้รับมอบหมาย, Task โครงการ, งานส่วนตัว และบันทึกเวลา
-// อ้างอิง F3.1 (3 แท็บ), F3.2 (มุมมองรวมเรียงตามกำหนดส่ง), F3.7 (สรุปชั่วโมงของตัวเอง)
+// อ้างอิง F3.1 (3 แท็บ), F3.2 (มุมมองรวมเรียงตามกำหนดส่ง), F3.7 (สรุปเวลาทำงานของตัวเอง)
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
@@ -25,7 +25,7 @@ import { PriorityBadge } from "@/components/ticket/ticket-badges"
 import { readError, formatThaiDate, formatThaiDateTime } from "@/lib/ticket-types"
 import {
     WORK_KIND_LABEL,
-    formatHours,
+    formatMinutes,
     type MyWorkResponse,
     type WorkItem,
     type WorkLogSummary,
@@ -103,7 +103,7 @@ export default function MyWorkContent() {
         void load()
     }, [load])
 
-    /// F3.7 — ชั่วโมงสัปดาห์นี้ของตัวเอง แสดงบนการ์ดสรุปตลอดเวลา
+    /// F3.7 — เวลาทำงานสัปดาห์นี้ของตัวเอง แสดงบนการ์ดสรุปตลอดเวลา
     const loadSummary = useCallback(async () => {
         try {
             const res = await fetch("/api/worklogs/summary?period=week&scope=own")
@@ -166,8 +166,8 @@ export default function MyWorkContent() {
                 />
                 <StatCard
                     icon={<Timer className="size-5" />}
-                    label="ชั่วโมงสัปดาห์นี้"
-                    value={summary ? formatHours(summary.totalHours) : "-"}
+                    label="เวลาทำงานสัปดาห์นี้"
+                    value={summary ? formatMinutes(summary.totalMinutes) : "-"}
                     tone="bg-status-resolved-bg text-status-resolved-fg"
                 />
             </div>

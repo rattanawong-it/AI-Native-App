@@ -3,7 +3,7 @@ import WorkloadReportContent from "@/app/(main)/management/reports/workload/Work
 
 export const metadata: Metadata = {
     title: "รายงานภาระงานเจ้าหน้าที่",
-    description: "ชั่วโมงทำงานที่บันทึกไว้รายคน แยกตามช่วงเวลาและประเภทงาน",
+    description: "เวลาทำงาน (นาที) ที่บันทึกไว้รายคน แยกตามช่วงเวลาและประเภทงาน",
     keywords: ["ภาระงาน", "Time Log", "รายงาน", "ศูนย์ไอที"],
 }
 
