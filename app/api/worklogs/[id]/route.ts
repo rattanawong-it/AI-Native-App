@@ -69,7 +69,7 @@ export async function PATCH(
 
         const data: Prisma.WorkLogUpdateInput = {}
         if (input.workDate !== undefined) data.workDate = utcDate(input.workDate)
-        if (input.hours !== undefined) data.hours = input.hours
+        if (input.minutes !== undefined) data.minutes = input.minutes
         if (input.description !== undefined) data.description = input.description
 
         // เปลี่ยนประเภทงานเมื่อไร ต้องล้าง id ของประเภทเดิมทิ้งพร้อมกันเสมอ

@@ -1,6 +1,6 @@
 "use client"
 
-// รายงานภาระงานเจ้าหน้าที่ — ชั่วโมงที่บันทึกไว้รายคน (F3.8)
+// รายงานภาระงานเจ้าหน้าที่ — เวลา (นาที) ที่บันทึกไว้รายคน (F3.8)
 // อ้างอิง spec §8 ③ F3.8 · สิทธิ์ตาม §7: หัวหน้าขึ้นไปเท่านั้น (API บังคับซ้ำอีกชั้น)
 //
 // ตัวเลขทั้งหมดมาจาก `WorkLog` ที่เจ้าหน้าที่กรอกเอง — ไม่ใช่การจับเวลาอัตโนมัติ
@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { readError, formatThaiDate } from "@/lib/ticket-types"
-import { formatHours, type WorkLogSummary } from "@/lib/worklog-types"
+import { formatMinutes, type WorkLogSummary } from "@/lib/worklog-types"
 
 const PERIODS = [
     { key: "day", label: "รายวัน" },
@@ -64,9 +64,9 @@ export default function WorkloadReportContent() {
         void load()
     }, [load])
 
-    /// ความกว้างของแถบเทียบกับคนที่ลงชั่วโมงมากที่สุด
-    const maxHours = useMemo(
-        () => Math.max(1, ...(data?.byUser ?? []).map((u) => u.hours)),
+    /// ความกว้างของแถบเทียบกับคนที่ลงเวลามากที่สุด
+    const maxMinutes = useMemo(
+        () => Math.max(1, ...(data?.byUser ?? []).map((u) => u.minutes)),
         [data]
     )
 
@@ -93,7 +93,7 @@ export default function WorkloadReportContent() {
                         รายงานภาระงานเจ้าหน้าที่
                     </h1>
                     <p className="text-muted-foreground mt-1 text-sm">
-                        ชั่วโมงทำงานที่เจ้าหน้าที่บันทึกไว้ในช่วงที่เลือก พร้อมจำนวน Ticket
+                        เวลาทำงานที่เจ้าหน้าที่บันทึกไว้ในช่วงที่เลือก พร้อมจำนวน Ticket
                         ที่ยังค้างอยู่ในมือแต่ละคน
                     </p>
                 </div>
@@ -135,8 +135,8 @@ export default function WorkloadReportContent() {
             <div className="grid gap-4 sm:grid-cols-3">
                 <StatCard
                     icon={<Timer className="size-5" />}
-                    label="ชั่วโมงรวมทั้งศูนย์"
-                    value={data ? formatHours(data.totalHours) : "-"}
+                    label="เวลาทำงานรวมทั้งศูนย์"
+                    value={data ? formatMinutes(data.totalMinutes) : "-"}
                     tone="bg-brand-tint text-brand"
                 />
                 <StatCard
@@ -163,7 +163,7 @@ export default function WorkloadReportContent() {
                 <CardContent className="p-0">
                     <div className="text-muted-foreground bg-muted/50 grid grid-cols-[minmax(0,1.6fr)_120px_120px_minmax(0,2fr)] gap-3 px-6 py-3 text-xs font-medium">
                         <span>เจ้าหน้าที่</span>
-                        <span className="text-right">ชั่วโมงรวม</span>
+                        <span className="text-right">เวลารวม</span>
                         <span className="text-right">Ticket ค้าง</span>
                         <span>สัดส่วนภาระงาน</span>
                     </div>
@@ -189,7 +189,7 @@ export default function WorkloadReportContent() {
                                 }
                             >
                                 <span className="truncate text-sm font-medium">{u.label}</span>
-                                <span className="text-right text-sm">{formatHours(u.hours)}</span>
+                                <span className="text-right text-sm">{formatMinutes(u.minutes)}</span>
                                 <span className="text-muted-foreground text-right text-sm">
                                     {u.openTickets}
                                 </span>
@@ -197,7 +197,7 @@ export default function WorkloadReportContent() {
                                     <div className="bg-muted h-2 flex-1 overflow-hidden rounded-full">
                                         <div
                                             className="bg-brand h-full rounded-full"
-                                            style={{ width: `${(u.hours / maxHours) * 100}%` }}
+                                            style={{ width: `${(u.minutes / maxMinutes) * 100}%` }}
                                         />
                                     </div>
                                     <span className="text-muted-foreground w-14 text-right text-xs">
@@ -213,7 +213,7 @@ export default function WorkloadReportContent() {
             {/* แยกตามประเภทงาน */}
             <Card>
                 <CardHeader className="pb-0">
-                    <p className="text-sm font-medium">ชั่วโมงแยกตามประเภทงาน</p>
+                    <p className="text-sm font-medium">เวลาทำงานแยกตามประเภทงาน</p>
                 </CardHeader>
                 <CardContent>
                     {loading || !data ? (
@@ -226,7 +226,7 @@ export default function WorkloadReportContent() {
                                 <div key={r.key} className="rounded-lg border p-3">
                                     <p className="text-muted-foreground text-xs">{r.label}</p>
                                     <p className="mt-1 text-lg font-semibold">
-                                        {formatHours(r.hours)}
+                                        {formatMinutes(r.minutes)}
                                     </p>
                                     <p className="text-muted-foreground text-xs">
                                         {r.entries} รายการ

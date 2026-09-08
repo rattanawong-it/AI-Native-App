@@ -71,19 +71,19 @@ export const WORKLOG_REF_LABEL: Record<WorkLogRefType, string> = {
     ticket: "Ticket",
     task: "Task โครงการ",
     todo: "งานส่วนตัว",
-    other: "งานอื่นๆ",
+    other: "งานประจำ",
 }
 
-/// ชั่วโมงทำงาน — ทศนิยม 2 ตำแหน่งตาม Decimal(5,2) และไม่เกิน 24 ชม. ต่อรายการ
-const hours = z.coerce
-    .number({ message: "กรุณากรอกจำนวนชั่วโมงเป็นตัวเลข" })
-    .gt(0, "จำนวนชั่วโมงต้องมากกว่า 0")
-    .max(24, "หนึ่งรายการบันทึกได้ไม่เกิน 24 ชั่วโมง")
-    .refine((v) => Number.isInteger(Math.round(v * 100)), "ทศนิยมได้ไม่เกิน 2 ตำแหน่ง")
+/// เวลาที่ใช้ทำงาน — หน่วยเป็น "นาที" จำนวนเต็ม และไม่เกิน 24 ชม. (1440 นาที) ต่อรายการ
+const minutes = z.coerce
+    .number({ message: "กรุณากรอกจำนวนนาทีเป็นตัวเลข" })
+    .int("จำนวนนาทีต้องเป็นจำนวนเต็ม")
+    .gt(0, "จำนวนนาทีต้องมากกว่า 0")
+    .max(1440, "หนึ่งรายการบันทึกได้ไม่เกิน 1440 นาที (24 ชั่วโมง)")
 
 const workLogFields = z.object({
     workDate: isoDate,
-    hours,
+    minutes,
     description: z
         .string()
         .trim()

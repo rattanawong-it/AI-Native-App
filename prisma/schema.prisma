@@ -498,7 +498,8 @@ model WorkLog {
   id          String   @id @default(cuid())
   userId      String
   workDate    DateTime @db.Date
-  hours       Decimal  @db.Decimal(5, 2)
+  /// เวลาที่ใช้ทำงานเป็น "นาที" — จำนวนเต็ม 1–1440 นาที (ไม่เกิน 24 ชม. ต่อรายการ)
+  minutes     Int
   description String
   refType     String // ticket | task | todo | other
   ticketId    String?

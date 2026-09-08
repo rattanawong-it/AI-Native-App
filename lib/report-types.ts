@@ -84,13 +84,14 @@ export interface WorkloadRow {
     resolved: number
     /// ค้างอยู่ในมือ ณ ตอนนี้ (ไม่ผูกกับช่วงเวลา)
     openNow: number
-    /// ชั่วโมงจาก Time Log ในช่วงที่เลือก
-    hours: number
+    /// เวลาจาก Time Log ในช่วงที่เลือก (นาที)
+    minutes: number
 }
 
 export interface WorkloadSection {
     rows: WorkloadRow[]
-    totalHours: number
+    /// เวลารวมของทุกคนในช่วงที่เลือก (นาที)
+    totalMinutes: number
 }
 
 // ── ④ ความคืบหน้าโครงการ SDLC (F7.19) ────────────────────────────────
@@ -105,8 +106,8 @@ export interface ProjectProgressRow {
     doneTasks: number
     /// Task ที่เลยกำหนดและยังไม่ done
     overdueTasks: number
-    /// ชั่วโมงที่ลงกับโครงการนี้ในช่วงที่เลือก
-    hours: number
+    /// เวลาที่ลงกับโครงการนี้ในช่วงที่เลือก (นาที)
+    minutes: number
     endDate: string | null
 }
 
@@ -194,7 +195,7 @@ export interface SnapshotHighlights {
     ticketsResolved: number
     ticketsPending: number
     slaResolutionRate: number | null
-    totalHours: number
+    totalMinutes: number
     approvalsApproved: number
 }
 

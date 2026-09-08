@@ -35,7 +35,8 @@ export interface WorkLogRow {
     id: string
     userId: string
     workDate: string
-    hours: number
+    /// เวลาที่ใช้ทำงาน หน่วยเป็นนาที
+    minutes: number
     description: string
     refType: string
     refLabel: string
@@ -51,7 +52,7 @@ export interface WorkLogRow {
 export interface WorkLogListResponse {
     workLogs: WorkLogRow[]
     total: number
-    totalHours: number
+    totalMinutes: number
     page: number
     pageSize: number
     totalPages: number
@@ -86,12 +87,12 @@ export interface MyWorkResponse {
     truncated: boolean
 }
 
-// ── สรุปชั่วโมง (F3.7, F3.8) ─────────────────────────────────────────
+// ── สรุปเวลาทำงาน (F3.7, F3.8) ───────────────────────────────────────
 
-export interface HoursBucket {
+export interface MinutesBucket {
     key: string
     label: string
-    hours: number
+    minutes: number
     entries: number
 }
 
@@ -99,14 +100,14 @@ export interface WorkLogSummary {
     range: { from: string; to: string; label: string }
     period: "day" | "week" | "month"
     scope: "own" | "team"
-    totalHours: number
+    totalMinutes: number
     totalEntries: number
     /// จำนวนวันในช่วงที่มีการบันทึกเวลาอย่างน้อยหนึ่งรายการ
     daysLogged: number
-    byDay: HoursBucket[]
-    byRefType: HoursBucket[]
+    byDay: MinutesBucket[]
+    byRefType: MinutesBucket[]
     /// รายคน — มีเฉพาะเมื่อ scope = team (F3.8)
-    byUser: (HoursBucket & { openTickets: number })[]
+    byUser: (MinutesBucket & { openTickets: number })[]
 }
 
 // ── ตั้งค่าที่หน้าจอแก้ได้ (F3.6) ────────────────────────────────────
@@ -130,14 +131,10 @@ export const WORK_KIND_LABEL: Record<WorkItem["kind"], string> = {
 /// ส่งต่อชื่อเดิมไว้เพื่อไม่ให้หน้าจอของเฟส 3 ต้องแก้ import
 export { BOARD_STATUS_LABEL as TASK_STATUS_LABEL } from "@/lib/task-board"
 
-/// "1.5" → "1 ชม. 30 น." — ใช้แสดงชั่วโมงสะสมให้อ่านง่าย
-export function formatHours(hours: number): string {
-    if (!Number.isFinite(hours) || hours <= 0) return "0 ชม."
-    const h = Math.floor(hours)
-    const m = Math.round((hours - h) * 60)
-    if (h === 0) return `${m} น.`
-    if (m === 0) return `${h} ชม.`
-    return `${h} ชม. ${m} น.`
+/// 90 → "90 นาที" — หน่วยเวลาของ Time Log คิดเป็นนาทีทั้งระบบ (F3.5)
+export function formatMinutes(minutes: number): string {
+    if (!Number.isFinite(minutes) || minutes <= 0) return "0 นาที"
+    return `${Math.round(minutes).toLocaleString("th-TH")} นาที`
 }
 
 /// ป้ายวันที่แบบสั้นสำหรับแกนของตารางสรุป — "1 ก.ย."

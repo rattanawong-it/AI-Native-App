@@ -27,6 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { GroupBarChart, SlaTrendChart, TicketTrendChart } from "@/components/report/report-charts"
 import { PROJECT_STATUS_LABEL, type ProjectStatus } from "@/lib/task-board"
 import { readError, formatThaiDate } from "@/lib/ticket-types"
+import { formatMinutes } from "@/lib/worklog-types"
 import type {
     Metric,
     PeriodType,
@@ -435,7 +436,7 @@ export default function SummaryReportContent() {
                     {/* ─── ④ ภาระงานเจ้าหน้าที่ (F7.18) ──────── */}
                     <Section
                         title="ภาระงานเจ้าหน้าที่"
-                        hint={`ชั่วโมงรวมที่บันทึกไว้ในช่วงนี้ ${report.workload.totalHours} ชม.`}
+                        hint={`เวลารวมที่บันทึกไว้ในช่วงนี้ ${formatMinutes(report.workload.totalMinutes)}`}
                         action={
                             <Link
                                 href="/management/reports/workload"
@@ -451,7 +452,7 @@ export default function SummaryReportContent() {
                                 "ได้รับมอบหมาย",
                                 "แก้ไขแล้ว",
                                 "ค้างในมือตอนนี้",
-                                "ชั่วโมง",
+                                "นาที",
                             ]}
                             empty="ยังไม่มีข้อมูลภาระงานในช่วงที่เลือก"
                             rows={report.workload.rows.map((r) => ({
@@ -461,7 +462,7 @@ export default function SummaryReportContent() {
                                     num(r.assigned),
                                     num(r.resolved),
                                     num(r.openNow),
-                                    `${r.hours}`,
+                                    num(r.minutes),
                                 ],
                             }))}
                         />
@@ -479,7 +480,7 @@ export default function SummaryReportContent() {
                                 "ความคืบหน้า",
                                 "งานเสร็จ/ทั้งหมด",
                                 "เลยกำหนด",
-                                "ชั่วโมง",
+                                "นาที",
                             ]}
                             empty="ยังไม่มีโครงการในระบบ"
                             rows={report.projects.rows.map((p) => ({
@@ -496,7 +497,7 @@ export default function SummaryReportContent() {
                                     ) : (
                                         "-"
                                     ),
-                                    `${p.hours}`,
+                                    num(p.minutes),
                                 ],
                             }))}
                         />
@@ -580,7 +581,7 @@ export default function SummaryReportContent() {
                                     "แก้ไขแล้ว",
                                     "ค้าง",
                                     "SLA แก้ไข",
-                                    "ชั่วโมง",
+                                    "นาที",
                                     "อนุมัติ",
                                     "บันทึกโดย",
                                 ]}
@@ -598,7 +599,7 @@ export default function SummaryReportContent() {
                                         >
                                             {ratePct(s.highlights.slaResolutionRate)}
                                         </span>,
-                                        `${s.highlights.totalHours}`,
+                                        num(s.highlights.totalMinutes),
                                         num(s.highlights.approvalsApproved),
                                         `${s.generatedByName ?? "-"} · ${formatThaiDate(s.createdAt)}`,
                                     ],
