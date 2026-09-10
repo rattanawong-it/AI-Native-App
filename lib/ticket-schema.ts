@@ -32,7 +32,13 @@ export const createTicketSchema = z.object({
     departmentId: z.string().min(1).nullish(),
     /// แจ้งแทนผู้อื่น — เจ้าหน้าที่เท่านั้น (F1.10)
     requesterId: z.string().min(1).nullish(),
+    /// แจ้งแทนบุคลากรที่เลือกจาก Google Directory แต่ยังไม่มีบัญชีในระบบ (spec §19)
+    requesterEmail: z.string().trim().email("อีเมลผู้แจ้งไม่ถูกต้อง").nullish(),
 })
+    .refine((v) => !(v.requesterId && v.requesterEmail), {
+        message: "ระบุผู้แจ้งได้ทางเดียว — เลือกจากในระบบหรือจาก Google อย่างใดอย่างหนึ่ง",
+        path: ["requesterEmail"],
+    })
     // ช่องทาง "ติดต่อจากหน่วยงาน" ต้องบอกว่ามาจากหน่วยงานไหน ไม่งั้นแยกรายงานไม่ได้
     .refine((v) => v.channel !== DEPARTMENT_CHANNEL || Boolean(v.departmentId), {
         message: "กรุณาเลือกหน่วยงานที่ติดต่อมา",

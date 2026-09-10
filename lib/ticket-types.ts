@@ -103,6 +103,34 @@ export interface DirectoryAgent {
     openTickets: number
 }
 
+/// scope ที่ต้องได้รับอนุญาตก่อนค้นรายชื่อ Google — ใช้ทั้งตอน linkSocial (client) และตอนตรวจ token (server)
+export const DIRECTORY_SCOPE = "https://www.googleapis.com/auth/directory.readonly"
+
+/// สถานะการค้นรายชื่อจาก Google Workspace Directory (spec §19)
+///   not_linked    ยังไม่เคยผูกบัญชี Google
+///   missing_scope ผูกแล้วแต่ยังไม่ได้อนุญาตให้อ่านรายชื่อ
+///   expired       token หมดอายุและต่ออายุไม่ได้ ต้องเชื่อมต่อใหม่
+///   unavailable   Google ตอบ error อื่น (เช่น ยังไม่ได้เปิด People API)
+export type DirectoryStatus = "ok" | "not_linked" | "missing_scope" | "expired" | "unavailable"
+
+/// บุคลากรหนึ่งคนจาก Google Directory — ใช้เลือกผู้แจ้งในโหมดบันทึกแทน (F1.10)
+export interface DirectoryPerson {
+    email: string
+    name: string
+    image: string | null
+    position: string | null
+    department: string | null
+    employeeCode: string | null
+}
+
+export interface GoogleDirectoryResponse {
+    status: DirectoryStatus
+    people: (DirectoryPerson & {
+        /// id ของบัญชีในระบบ ถ้าคนนี้มีบัญชีอยู่แล้ว
+        userId: string | null
+    })[]
+}
+
 export interface DirectoryTeam {
     id: string
     name: string

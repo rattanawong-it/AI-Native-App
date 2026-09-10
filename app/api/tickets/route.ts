@@ -26,6 +26,7 @@ import {
     withSla,
 } from "@/lib/ticket-service"
 import { notifyTicketCreated } from "@/lib/ticket-notify"
+import { ensureRequesterFromDirectory } from "@/lib/google-directory"
 
 export async function GET(request: NextRequest) {
     const guard = await requireAuth()
@@ -89,7 +90,14 @@ export async function POST(request: NextRequest) {
 
     // F1.10 — แจ้งแทนผู้อื่นได้เฉพาะเจ้าหน้าที่ขึ้นไป
     let requesterId = user.id
-    if (input.requesterId && input.requesterId !== user.id) {
+    let requesterCreated = false
+    if (input.requesterEmail) {
+        // เลือกจาก Google Directory — ตรวจสิทธิ์ตรงนี้ แต่หา/สร้างบัญชีหลังตรวจหมวดหมู่และหน่วยงานแล้ว
+        // เพื่อไม่ให้เหลือบัญชีค้างในระบบเมื่อคำขอไม่ผ่าน validation
+        if (!isStaff(user)) {
+            return badRequest("คุณไม่มีสิทธิ์แจ้งปัญหาแทนผู้อื่น")
+        }
+    } else if (input.requesterId && input.requesterId !== user.id) {
         if (!isStaff(user)) {
             return badRequest("คุณไม่มีสิทธิ์แจ้งปัญหาแทนผู้อื่น")
         }
@@ -116,6 +124,19 @@ export async function POST(request: NextRequest) {
             select: { id: true },
         })
         if (!department) return badRequest("ไม่พบหน่วยงานที่เลือก")
+    }
+
+    // ยังไม่มีบัญชีก็สร้างให้ หลังยืนยันกับ Google Directory ฝั่ง server (spec §19)
+    if (input.requesterEmail) {
+        try {
+            const ensured = await ensureRequesterFromDirectory(user.id, input.requesterEmail)
+            if (!ensured.ok) return badRequest(ensured.message)
+            requesterId = ensured.userId
+            requesterCreated = ensured.created
+        } catch (error) {
+            console.error("Ticket POST requester Error:", error)
+            return NextResponse.json({ error: "ไม่สามารถสร้างบัญชีผู้แจ้งได้" }, { status: 500 })
+        }
     }
 
     try {
@@ -165,7 +186,11 @@ export async function POST(request: NextRequest) {
             actorId: user.id,
             action: "created",
             toValue: ticket.ticketNo,
-            note: requesterId !== user.id ? "บันทึกแทนผู้แจ้ง" : null,
+            note: requesterCreated
+                ? "บันทึกแทนผู้แจ้ง · สร้างบัญชีจาก Google Directory"
+                : requesterId !== user.id
+                  ? "บันทึกแทนผู้แจ้ง"
+                  : null,
         })
 
         if (auto.assigneeId) {

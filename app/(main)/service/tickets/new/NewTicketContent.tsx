@@ -7,9 +7,9 @@ import { rolesAreStaff } from "@/lib/roles"
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Building2, ChevronLeft, Flag, Loader2, Send, UserSearch } from "lucide-react"
+import { Building2, ChevronLeft, Flag, Link2, Loader2, Send, UserSearch } from "lucide-react"
 import { toast } from "sonner"
-import { useSession } from "@/lib/auth-client"
+import { authClient, useSession } from "@/lib/auth-client"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,7 +24,14 @@ import {
     type Urgency,
 } from "@/lib/priority"
 import { TICKET_CHANNELS, TICKET_CHANNEL_LABEL, DEPARTMENT_CHANNEL } from "@/lib/ticket-workflow"
-import { readError, type Category, type DirectoryAgent } from "@/lib/ticket-types"
+import {
+    DIRECTORY_SCOPE,
+    readError,
+    type Category,
+    type DirectoryAgent,
+    type DirectoryStatus,
+    type GoogleDirectoryResponse,
+} from "@/lib/ticket-types"
 import {
     departmentPath,
     type DepartmentListResponse,
@@ -34,6 +41,17 @@ import {
 /// เรียงระดับจากต่ำ → สูง ให้ตรงกับปุ่มเลือกในไฟล์ดีไซน์
 /// (lib/priority เก็บเรียงจากสูง → ต่ำ จึงกลับด้านเฉพาะตอนแสดงผล)
 const LEVELS_ASC = ["low", "medium", "high"] as const
+
+/// ผู้แจ้งที่เลือกแล้ว — มีบัญชีในระบบแล้ว (ส่ง requesterId) หรือมาจาก Google Directory
+/// และยังไม่มีบัญชี (ส่ง requesterEmail ให้ server ยืนยันกับ Google แล้วสร้างบัญชีให้)
+type SelectedRequester =
+    | { kind: "local"; id: string; name: string; email: string }
+    | { kind: "google"; name: string; email: string }
+
+type GooglePerson = GoogleDirectoryResponse["people"][number]
+
+/// หน้านี้เองคือปลายทางหลังเชื่อมต่อ Google — ใส่ query ไว้บอกผลให้แสดง toast
+const LINK_RETURN_URL = "/service/tickets/new"
 
 export default function NewTicketContent() {
     const router = useRouter()
@@ -58,7 +76,12 @@ export default function NewTicketContent() {
     const [onBehalf, setOnBehalf] = useState(false)
     const [userQuery, setUserQuery] = useState("")
     const [userResults, setUserResults] = useState<DirectoryAgent[]>([])
-    const [requester, setRequester] = useState<DirectoryAgent | null>(null)
+    const [requester, setRequester] = useState<SelectedRequester | null>(null)
+
+    // ค้นผู้แจ้งจาก Google Workspace Directory ของมหาวิทยาลัย (spec §19)
+    const [googleResults, setGoogleResults] = useState<GooglePerson[]>([])
+    const [googleStatus, setGoogleStatus] = useState<DirectoryStatus | null>(null)
+    const [linking, setLinking] = useState(false)
 
     // ช่องทาง "ติดต่อจากหน่วยงาน" — ต้องระบุหน่วยงานต้นทางเสมอ
     const [deptQuery, setDeptQuery] = useState("")
@@ -80,21 +103,83 @@ export default function NewTicketContent() {
         })()
     }, [])
 
-    // ค้นหาผู้ใช้สำหรับแจ้งแทน — หน่วง 350ms เหมือนช่องค้นหาอื่น
+    // กลับมาจากหน้าเชื่อมต่อ Google — แจ้งผลแล้วล้าง query ออกจาก URL
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        const result = params.get("googleLink")
+        if (!result) return
+        if (result === "ok") toast.success("เชื่อมต่อบัญชี Google แล้ว ค้นหาผู้แจ้งจากรายชื่อมหาวิทยาลัยได้เลย")
+        else toast.error("เชื่อมต่อบัญชี Google ไม่สำเร็จ — ต้องใช้บัญชี Google อีเมลเดียวกับที่ล็อกอินอยู่")
+        window.history.replaceState(null, "", LINK_RETURN_URL)
+        setOnBehalf(true)
+    }, [])
+
+    // เปิดโหมดบันทึกแทนแล้ว ถามสถานะการเชื่อมต่อ Google ก่อน เพื่อโชว์ปุ่มเชื่อมต่อได้ทันที
+    useEffect(() => {
+        if (!onBehalf) {
+            setGoogleStatus(null)
+            return
+        }
+        void (async () => {
+            const res = await fetch("/api/directory?scope=google")
+            if (res.ok) setGoogleStatus(((await res.json()) as GoogleDirectoryResponse).status)
+        })()
+    }, [onBehalf])
+
+    // ค้นหาผู้ใช้สำหรับแจ้งแทน — ในระบบกับ Google พร้อมกัน หน่วง 350ms เหมือนช่องค้นหาอื่น
     useEffect(() => {
         if (!onBehalf || userQuery.trim().length < 2) {
             setUserResults([])
+            setGoogleResults([])
             return
         }
+        const q = encodeURIComponent(userQuery)
         const timer = setTimeout(async () => {
-            const res = await fetch(`/api/directory?scope=users&q=${encodeURIComponent(userQuery)}`)
-            if (res.ok) {
-                const data = (await res.json()) as { users: DirectoryAgent[] }
+            const [local, google] = await Promise.all([
+                fetch(`/api/directory?scope=users&q=${q}`),
+                fetch(`/api/directory?scope=google&q=${q}`),
+            ])
+            if (local.ok) {
+                const data = (await local.json()) as { users: DirectoryAgent[] }
                 setUserResults(data.users)
+            }
+            // Google ใช้ไม่ได้ก็ไม่เป็นไร ยังค้นจากในระบบได้ตามปกติ
+            if (google.ok) {
+                const data = (await google.json()) as GoogleDirectoryResponse
+                setGoogleStatus(data.status)
+                setGoogleResults(data.people)
             }
         }, 350)
         return () => clearTimeout(timer)
     }, [onBehalf, userQuery])
+
+    /// คนจาก Google ที่อีเมลซ้ำกับผลค้นในระบบไม่ต้องโชว์ซ้ำ
+    const googleExtra = useMemo(() => {
+        const localEmails = new Set(userResults.map((u) => u.email.toLowerCase()))
+        return googleResults.filter((p) => !localEmails.has(p.email))
+    }, [userResults, googleResults])
+
+    const pickRequester = (next: SelectedRequester) => {
+        setRequester(next)
+        setUserResults([])
+        setGoogleResults([])
+    }
+
+    /// ขอสิทธิ์อ่านรายชื่อบุคลากรเพิ่มจากบัญชี Google ที่ผูกไว้ (ขอเฉพาะเจ้าหน้าที่ที่กดเท่านั้น)
+    const connectGoogle = async () => {
+        setLinking(true)
+        const { error } = await authClient.linkSocial({
+            provider: "google",
+            scopes: [DIRECTORY_SCOPE],
+            callbackURL: `${LINK_RETURN_URL}?googleLink=ok`,
+            errorCallbackURL: `${LINK_RETURN_URL}?googleLink=failed`,
+        })
+        // สำเร็จจะถูกพาไปหน้า Google เอง — มาถึงบรรทัดนี้ได้แปลว่าเริ่มเชื่อมต่อไม่สำเร็จ
+        if (error) {
+            toast.error(error.message || "เริ่มเชื่อมต่อบัญชี Google ไม่สำเร็จ")
+            setLinking(false)
+        }
+    }
 
     // ค้นหาหน่วยงาน — รูปแบบเดียวกับช่องค้นหาผู้แจ้งข้างบน
     useEffect(() => {
@@ -152,7 +237,10 @@ export default function NewTicketContent() {
                     impact,
                     urgency,
                     channel: isStaff ? channel : "web",
-                    requesterId: onBehalf ? requester?.id : undefined,
+                    requesterId:
+                        onBehalf && requester?.kind === "local" ? requester.id : undefined,
+                    requesterEmail:
+                        onBehalf && requester?.kind === "google" ? requester.email : undefined,
                     departmentId:
                         isStaff && channel === DEPARTMENT_CHANNEL ? department?.id : undefined,
                 }),
@@ -219,12 +307,19 @@ export default function NewTicketContent() {
                                             <Label className="mb-1.5">ผู้แจ้ง</Label>
                                             {requester ? (
                                                 <div className="border-input flex items-center justify-between gap-2 rounded-md border px-3 py-2">
-                                                    <span className="truncate text-sm">
-                                                        {requester.name}
-                                                        <span className="text-muted-foreground">
-                                                            {" "}
-                                                            · {requester.email}
+                                                    <span className="min-w-0 text-sm">
+                                                        <span className="block truncate">
+                                                            {requester.name}
+                                                            <span className="text-muted-foreground">
+                                                                {" "}
+                                                                · {requester.email}
+                                                            </span>
                                                         </span>
+                                                        {requester.kind === "google" && (
+                                                            <span className="text-muted-foreground block text-xs">
+                                                                ยังไม่มีบัญชี — ระบบจะสร้างให้เมื่อบันทึก
+                                                            </span>
+                                                        )}
                                                     </span>
                                                     <Button
                                                         type="button"
@@ -244,16 +339,23 @@ export default function NewTicketContent() {
                                                         placeholder="พิมพ์ชื่อ อีเมล หรือรหัสบุคลากร"
                                                         className="pl-9"
                                                     />
-                                                    {userResults.length > 0 && (
-                                                        <div className="bg-popover absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border shadow-md">
+                                                    {(userResults.length > 0 || googleExtra.length > 0) && (
+                                                        <div className="bg-popover absolute z-10 mt-1 max-h-72 w-full overflow-y-auto rounded-md border shadow-md">
+                                                            {userResults.length > 0 && (
+                                                                <ResultGroupLabel>ในระบบ</ResultGroupLabel>
+                                                            )}
                                                             {userResults.map((u) => (
                                                                 <button
                                                                     key={u.id}
                                                                     type="button"
-                                                                    onClick={() => {
-                                                                        setRequester(u)
-                                                                        setUserResults([])
-                                                                    }}
+                                                                    onClick={() =>
+                                                                        pickRequester({
+                                                                            kind: "local",
+                                                                            id: u.id,
+                                                                            name: u.name,
+                                                                            email: u.email,
+                                                                        })
+                                                                    }
                                                                     className="hover:bg-accent w-full px-3 py-2 text-left text-sm"
                                                                 >
                                                                     <span className="font-medium">{u.name}</span>
@@ -262,9 +364,58 @@ export default function NewTicketContent() {
                                                                     </span>
                                                                 </button>
                                                             ))}
+                                                            {googleExtra.length > 0 && (
+                                                                <ResultGroupLabel>
+                                                                    จากรายชื่อ Google ของมหาวิทยาลัย
+                                                                </ResultGroupLabel>
+                                                            )}
+                                                            {googleExtra.map((p) => (
+                                                                <button
+                                                                    key={p.email}
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        pickRequester(
+                                                                            p.userId
+                                                                                ? {
+                                                                                      kind: "local",
+                                                                                      id: p.userId,
+                                                                                      name: p.name,
+                                                                                      email: p.email,
+                                                                                  }
+                                                                                : {
+                                                                                      kind: "google",
+                                                                                      name: p.name,
+                                                                                      email: p.email,
+                                                                                  }
+                                                                        )
+                                                                    }
+                                                                    className="hover:bg-accent w-full px-3 py-2 text-left text-sm"
+                                                                >
+                                                                    <span className="font-medium">{p.name}</span>
+                                                                    {!p.userId && (
+                                                                        <span className="bg-accent text-muted-foreground ml-2 rounded px-1.5 py-0.5 text-[11px]">
+                                                                            ยังไม่มีบัญชี
+                                                                        </span>
+                                                                    )}
+                                                                    <span className="text-muted-foreground block text-xs">
+                                                                        {p.email}
+                                                                        {(p.position || p.department) &&
+                                                                            ` · ${[p.position, p.department]
+                                                                                .filter(Boolean)
+                                                                                .join(" · ")}`}
+                                                                    </span>
+                                                                </button>
+                                                            ))}
                                                         </div>
                                                     )}
                                                 </div>
+                                            )}
+                                            {!requester && (
+                                                <GoogleConnectHint
+                                                    status={googleStatus}
+                                                    linking={linking}
+                                                    onConnect={connectGoogle}
+                                                />
                                             )}
                                         </div>
                                         <div>
@@ -461,6 +612,57 @@ export default function NewTicketContent() {
                 หมายเหตุ: การแนบไฟล์ (F1.7) จะเปิดใช้งานในเฟสถัดไป ระหว่างนี้หากมีภาพหน้าจอประกอบ
                 กรุณาแจ้งเจ้าหน้าที่ผ่านช่องความคิดเห็นในหน้ารายละเอียด Ticket
             </p>
+        </div>
+    )
+}
+
+/// หัวกลุ่มใน dropdown ผลค้นหาผู้แจ้ง
+function ResultGroupLabel({ children }: { children: React.ReactNode }) {
+    return (
+        <p className="text-muted-foreground bg-muted/50 px-3 py-1.5 text-[11px] font-semibold">
+            {children}
+        </p>
+    )
+}
+
+/// แถบใต้ช่องผู้แจ้ง — บอกให้เชื่อมต่อ Google เมื่อยังค้นจากรายชื่อมหาวิทยาลัยไม่ได้ (spec §19)
+function GoogleConnectHint({
+    status,
+    linking,
+    onConnect,
+}: {
+    status: DirectoryStatus | null
+    linking: boolean
+    onConnect: () => void
+}) {
+    if (!status || status === "ok") return null
+
+    if (status === "unavailable") {
+        return (
+            <p className="text-muted-foreground mt-1.5 text-xs">
+                ค้นรายชื่อจาก Google ไม่ได้ในขณะนี้ — ยังค้นจากผู้ใช้ในระบบได้ตามปกติ
+            </p>
+        )
+    }
+
+    return (
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            <span className="text-muted-foreground">
+                {status === "expired"
+                    ? "การเชื่อมต่อ Google หมดอายุ"
+                    : "ค้นจากรายชื่อบุคลากรใน Google ของมหาวิทยาลัยได้ด้วย"}
+            </span>
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                disabled={linking}
+                onClick={onConnect}
+            >
+                {linking ? <Loader2 className="size-3.5 animate-spin" /> : <Link2 className="size-3.5" />}
+                {status === "expired" ? "เชื่อมต่อใหม่" : "เชื่อมต่อบัญชี Google"}
+            </Button>
         </div>
     )
 }

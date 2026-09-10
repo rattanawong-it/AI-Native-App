@@ -3,6 +3,7 @@
 //   ?scope=agents     เจ้าหน้าที่ที่รับงานได้ (มอบหมาย / ผู้รับผิดชอบเริ่มต้นของหมวดหมู่)
 //   ?scope=teams      ทีมงานที่เปิดใช้งาน
 //   ?scope=users&q=   ค้นหาผู้ใช้เพื่อแจ้งปัญหาแทน (F1.10)
+//   ?scope=google&q=  ค้นบุคลากรจาก Google Workspace Directory ของมหาวิทยาลัย (spec §19)
 //   ?scope=all        ทั้ง agents + teams (ค่าเริ่มต้น)
 //
 // เป็นข้อมูลรายชื่อภายในองค์กร จึงจำกัดไว้ที่ระดับเจ้าหน้าที่ขึ้นไป (spec §7)
@@ -11,6 +12,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireRole, STAFF_ROLES } from "@/lib/rbac"
 import { ASSIGNABLE_USER_WHERE, WORKLOAD_STATUSES } from "@/lib/ticket-service"
+import { getDirectoryToken, searchDirectory } from "@/lib/google-directory"
+import type { GoogleDirectoryResponse } from "@/lib/ticket-types"
 
 const personSelect = {
     id: true,
@@ -34,6 +37,10 @@ export async function GET(request: NextRequest) {
     const q = (url.searchParams.get("q") ?? "").trim()
 
     try {
+        if (scope === "google") {
+            return NextResponse.json(await searchGoogleDirectory(guard.user.id, q))
+        }
+
         if (scope === "users") {
             const users = await prisma.user.findMany({
                 where: q
@@ -96,5 +103,30 @@ export async function GET(request: NextRequest) {
     } catch (error) {
         console.error("Directory GET Error:", error)
         return NextResponse.json({ error: "ไม่สามารถโหลดรายชื่อได้" }, { status: 500 })
+    }
+}
+
+/// ค้นบุคลากรจาก Google ด้วย token ของเจ้าหน้าที่ที่เรียก แล้วติด userId ให้คนที่มีบัญชีแล้ว
+/// ปัญหาฝั่ง Google คืนเป็น status (200) ไม่ใช่ error — หน้าจอยังค้นจากในระบบได้ตามปกติ
+async function searchGoogleDirectory(userId: string, q: string): Promise<GoogleDirectoryResponse> {
+    const token = await getDirectoryToken(userId)
+    if (token.status !== "ok") return { status: token.status, people: [] }
+    if (q.length < 2) return { status: "ok", people: [] }
+
+    const result = await searchDirectory(token.token, q)
+    if (result.status !== "ok") return { status: result.status, people: [] }
+    if (result.people.length === 0) return { status: "ok", people: [] }
+
+    const existing = await prisma.user.findMany({
+        where: {
+            OR: result.people.map((p) => ({ email: { equals: p.email, mode: "insensitive" as const } })),
+        },
+        select: { id: true, email: true },
+    })
+    const idByEmail = new Map(existing.map((u) => [u.email.toLowerCase(), u.id]))
+
+    return {
+        status: "ok",
+        people: result.people.map((p) => ({ ...p, userId: idByEmail.get(p.email) ?? null })),
     }
 }
