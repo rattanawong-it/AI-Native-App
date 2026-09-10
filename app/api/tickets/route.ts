@@ -110,6 +110,14 @@ export async function POST(request: NextRequest) {
     })
     if (!category) return badRequest("ไม่พบหมวดหมู่บริการที่เลือก")
 
+    if (input.departmentId) {
+        const department = await prisma.department.findFirst({
+            where: { id: input.departmentId, active: true },
+            select: { id: true },
+        })
+        if (!department) return badRequest("ไม่พบหน่วยงานที่เลือก")
+    }
+
     try {
         const now = new Date()
         const priority = calculatePriority(input.impact, input.urgency)

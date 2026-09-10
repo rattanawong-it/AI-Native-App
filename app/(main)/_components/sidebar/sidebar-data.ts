@@ -20,6 +20,7 @@ import {
     Layers,
     Clock,
     CalendarDays,
+    Building2,
     type LucideIcon,
 } from "lucide-react"
 import { STAFF_ROLES, MANAGER_ROLES, ADMIN_ROLES } from "@/lib/roles"
@@ -107,6 +108,12 @@ export const sidebarData: NavSectionType[] = [
         items: [
             { title: "ผู้สนใจ (Lead)", href: "/management/lead", icon: ClipboardList },
         ],
+        allowedRoles: MANAGER,
+    },
+    {
+        // ข้อมูลองค์กร — ทะเบียนหน่วยงาน หัวหน้าขึ้นไปแก้ได้ (กลุ่ม ORG_CONFIG ใน screen-access)
+        title: "ข้อมูลองค์กร",
+        items: [{ title: "หน่วยงาน", href: "/management/departments", icon: Building2 }],
         allowedRoles: MANAGER,
     },
     {

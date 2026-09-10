@@ -4,7 +4,7 @@
 
 import { z } from "zod"
 import { IMPACT_LEVELS, URGENCY_LEVELS, PRIORITY_LEVELS } from "@/lib/priority"
-import { TICKET_STATUSES, TICKET_CHANNELS } from "@/lib/ticket-workflow"
+import { TICKET_STATUSES, TICKET_CHANNELS, DEPARTMENT_CHANNEL } from "@/lib/ticket-workflow"
 import { BREACH_FILTERS } from "@/lib/sla-service"
 
 const impactEnum = z.enum(IMPACT_LEVELS, { message: "ระดับผลกระทบไม่ถูกต้อง" })
@@ -33,6 +33,11 @@ export const createTicketSchema = z.object({
     /// แจ้งแทนผู้อื่น — เจ้าหน้าที่เท่านั้น (F1.10)
     requesterId: z.string().min(1).nullish(),
 })
+    // ช่องทาง "ติดต่อจากหน่วยงาน" ต้องบอกว่ามาจากหน่วยงานไหน ไม่งั้นแยกรายงานไม่ได้
+    .refine((v) => v.channel !== DEPARTMENT_CHANNEL || Boolean(v.departmentId), {
+        message: "กรุณาเลือกหน่วยงานที่ติดต่อมา",
+        path: ["departmentId"],
+    })
 
 export type CreateTicketInput = z.infer<typeof createTicketSchema>
 

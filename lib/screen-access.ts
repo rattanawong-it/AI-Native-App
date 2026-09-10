@@ -23,6 +23,7 @@ export type ScreenGroupKey =
     | "OPERATIONS"
     | "SDLC"
     | "CRM"
+    | "ORG_CONFIG"
     | "SERVICE_CONFIG"
     | "SYSTEM_ADMIN"
 
@@ -63,6 +64,14 @@ export const SCREEN_GROUPS: ScreenGroup[] = [
         label: "ลูกค้าสัมพันธ์",
         minRole: "manager",
         paths: ["/management/lead"],
+    },
+    {
+        // ข้อมูลองค์กร — ทะเบียนหน่วยงาน แก้ได้ตั้งแต่หัวหน้าขึ้นไป
+        // ต้องมาก่อน OPERATIONS ที่คุม /management ระดับ agent
+        key: "ORG_CONFIG",
+        label: "ข้อมูลองค์กร",
+        minRole: "manager",
+        paths: ["/management/departments"],
     },
     {
         key: "SDLC",

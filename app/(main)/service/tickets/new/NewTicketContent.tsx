@@ -7,7 +7,7 @@ import { rolesAreStaff } from "@/lib/roles"
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, Flag, Loader2, Send, UserSearch } from "lucide-react"
+import { Building2, ChevronLeft, Flag, Loader2, Send, UserSearch } from "lucide-react"
 import { toast } from "sonner"
 import { useSession } from "@/lib/auth-client"
 import { Card, CardContent } from "@/components/ui/card"
@@ -23,8 +23,13 @@ import {
     type Impact,
     type Urgency,
 } from "@/lib/priority"
-import { TICKET_CHANNELS, TICKET_CHANNEL_LABEL } from "@/lib/ticket-workflow"
+import { TICKET_CHANNELS, TICKET_CHANNEL_LABEL, DEPARTMENT_CHANNEL } from "@/lib/ticket-workflow"
 import { readError, type Category, type DirectoryAgent } from "@/lib/ticket-types"
+import {
+    departmentPath,
+    type DepartmentListResponse,
+    type DepartmentRow,
+} from "@/lib/department-types"
 
 /// เรียงระดับจากต่ำ → สูง ให้ตรงกับปุ่มเลือกในไฟล์ดีไซน์
 /// (lib/priority เก็บเรียงจากสูง → ต่ำ จึงกลับด้านเฉพาะตอนแสดงผล)
@@ -54,6 +59,11 @@ export default function NewTicketContent() {
     const [userQuery, setUserQuery] = useState("")
     const [userResults, setUserResults] = useState<DirectoryAgent[]>([])
     const [requester, setRequester] = useState<DirectoryAgent | null>(null)
+
+    // ช่องทาง "ติดต่อจากหน่วยงาน" — ต้องระบุหน่วยงานต้นทางเสมอ
+    const [deptQuery, setDeptQuery] = useState("")
+    const [deptResults, setDeptResults] = useState<DepartmentRow[]>([])
+    const [department, setDepartment] = useState<DepartmentRow | null>(null)
 
     // F2.2 — Priority คำนวณสดจาก Impact × Urgency ทุกครั้งที่เลือก
     const priority = useMemo(() => calculatePriority(impact, urgency), [impact, urgency])
@@ -86,6 +96,30 @@ export default function NewTicketContent() {
         return () => clearTimeout(timer)
     }, [onBehalf, userQuery])
 
+    // ค้นหาหน่วยงาน — รูปแบบเดียวกับช่องค้นหาผู้แจ้งข้างบน
+    useEffect(() => {
+        if (channel !== DEPARTMENT_CHANNEL || deptQuery.trim().length < 2) {
+            setDeptResults([])
+            return
+        }
+        const timer = setTimeout(async () => {
+            const res = await fetch(`/api/departments?q=${encodeURIComponent(deptQuery)}`)
+            if (res.ok) {
+                const data = (await res.json()) as DepartmentListResponse
+                setDeptResults(data.departments)
+            }
+        }, 350)
+        return () => clearTimeout(timer)
+    }, [channel, deptQuery])
+
+    // เปลี่ยนไปช่องทางอื่นแล้วต้องไม่เหลือหน่วยงานค้างติดไปกับ Ticket
+    useEffect(() => {
+        if (channel !== DEPARTMENT_CHANNEL) {
+            setDepartment(null)
+            setDeptQuery("")
+        }
+    }, [channel])
+
     /// หมวดหมู่จัดกลุ่มเป็นหมวดหลัก → หมวดย่อย ให้เลือกง่าย
     const grouped = useMemo(() => {
         const parents = categories.filter((c) => !c.parentId)
@@ -103,6 +137,8 @@ export default function NewTicketContent() {
             return toast.error("กรุณาอธิบายปัญหาอย่างน้อย 10 ตัวอักษร")
         if (!categoryId) return toast.error("กรุณาเลือกหมวดหมู่บริการ")
         if (onBehalf && !requester) return toast.error("กรุณาเลือกผู้แจ้งที่ต้องการบันทึกแทน")
+        if (isStaff && channel === DEPARTMENT_CHANNEL && !department)
+            return toast.error("กรุณาเลือกหน่วยงานที่ติดต่อมา")
 
         setSubmitting(true)
         try {
@@ -117,6 +153,8 @@ export default function NewTicketContent() {
                     urgency,
                     channel: isStaff ? channel : "web",
                     requesterId: onBehalf ? requester?.id : undefined,
+                    departmentId:
+                        isStaff && channel === DEPARTMENT_CHANNEL ? department?.id : undefined,
                 }),
             })
 
@@ -243,6 +281,72 @@ export default function NewTicketContent() {
                                                 ))}
                                             </select>
                                         </div>
+                                    </div>
+                                )}
+
+                                {/* ติดต่อจากหน่วยงาน — ต้องระบุว่าหน่วยงานไหน ไม่งั้นแยกรายงานไม่ได้ */}
+                                {onBehalf && channel === DEPARTMENT_CHANNEL && (
+                                    <div>
+                                        <Label className="mb-1.5">หน่วยงานที่ติดต่อมา</Label>
+                                        {department ? (
+                                            <div className="bg-background flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                                                <div className="text-sm">
+                                                    <span className="font-mono text-xs">
+                                                        {department.code}
+                                                    </span>{" "}
+                                                    · {department.name}
+                                                    {department.ancestors.length > 0 && (
+                                                        <span className="text-muted-foreground block text-xs">
+                                                            {departmentPath(department)}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => setDepartment(null)}
+                                                >
+                                                    เปลี่ยน
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <div className="relative">
+                                                <Building2 className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+                                                <Input
+                                                    value={deptQuery}
+                                                    onChange={(e) => setDeptQuery(e.target.value)}
+                                                    placeholder="พิมพ์รหัสหรือชื่อหน่วยงาน"
+                                                    className="pl-9"
+                                                />
+                                                {deptResults.length > 0 && (
+                                                    <div className="bg-popover absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border shadow-md">
+                                                        {deptResults.map((d) => (
+                                                            <button
+                                                                key={d.id}
+                                                                type="button"
+                                                                className="hover:bg-accent w-full px-3 py-2 text-left text-sm"
+                                                                onClick={() => {
+                                                                    setDepartment(d)
+                                                                    setDeptQuery("")
+                                                                    setDeptResults([])
+                                                                }}
+                                                            >
+                                                                <span className="font-mono text-xs">
+                                                                    {d.code}
+                                                                </span>{" "}
+                                                                · {d.name}
+                                                                {d.ancestors.length > 0 && (
+                                                                    <span className="text-muted-foreground block text-xs">
+                                                                        {departmentPath(d)}
+                                                                    </span>
+                                                                )}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
