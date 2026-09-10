@@ -4,7 +4,7 @@
 > **จัดทำโดย:** Product Manager / System Analyst / Software Architect
 > **วันที่:** 29 สิงหาคม 2569
 > **โครงการฐาน:** `ai-native/` (Next.js 16 + TypeScript + Prisma + PostgreSQL + Tailwind v4 + shadcn/ui)
-> **สถานะเอกสาร:** v1.2 — ผ่านการสัมภาษณ์เก็บ requirements แล้ว 19 ข้อ · Phase 0 เสร็จ · เพิ่ม §16 มาตรฐาน Git & Commit (1 กันยายน 2569) · เพิ่มข้อ 19 ผู้รับผิดชอบหลายคน + auto-assign ตามภาระงาน (4 กันยายน 2569)
+> **สถานะเอกสาร:** v1.3 — ผ่านการสัมภาษณ์เก็บ requirements แล้ว 19 ข้อ · Phase 0 เสร็จ · เพิ่ม §16 มาตรฐาน Git & Commit (1 กันยายน 2569) · เพิ่มข้อ 19 ผู้รับผิดชอบหลายคน + auto-assign ตามภาระงาน (4 กันยายน 2569) · เพิ่ม §19 ค้นหาผู้แจ้งจาก Google Workspace Directory (10 กันยายน 2569)
 
 ---
 
@@ -27,6 +27,7 @@
 15. [Verification Plan](#15-verification-plan)
 16. [มาตรฐาน Git & Commit Workflow](#16-git-commit-workflow)
 18. [ช่องทาง "ติดต่อจากหน่วยงาน" + ทะเบียนหน่วยงาน](#18-department-channel)
+19. [ค้นหาผู้แจ้งจาก Google Workspace Directory](#19-google-directory)
 
 ---
 
@@ -753,9 +754,12 @@ DEFAULT_TIMEZONE=Asia/Bangkok
 # Ticket numbering
 TICKET_PREFIX=TK
 REQUEST_PREFIX=RQ
+
+# ค้นหาผู้แจ้งจาก Google Workspace Directory (§19) — รับเฉพาะอีเมลโดเมนนี้
+GOOGLE_WORKSPACE_DOMAIN=krirk.ac.th
 ```
 
-> **ที่มีอยู่แล้ว:** `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `OPENAI_API_KEY`, `OPENAI_EMBEDDING_MODEL`, `SMTP_HOST`, `SMTP_PORT`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_CHANNEL_SECRET`
+> **ที่มีอยู่แล้ว:** `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `OPENAI_API_KEY`, `OPENAI_EMBEDDING_MODEL`, `SMTP_HOST`, `SMTP_PORT`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_CHANNEL_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (§19 ใช้ client ตัวเดียวกับ login ไม่ต้องเพิ่ม client ใหม่)
 
 ---
 
@@ -1070,6 +1074,101 @@ git push origin main
 2. ทดสอบสิทธิ์ระดับ role ด้วยบัญชี manager และ agent
 3. ตรวจทานชื่อหน่วยงานที่มีหมายเหตุปนและคำสะกดผิดจากต้นฉบับ (แก้ในหน้าจอได้เลย)
 4. ยังไม่มีช่องเลือกหน่วยงานในหน้าจัดการผู้ใช้ (`admin/users`) — `User.departmentId` จึงยังตั้งค่าผ่าน UI ไม่ได้
+
+---
+
+<a id="19-google-directory"></a>
+
+## 19. ค้นหาผู้แจ้งจาก Google Workspace Directory (10 กันยายน 2569)
+
+> branch `feat/itsm-google-directory`
+
+### 19.1 ที่มา
+
+ในฟอร์มแจ้งปัญหา โหมด **"บันทึกแทนผู้แจ้ง"** (F1.10) ช่อง **ผู้แจ้ง** ค้นได้เฉพาะผู้ใช้ที่มีบัญชีในระบบแล้ว
+(ประมาณ 10 คน) คนที่โทรหรือเดินมาแจ้งส่วนใหญ่จึงค้นไม่เจอ ผู้ใช้ขอให้ช่องนี้**ค้นและยืนยันตัวตนจาก
+รายชื่อบัญชี Google ของมหาวิทยาลัย** ได้ (ภาพอ้างอิง `project-ui/design-system-setup-request/project/uploads/sample_v14.png`)
+
+### 19.2 ข้อตกลง
+
+| # | ประเด็น | ข้อสรุป |
+|---|---|---|
+| 1 | Google client | **ใช้ client ตัวเดิมที่ใช้ login อยู่** (สร้างใต้โดเมน krirk.ac.th อยู่แล้ว) — ไม่เพิ่ม client ใหม่ ไม่แก้ `GOOGLE_CLIENT_ID/SECRET` |
+| 2 | วิธีดึงรายชื่อ | **People API `people:searchDirectoryPeople`** ด้วย access token ของเจ้าหน้าที่ที่กดค้นเอง · scope `https://www.googleapis.com/auth/directory.readonly` |
+| 3 | การขอสิทธิ์ | ขอเพิ่มแบบ **incremental** เฉพาะเจ้าหน้าที่ที่กดปุ่ม "เชื่อมต่อบัญชี Google" (`authClient.linkSocial`) — ผู้ใช้ทั่วไป/นักศึกษาที่ login ปกติ**ไม่เห็นหน้าขอสิทธิ์นี้** |
+| 4 | ผู้แจ้งยังไม่มีบัญชี | **สร้าง User ให้อัตโนมัติ** (`role = user`, `emailVerified = true`) เมื่อคนนั้น login ด้วย Google ทีหลัง Better Auth จะผูกบัญชีให้เองเพราะอีเมลตรงกัน (`accountLinking.trustedProviders` มี `google`) และเขาจะเห็น Ticket ของตัวเอง |
+| 5 | สิทธิ์ | ค้นได้เฉพาะ **agent ขึ้นไป** เหมือนการค้นผู้ใช้เดิม (§7) |
+
+**เหตุผลที่ไม่ใช้ Admin SDK + service account:** ต้องให้ super admin ของ Workspace ตั้ง domain-wide delegation
+และต้องเก็บ key ของ service account เพิ่ม ส่วน People API แบบ token รายคนใช้สิทธิ์ของเจ้าหน้าที่แต่ละคนเอง
+เห็นเท่าที่คนในโดเมนเห็นกันอยู่แล้ว และไม่ต้องเพิ่ม dependency (เรียก REST ด้วย `fetch` ไม่ใช้แพ็กเกจ `googleapis`)
+
+### 19.3 สิ่งที่เปลี่ยน
+
+| กลุ่ม | ไฟล์ | สิ่งที่ทำ |
+|---|---|---|
+| Auth **[M4]** | `lib/auth.ts` | `socialProviders.google` เพิ่ม `accessType: "offline"` เพื่อให้ได้ refresh token ตอนเชื่อมต่อ (ไม่เปลี่ยน client ไม่เพิ่ม scope ตอน login ปกติ) |
+| Service ใหม่ | `lib/google-directory.ts` | `getDirectoryToken()` ตรวจว่าผูก Google + มี scope แล้วดึง token ผ่าน `auth.api.getAccessToken` (ต่ออายุให้เอง) · `searchDirectory()` เรียก People API แล้วกรองเฉพาะอีเมล `@GOOGLE_WORKSPACE_DOMAIN` · `ensureRequesterFromDirectory()` หา/สร้างบัญชีผู้แจ้ง |
+| API รายชื่อ | `app/api/directory/route.ts` | เพิ่ม `?scope=google&q=` → `{ status, people }` · ติด `userId` ให้คนที่มีบัญชีแล้ว · ปัญหาฝั่ง Google คืนเป็น `status` (HTTP 200) ไม่ทำให้การค้นในระบบพัง |
+| Types | `lib/ticket-types.ts` | `DIRECTORY_SCOPE`, `DirectoryStatus`, `DirectoryPerson`, `GoogleDirectoryResponse` |
+| Validation | `lib/ticket-schema.ts` | `createTicketSchema` เพิ่ม `requesterEmail` · `.refine()` ห้ามส่งพร้อม `requesterId` |
+| API Ticket | `app/api/tickets/route.ts` | ถ้าเจ้าหน้าที่ส่ง `requesterEmail` → หา/สร้างบัญชีหลังตรวจหมวดหมู่และหน่วยงานผ่านแล้ว · activity note `บันทึกแทนผู้แจ้ง · สร้างบัญชีจาก Google Directory` |
+| ฟอร์ม | `app/(main)/service/tickets/new/NewTicketContent.tsx` | ค้นในระบบกับ Google พร้อมกัน · dropdown แบ่ง 2 กลุ่ม "ในระบบ" / "จากรายชื่อ Google ของมหาวิทยาลัย" (ตัดคนที่ซ้ำออก) · ป้าย "ยังไม่มีบัญชี" · แถบ + ปุ่ม "เชื่อมต่อบัญชี Google" ใต้ช่องเมื่อยังค้น Google ไม่ได้ |
+| Env **[M13]** | `.env` · `.env.production` · `.env.example` | เพิ่ม `GOOGLE_WORKSPACE_DOMAIN="krirk.ac.th"` |
+
+**ไม่แตะ schema** — ใช้ฟิลด์ `User` ที่มีอยู่ (`name`, `email`, `image`, `position`, `employeeCode`, `emailVerified`) และ token ในตาราง `account` ของ Better Auth
+
+**กติกาที่บังคับในโค้ด**
+1. ข้อมูลที่ใช้สร้างบัญชีมาจาก Google ที่ **server ค้นซ้ำเองด้วยอีเมลตรงตัว** เท่านั้น ไม่เชื่อชื่อ/อีเมลที่ client ส่งมา — เจ้าหน้าที่สร้างบัญชีนอกรายชื่อมหาวิทยาลัยไม่ได้
+2. รับเฉพาะอีเมลโดเมน `GOOGLE_WORKSPACE_DOMAIN` ทั้งตอนแสดงผลและตอนสร้างบัญชี
+3. อีเมลที่มีบัญชีอยู่แล้ว (ไม่สนตัวพิมพ์เล็ก/ใหญ่) ใช้บัญชีเดิม ไม่สร้างซ้ำ · สร้างชนกันพร้อมกัน (P2002) → อ่านบัญชีที่เพิ่งถูกสร้างมาใช้
+4. คำขอที่ไม่ผ่าน validation (หมวดหมู่/หน่วยงานไม่ถูกต้อง) ต้องไม่เหลือบัญชีค้างในระบบ
+5. `include_granted_scopes=true` (Better Auth ใส่ให้เสมอ) — login ด้วย Google ปกติรอบถัดไปจึงไม่ทำให้สิทธิ์อ่านรายชื่อหายไป
+
+### 19.4 ขั้นตอนตั้งค่าที่ต้องทำเองใน Google (ทำครั้งเดียว)
+
+- [ ] **Google Cloud Console → project ของ client ที่ใช้ login อยู่**
+  - [ ] APIs & Services → Library → เปิด **Google People API**
+  - [ ] OAuth consent screen → ตรวจว่า User type = **Internal** (ถ้าเป็น External scope นี้นับเป็น sensitive ต้องผ่านการตรวจแอปของ Google ก่อน)
+  - [ ] Data access → Add or remove scopes → เพิ่ม `https://www.googleapis.com/auth/directory.readonly`
+- [ ] **Google Admin console (ผู้ดูแล Workspace)** → Directory → Directory settings → Sharing settings → **Contact sharing = เปิด** (ปกติเปิดอยู่แล้ว ถ้าปิดอยู่ ผลค้นหาจะว่าง)
+- [ ] redirect URI เดิม (`<โดเมน>/api/auth/callback/google`) **ไม่ต้องแก้**
+- [ ] client อีกตัวที่สร้างเพิ่มไว้แต่ไม่ได้ใช้ → **ลบทิ้ง** ใน Credentials (secret ถูกส่งผ่านแชทไปแล้ว ไม่ควรเก็บไว้)
+- [ ] ถ้า deploy Vercel → เพิ่ม `GOOGLE_WORKSPACE_DOMAIN` ใน env ของ Vercel ด้วย
+
+### 19.5 วิธีใช้งาน (เจ้าหน้าที่)
+
+1. เปิด **แจ้งปัญหาใหม่** → ติ๊ก **บันทึกแทนผู้แจ้ง**
+2. ครั้งแรกจะเห็นแถบ *"ค้นจากรายชื่อบุคลากรใน Google ของมหาวิทยาลัยได้ด้วย"* → กด **เชื่อมต่อบัญชี Google** → อนุญาต → ระบบพากลับมาหน้าเดิม
+   (ต้องใช้บัญชี Google อีเมลเดียวกับที่ login ระบบอยู่ · ข้อมูลที่กรอกค้างไว้ในฟอร์มจะหาย ควรเชื่อมต่อก่อนกรอก)
+3. พิมพ์ชื่อหรืออีเมลอย่างน้อย 2 ตัวอักษร → dropdown แสดงทั้งผู้ใช้ในระบบ และบุคลากรจาก Google
+4. เลือกคนที่มีป้าย **"ยังไม่มีบัญชี"** ได้เลย ระบบจะสร้างบัญชีให้ตอนกดส่ง
+
+### 19.6 ผลทดสอบ (10 กันยายน 2569)
+
+เกต §16.4: G1 · G4 (`tsc` 0 error) · G5 (0 error ในไฟล์ที่แตะ) · G6 (`pnpm build` ผ่าน) · G2/G3 ข้ามเพราะไม่แตะ schema
+
+| # | สิ่งที่ทดสอบ | ผล |
+|---|---|---|
+| 1 | ไม่ login เรียก `GET /api/directory?scope=google` และ `POST /api/tickets` พร้อม `requesterEmail` | ✅ 401 ทั้งสองเส้น |
+| 2 | ติ๊ก "บันทึกแทนผู้แจ้ง" ด้วยบัญชีที่ยังไม่ได้อนุญาต scope | ✅ ขึ้นแถบ "ค้นจากรายชื่อบุคลากรใน Google…" + ปุ่ม **เชื่อมต่อบัญชี Google** |
+| 3 | ค้น "ra" | ✅ ยิง `scope=users` กับ `scope=google` พร้อมกัน (200 ทั้งคู่) · dropdown ขึ้นหัวกลุ่ม "ในระบบ" แสดงผู้ใช้เดิมถูกต้อง · ค้นในระบบไม่พังแม้ Google ยังใช้ไม่ได้ |
+| 4 | กดเชื่อมต่อบัญชี Google (ผู้ใช้กดเอง) | ✅ Google อนุญาต `directory.readonly` (`hd=krirk.ac.th`) · ตาราง `account` มี scope ครบ + มี **refresh token** |
+| 5 | ค้นก่อนเปิด People API | ✅ Google ตอบ 403 `SERVICE_DISABLED` → หน้าจอขึ้น "ค้นรายชื่อจาก Google ไม่ได้ในขณะนี้" · ค้นในระบบยังใช้ได้ (ไม่มี error 500) |
+| 6 | ค้น "som" หลังเปิด People API | ✅ ขึ้นกลุ่ม "จากรายชื่อ Google ของมหาวิทยาลัย" พร้อมป้าย "ยังไม่มีบัญชี" + ตำแหน่ง/หน่วยงาน (ถ้า Google มีข้อมูล) |
+| 7 | ค้น "rattana" | ✅ ผู้ที่มีบัญชีแล้วขึ้นเฉพาะกลุ่ม "ในระบบ" **ไม่ซ้ำ** ในกลุ่ม Google |
+| 8 | ค้นด้วยรหัสนักศึกษา `65110261` | ✅ เจอ (Google จับคู่กับส่วนหน้าของอีเมล) |
+| 9 | ค้นชื่อภาษาไทย "สมชาย" | ⚠️ Google คืนผลว่าง (ไม่ error) — **ชื่อใน Directory ของมหาวิทยาลัยเป็นภาษาอังกฤษ** ต้องค้นด้วยชื่ออังกฤษ อีเมล หรือรหัส |
+| 10 | เลือกคนจาก Google | ✅ ช่องผู้แจ้งขึ้น "ยังไม่มีบัญชี — ระบบจะสร้างให้เมื่อบันทึก" · ปุ่ม "เปลี่ยน" ล้างค่าได้ (ไม่ได้กดส่ง) |
+
+**ยังไม่ได้ทดสอบ:** กดส่ง Ticket จริงเพื่อสร้างบัญชีผู้แจ้งอัตโนมัติ — เขียนลง Neon และส่งแจ้งเตือนถึงคนจริง ต้องตกลงกับผู้ใช้ก่อน
+
+### 19.7 ของค้าง
+
+1. ~~ผู้ใช้ต้องตั้งค่า Google ตาม §19.4 ก่อน~~ — **เปิด People API + เชื่อมต่อแล้ว (10 ก.ย. 2569)** ค้นได้จริง
+2. ทดสอบการสร้างบัญชีจริง — จะเขียนลง Neon (DB จริง) และส่งแจ้งเตือนถึงคนจริง ต้องตกลงกับผู้ใช้ก่อนว่าจะใช้อีเมลของใคร แล้วลบ Ticket/บัญชีทดสอบทิ้ง
+3. ยังไม่ได้ map `department` จาก Google เข้ากับทะเบียนหน่วยงาน (§18) — ชื่อหน่วยงานใน Google เป็นข้อความอิสระ จับคู่กับรหัส 6 หลักไม่ได้ตรงๆ
+4. ค้นด้วยชื่อภาษาไทยไม่เจอคนจาก Google เพราะ Directory เก็บชื่อภาษาอังกฤษ — พิจารณาเพิ่มคำแนะนำใต้ช่องเมื่อพิมพ์ภาษาไทยแล้วไม่พบใน Google
 
 ---
 

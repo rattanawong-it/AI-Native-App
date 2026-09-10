@@ -77,6 +77,9 @@ export const auth = betterAuth({
         google: {
             clientId: process.env.GOOGLE_CLIENT_ID as string,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+            // ขอ refresh token ไว้ด้วย — เจ้าหน้าที่ที่เชื่อมต่อสิทธิ์อ่านรายชื่อบุคลากร (spec §19)
+            // จะค้นผู้แจ้งจาก Google Directory ได้ต่อเนื่องโดยไม่ต้องเชื่อมต่อใหม่ทุกชั่วโมง
+            accessType: "offline",
         },
         line: {
             clientId: process.env.LINE_CLIENT_ID as string,
