@@ -46,5 +46,8 @@ next-env.d.ts
 # ITSM — ไฟล์ที่ผู้ใช้อัปโหลด (UPLOAD_DIR) ห้าม commit ตาม spec §16.5 ข้อ 6
 /uploads/
 
+# ไฟล์สำรองฐานข้อมูล (pg_dump) — มีข้อมูลผู้ใช้จริง ห้าม commit
+/backupdb/
+
 # ไฟล์ทดสอบ curl — เคยถูก track โดยไม่ตั้งใจ
 cookies.txt
