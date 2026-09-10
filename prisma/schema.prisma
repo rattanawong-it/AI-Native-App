@@ -231,20 +231,29 @@ model LineGroup {
 // 5.1 Master Data / ตั้งค่า
 // ------------------------------------------------------------------
 
-/// หน่วยงาน / คณะ / สำนัก ที่ผู้ใช้สังกัด
+/// หน่วยงาน / คณะ / สำนัก ที่ผู้ใช้สังกัด — รองรับหน่วยงานย่อยด้วย self-relation
+/// รหัสงานสารบรรณของมหาวิทยาลัยเป็นเลข 6 หลักที่บอกลำดับชั้นในตัว
+/// เช่น 010000 สำนักอธิการบดี › 010100 ฝ่ายบริหารทั่วไป › 010103 งานสารบรรณ
 model Department {
-  id     String  @id @default(cuid())
-  name   String
-  code   String  @unique // รหัสหน่วยงาน เช่น "OIT"
-  active Boolean @default(true)
+  id       String  @id @default(cuid())
+  name     String
+  code     String  @unique // รหัสหน่วยงาน เช่น "010103" หรือ "OIT"
+  parentId String? // null = หน่วยงานระดับบนสุด
+  level    Int     @default(1) // 1=สำนัก/คณะ 2=ฝ่าย 3=งาน
+  active   Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  parent   Department?  @relation("DepartmentTree", fields: [parentId], references: [id])
+  children Department[] @relation("DepartmentTree")
 
   users   User[]
   tickets Ticket[]
   assets  Asset[]
 
+  @@index([parentId])
+  @@index([active, code])
   @@map("department")
 }
 

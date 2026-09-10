@@ -16,8 +16,14 @@ export const TICKET_STATUSES = [
 
 export type TicketStatus = (typeof TICKET_STATUSES)[number]
 
+/// ค่า "walkin" เดิมหมายถึง "ติดต่อด้วยตนเอง" ต่อมาเปลี่ยนความหมายเป็น
+/// "ติดต่อจากหน่วยงาน" ซึ่งต้องระบุหน่วยงานต้นทางด้วย (ดู DEPARTMENT_CHANNEL ข้างล่าง)
+/// คงค่าที่เก็บใน DB ไว้เป็น "walkin" เหมือนเดิมเพื่อไม่ต้องแก้ข้อมูล Ticket เก่า
 export const TICKET_CHANNELS = ["web", "line", "email", "phone", "walkin"] as const
 export type TicketChannel = (typeof TICKET_CHANNELS)[number]
+
+/// ช่องทางที่บังคับให้ระบุหน่วยงานต้นทาง — ใช้ร่วมกันทั้งฝั่งฟอร์มและฝั่ง API
+export const DEPARTMENT_CHANNEL: TicketChannel = "walkin"
 
 /// ตารางการเปลี่ยนสถานะที่ถูกต้อง — key คือสถานะปัจจุบัน (F2.6)
 const TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
@@ -82,7 +88,7 @@ export const TICKET_CHANNEL_LABEL: Record<TicketChannel, string> = {
     line: "LINE",
     email: "อีเมล",
     phone: "โทรศัพท์",
-    walkin: "ติดต่อด้วยตนเอง",
+    walkin: "ติดต่อจากหน่วยงาน",
 }
 
 // ── ชนิดของ activity ที่บันทึกลง TicketActivity (audit log) ───────────
