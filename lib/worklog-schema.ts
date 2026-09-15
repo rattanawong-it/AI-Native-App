@@ -56,6 +56,8 @@ export const listTodosQuerySchema = z.object({
     /// pending = ยังไม่เสร็จ · done = เสร็จแล้ว · all = ทั้งหมด
     state: z.enum(["pending", "done", "all"]).default("pending"),
     q: z.string().trim().max(200).optional(),
+    /// ดูงานส่วนตัวของคนอื่น — admin เท่านั้น แบบอ่านอย่างเดียว (spec §20) · ไม่ใส่ = ของตัวเอง
+    ownerId: z.string().min(1).optional(),
     page: z.coerce.number().int().min(1).default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(20),
 })
@@ -139,6 +141,8 @@ export const workLogSummaryQuerySchema = z.object({
     period: z.enum(["day", "week", "month"]).default("week"),
     /// team = สรุปรายคนทั้งทีม (หัวหน้าขึ้นไป — F3.8) · own = ของตัวเอง (F3.7)
     scope: z.enum(["own", "team"]).default("own"),
+    /// ใช้คู่กับ scope=own เพื่อสรุปของคนอื่น — admin เท่านั้น (spec §20)
+    userId: z.string().min(1).optional(),
 })
 export type WorkLogSummaryQuery = z.infer<typeof workLogSummaryQuerySchema>
 
@@ -151,6 +155,8 @@ export const myWorkQuerySchema = z.object({
     state: z.enum(["open", "done", "overdue", "today"]).default("open"),
     q: z.string().trim().max(200).optional(),
     limit: z.coerce.number().int().min(1).max(200).default(100),
+    /// ดู My Work ของคนอื่น — admin เท่านั้น แบบอ่านอย่างเดียว (spec §20) · ไม่ใส่ = ของตัวเอง
+    userId: z.string().min(1).optional(),
 })
 export type MyWorkQuery = z.infer<typeof myWorkQuerySchema>
 

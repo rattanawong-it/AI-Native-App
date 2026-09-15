@@ -179,6 +179,8 @@ export interface WorkItem {
     /// ข้อความบริบทเพิ่ม เช่น ชื่อหมวดหมู่ / ชื่อโครงการ
     context: string | null
     updatedAt: string
+    /// นาทีรวมที่เจ้าของรายการลงเวลาไว้กับงานนี้ — เติมด้วย `attachLoggedMinutes()` (spec §20)
+    loggedMinutes: number
 }
 
 /// เรียงงานรวม: ยังไม่เสร็จมาก่อน → ครบกำหนดเร็วกว่ามาก่อน → priority สูงกว่ามาก่อน (F3.2)
@@ -365,6 +367,7 @@ export async function loadWorkItems(
         href: `/service/tickets/${t.id}`,
         context: t.category.name,
         updatedAt: t.updatedAt.toISOString(),
+        loggedMinutes: 0,
     }))
 
     const taskItems: WorkItem[] = tasks.map((t) => ({
@@ -380,6 +383,7 @@ export async function loadWorkItems(
         href: `/management/projects/${t.projectId}?task=${t.id}`,
         context: t.project.name,
         updatedAt: t.updatedAt.toISOString(),
+        loggedMinutes: 0,
     }))
 
     const todoItems: WorkItem[] = todos.map((t) => ({
@@ -394,7 +398,42 @@ export async function loadWorkItems(
         href: null,
         context: t.note,
         updatedAt: t.updatedAt.toISOString(),
+        loggedMinutes: 0,
     }))
 
     return [...ticketItems, ...taskItems, ...todoItems]
+}
+
+/// เติม `loggedMinutes` = นาทีที่ `userId` ลงเวลาไว้กับแต่ละงาน (spec §20)
+///
+/// แยกจาก `loadWorkItems()` เพราะแดชบอร์ดใช้แค่นับจำนวน ไม่ต้องจ่าย query นี้
+/// เรียกหลังตัดรายการที่จะแสดงแล้ว — groupBy ครั้งเดียวครอบทั้งสามประเภท
+export async function attachLoggedMinutes(userId: string, items: WorkItem[]): Promise<WorkItem[]> {
+    if (items.length === 0) return items
+
+    const idsOf = (kind: WorkItem["kind"]) => items.filter((i) => i.kind === kind).map((i) => i.id)
+    const rows = await prisma.workLog.groupBy({
+        by: ["ticketId", "taskId", "todoId"],
+        where: {
+            userId,
+            OR: [
+                { ticketId: { in: idsOf("ticket") } },
+                { taskId: { in: idsOf("task") } },
+                { todoId: { in: idsOf("todo") } },
+            ],
+        },
+        _sum: { minutes: true },
+    })
+
+    const minutesOf = new Map<string, number>()
+    for (const r of rows) {
+        const key = r.ticketId
+            ? `ticket:${r.ticketId}`
+            : r.taskId
+              ? `task:${r.taskId}`
+              : `todo:${r.todoId}`
+        minutesOf.set(key, (minutesOf.get(key) ?? 0) + (r._sum.minutes ?? 0))
+    }
+
+    return items.map((i) => ({ ...i, loggedMinutes: minutesOf.get(`${i.kind}:${i.id}`) ?? 0 }))
 }

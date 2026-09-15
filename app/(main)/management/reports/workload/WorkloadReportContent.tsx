@@ -14,6 +14,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useSession } from "@/lib/auth-client"
+import { rolesAreAdmin } from "@/lib/roles"
 import { readError, formatThaiDate } from "@/lib/ticket-types"
 import { formatMinutes, type WorkLogSummary } from "@/lib/worklog-types"
 
@@ -31,6 +33,11 @@ function todayInput(): string {
 }
 
 export default function WorkloadReportContent() {
+    const { data: session } = useSession()
+    // admin กดชื่อเพื่อเข้าไปตรวจสอบ My Work ของคนนั้นได้ (spec §20)
+    const isAdmin = rolesAreAdmin(
+        ((session?.user as { role?: string })?.role || "user").split(",").map((r) => r.trim())
+    )
     const [period, setPeriod] = useState<Period>("week")
     const [date, setDate] = useState(todayInput())
     const [data, setData] = useState<WorkLogSummary | null>(null)
@@ -188,7 +195,17 @@ export default function WorkloadReportContent() {
                                     (i > 0 ? " border-t" : "")
                                 }
                             >
-                                <span className="truncate text-sm font-medium">{u.label}</span>
+                                {isAdmin ? (
+                                    <Link
+                                        href={`/service/my-work?userId=${encodeURIComponent(u.key)}`}
+                                        className="truncate text-sm font-medium underline-offset-2 hover:underline"
+                                        title="ตรวจสอบ My Work ของเจ้าหน้าที่คนนี้"
+                                    >
+                                        {u.label}
+                                    </Link>
+                                ) : (
+                                    <span className="truncate text-sm font-medium">{u.label}</span>
+                                )}
                                 <span className="text-right text-sm">{formatMinutes(u.minutes)}</span>
                                 <span className="text-muted-foreground text-right text-sm">
                                     {u.openTickets}

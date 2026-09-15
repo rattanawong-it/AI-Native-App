@@ -33,7 +33,7 @@ import {
     PersonChip,
 } from "@/components/ticket/ticket-badges"
 import { PRIORITY_LEVELS, PRIORITY_LABEL, type Priority } from "@/lib/priority"
-import { TICKET_STATUSES, TICKET_STATUS_LABEL } from "@/lib/ticket-workflow"
+import { OPEN_STATUSES, TICKET_STATUSES, TICKET_STATUS_LABEL } from "@/lib/ticket-workflow"
 import {
     readError,
     type Category,
@@ -43,10 +43,19 @@ import {
 
 const PAGE_SIZE = 20
 
-/// ตัวกรองสถานะแบบปุ่มเดียว — ตรงกับไฟล์ดีไซน์
+/// ตัวกรองสถานะแบบปุ่มเดียว — เปิดหน้ามาที่ "แจ้งใหม่" ส่วน "ทั้งหมด" ย้ายไปท้ายสุด (spec §20)
+/// "ยังไม่เสร็จ" = OPEN_STATUSES ส่งเป็น comma ให้ API กรองหลายสถานะในครั้งเดียว
+const DEFAULT_STATUS = "new"
+const OPEN_KEY = "open"
+
 const STATUS_TABS: { key: string; label: string }[] = [
+    { key: "new", label: TICKET_STATUS_LABEL.new },
+    { key: OPEN_KEY, label: "ยังไม่เสร็จ" },
+    ...TICKET_STATUSES.filter((s) => s !== "new").map((s) => ({
+        key: s,
+        label: TICKET_STATUS_LABEL[s],
+    })),
     { key: "all", label: "ทั้งหมด" },
-    ...TICKET_STATUSES.map((s) => ({ key: s, label: TICKET_STATUS_LABEL[s] })),
 ]
 
 export default function TicketListContent() {
@@ -67,13 +76,14 @@ export default function TicketListContent() {
     // ── ฟิลเตอร์ ──
     const [search, setSearch] = useState("")
     const [debouncedSearch, setDebouncedSearch] = useState("")
-    const [status, setStatus] = useState("all")
+    const [status, setStatus] = useState(DEFAULT_STATUS)
     const [priority, setPriority] = useState("all")
     const [categoryId, setCategoryId] = useState("all")
     const [assigneeId, setAssigneeId] = useState("all")
     const [from, setFrom] = useState("")
     const [to, setTo] = useState("")
-    const [sort, setSort] = useState("queue")
+    // Ticket ล่าสุดขึ้นก่อน (spec §20) — ยังเลือกเรียงตามคิวงานได้จาก dropdown
+    const [sort, setSort] = useState("newest")
     const [page, setPage] = useState(1)
 
     // หน่วงการค้นหาไว้ 350ms กันยิง API ทุกตัวอักษร (F1.11)
@@ -97,7 +107,8 @@ export default function TicketListContent() {
     const queryString = useMemo(() => {
         const params = new URLSearchParams()
         if (debouncedSearch) params.set("q", debouncedSearch)
-        if (status !== "all") params.set("status", status)
+        if (status === OPEN_KEY) params.set("status", OPEN_STATUSES.join(","))
+        else if (status !== "all") params.set("status", status)
         if (priority !== "all") params.set("priority", priority)
         if (categoryId !== "all") params.set("categoryId", categoryId)
         if (assigneeId !== "all") params.set("assigneeId", assigneeId)
@@ -176,7 +187,7 @@ export default function TicketListContent() {
 
     const activeFilters =
         (debouncedSearch ? 1 : 0) +
-        (status !== "all" ? 1 : 0) +
+        (status !== DEFAULT_STATUS ? 1 : 0) +
         (priority !== "all" ? 1 : 0) +
         (categoryId !== "all" ? 1 : 0) +
         (assigneeId !== "all" ? 1 : 0) +
@@ -185,7 +196,7 @@ export default function TicketListContent() {
 
     const resetFilters = () => {
         setSearch("")
-        setStatus("all")
+        setStatus(DEFAULT_STATUS)
         setPriority("all")
         setCategoryId("all")
         setAssigneeId("all")
@@ -238,7 +249,7 @@ export default function TicketListContent() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard
                     icon={<TicketIcon className="size-5" />}
-                    label="ทั้งหมด"
+                    label="ตรงตามตัวกรอง"
                     value={total}
                     tone="bg-brand-tint text-brand"
                 />
@@ -279,8 +290,8 @@ export default function TicketListContent() {
                         onChange={(e) => filterSetter(setSort)(e.target.value)}
                         className="border-input bg-background h-9 rounded-md border px-3 text-sm"
                     >
-                        <option value="queue">เรียงตามคิวงาน</option>
                         <option value="newest">ใหม่สุดก่อน</option>
+                        <option value="queue">เรียงตามคิวงาน</option>
                         <option value="oldest">เก่าสุดก่อน</option>
                         <option value="due">ใกล้ครบกำหนดก่อน</option>
                     </select>

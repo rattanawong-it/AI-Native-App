@@ -8,8 +8,14 @@ export const metadata: Metadata = {
     keywords: ["My Work", "งานของฉัน", "To-do", "Time Log", "ศูนย์ไอที"],
 }
 
-export default async function MyWorkPage() {
+export default async function MyWorkPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ userId?: string }>
+}) {
     // กลุ่ม 4 งานเจ้าหน้าที่ — /service ที่เหลือเปิดให้ทุก role จึงกันที่หน้านี้เอง
     await requireScreen("STAFF_WORK")
-    return <MyWorkContent />
+    // ?userId= ให้ admin เปิดตรวจสอบ My Work ของผู้อื่น — API ตรวจสิทธิ์ซ้ำทุกเส้น (spec §20)
+    const { userId } = await searchParams
+    return <MyWorkContent initialUserId={userId} />
 }

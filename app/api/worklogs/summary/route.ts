@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { Prisma } from "@/app/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
-import { requireRole, badRequest, forbidden, isManager, STAFF_ROLES } from "@/lib/rbac"
+import { requireRole, badRequest, forbidden, isAdmin, isManager, STAFF_ROLES } from "@/lib/rbac"
 import { firstIssueMessage, searchParamsToObject } from "@/lib/ticket-schema"
 import { WORKLOG_REF_LABEL, workLogSummaryQuerySchema, type WorkLogRefType } from "@/lib/worklog-schema"
 import { daysInRange, summaryRange } from "@/lib/worklog-service"
@@ -30,11 +30,15 @@ export async function GET(request: NextRequest) {
     if (query.scope === "team" && !isManager(user)) {
         return forbidden("ดูภาระงานของทีมได้เฉพาะหัวหน้าขึ้นไป")
     }
+    // scope=own ของคนอื่น — admin ตรวจสอบ My Work ของผู้อื่น (spec §20)
+    if (query.userId && query.userId !== user.id && !isAdmin(user)) {
+        return forbidden("ดูสรุปเวลาทำงานของผู้อื่นได้เฉพาะผู้ดูแลระบบ")
+    }
 
     const range = summaryRange(query.date ?? thaiToday(), query.period)
     const where: Prisma.WorkLogWhereInput = {
         workDate: { gte: utcDate(range.from), lte: utcDate(range.to) },
-        ...(query.scope === "own" ? { userId: user.id } : {}),
+        ...(query.scope === "own" ? { userId: query.userId ?? user.id } : {}),
     }
 
     try {
