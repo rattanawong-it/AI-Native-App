@@ -85,7 +85,16 @@ function emptyForm(): FormState {
     }
 }
 
-export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
+export default function TimeLogPanel({
+    onChanged,
+    userId,
+    readOnly = false,
+}: {
+    onChanged: () => void
+    /// เจ้าของบันทึกเวลาที่จะดู — ไม่ใส่ = ของตัวเอง (admin ดูของคนอื่นได้ spec §20)
+    userId?: string
+    readOnly?: boolean
+}) {
     const [period, setPeriod] = useState<Period>("week")
     const [summary, setSummary] = useState<WorkLogSummary | null>(null)
     const [logs, setLogs] = useState<WorkLogRow[]>([])
@@ -103,8 +112,9 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
     const load = useCallback(async () => {
         setLoading(true)
         try {
+            const userQuery = userId ? `&userId=${encodeURIComponent(userId)}` : ""
             const summaryRes = await fetch(
-                `/api/worklogs/summary?period=${period}&scope=own`
+                `/api/worklogs/summary?period=${period}&scope=own${userQuery}`
             )
             if (!summaryRes.ok) {
                 toast.error(await readError(summaryRes, "ไม่สามารถสรุปเวลาทำงานได้"))
@@ -114,7 +124,7 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
             setSummary(s)
 
             const listRes = await fetch(
-                `/api/worklogs?from=${s.range.from}&to=${s.range.to}&pageSize=100`
+                `/api/worklogs?from=${s.range.from}&to=${s.range.to}&pageSize=100${userQuery}`
             )
             if (!listRes.ok) {
                 toast.error(await readError(listRes, "ไม่สามารถโหลดบันทึกเวลาได้"))
@@ -128,14 +138,16 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
         } finally {
             setLoading(false)
         }
-    }, [period])
+    }, [period, userId])
 
     useEffect(() => {
         void load()
     }, [load])
 
     // โหลดรายการงานไว้ล่วงหน้าครั้งเดียว — ฟอร์มเปิดแล้วเลือกได้ทันทีไม่ต้องรอ
+    // โหมดอ่านอย่างเดียวไม่มีฟอร์ม จึงไม่ต้องโหลด
     useEffect(() => {
+        if (readOnly) return
         void (async () => {
             try {
                 const res = await fetch("/api/my-work?kind=all&state=open&limit=200")
@@ -144,7 +156,7 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
                 // เลือกงานไม่ได้ก็ยังบันทึกแบบ "งานประจำ" ได้ จึงไม่ต้องเตือน
             }
         })()
-    }, [])
+    }, [readOnly])
 
     /// ตัวเลือกงานที่ตรงกับประเภทที่เลือกอยู่
     const refOptions = useMemo(
@@ -251,10 +263,12 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
                         </button>
                     ))}
                 </div>
-                <Button onClick={openCreate}>
-                    <Plus className="size-4" />
-                    บันทึกเวลาทำงาน
-                </Button>
+                {!readOnly && (
+                    <Button onClick={openCreate}>
+                        <Plus className="size-4" />
+                        บันทึกเวลาทำงาน
+                    </Button>
+                )}
             </div>
 
             {/* สรุปเวลาทำงาน (F3.7) */}
@@ -402,7 +416,7 @@ export default function TimeLogPanel({ onChanged }: { onChanged: () => void }) {
                                         )}
                                     </p>
                                 </div>
-                                <div className="flex shrink-0 gap-1">
+                                <div className={readOnly ? "hidden" : "flex shrink-0 gap-1"}>
                                     <Button variant="ghost" size="icon" onClick={() => openEdit(log)}>
                                         <Pencil className="size-4" />
                                         <span className="sr-only">แก้ไข</span>

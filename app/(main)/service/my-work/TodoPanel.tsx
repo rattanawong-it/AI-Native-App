@@ -3,7 +3,7 @@
 // แท็บ "งานส่วนตัว" ของหน้า My Work — เพิ่ม/แก้/ลบ/ติ๊กเสร็จ
 // อ้างอิง F3.3 (CRUD TodoItem) และ F3.4 (ติ๊กเสร็จ + บันทึก doneAt)
 //
-// งานส่วนตัวเป็นของเจ้าตัวคนเดียว ไม่มีใครเห็นของใคร — ฝั่ง API บังคับ `ownerId = me` ทุกเส้น
+// เพิ่ม/แก้/ลบได้เฉพาะเจ้าของ — admin ส่ง `userId` มาเพื่อดูของคนอื่นแบบ `readOnly` (spec §20)
 
 import { useCallback, useEffect, useState } from "react"
 import { Plus, Pencil, Trash2, Loader2, ListTodo, CheckCircle2 } from "lucide-react"
@@ -36,7 +36,7 @@ import {
 import { PriorityBadge } from "@/components/ticket/ticket-badges"
 import { PRIORITY_LEVELS, PRIORITY_LABEL, type Priority } from "@/lib/priority"
 import { readError, formatThaiDate } from "@/lib/ticket-types"
-import type { TodoListResponse, TodoRow } from "@/lib/worklog-types"
+import { formatMinutes, type TodoListResponse, type TodoRow } from "@/lib/worklog-types"
 
 const STATE_TABS = [
     { key: "pending", label: "ค้างอยู่" },
@@ -63,7 +63,16 @@ function toDateInput(iso: string | null): string {
     return new Date(d.getTime() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10)
 }
 
-export default function TodoPanel({ onChanged }: { onChanged: () => void }) {
+export default function TodoPanel({
+    onChanged,
+    userId,
+    readOnly = false,
+}: {
+    onChanged: () => void
+    /// เจ้าของงานที่จะดู — ไม่ใส่ = ของตัวเอง
+    userId?: string
+    readOnly?: boolean
+}) {
     const [state, setState] = useState<string>("pending")
     const [todos, setTodos] = useState<TodoRow[]>([])
     const [loading, setLoading] = useState(true)
@@ -76,7 +85,9 @@ export default function TodoPanel({ onChanged }: { onChanged: () => void }) {
     const load = useCallback(async () => {
         setLoading(true)
         try {
-            const res = await fetch(`/api/todos?state=${state}&pageSize=100`)
+            const params = new URLSearchParams({ state, pageSize: "100" })
+            if (userId) params.set("ownerId", userId)
+            const res = await fetch(`/api/todos?${params.toString()}`)
             if (!res.ok) {
                 toast.error(await readError(res, "ไม่สามารถโหลดงานส่วนตัวได้"))
                 return
@@ -87,7 +98,7 @@ export default function TodoPanel({ onChanged }: { onChanged: () => void }) {
         } finally {
             setLoading(false)
         }
-    }, [state])
+    }, [state, userId])
 
     useEffect(() => {
         void load()
@@ -199,10 +210,12 @@ export default function TodoPanel({ onChanged }: { onChanged: () => void }) {
                         </button>
                     ))}
                 </div>
-                <Button onClick={openCreate}>
-                    <Plus className="size-4" />
-                    เพิ่มงานส่วนตัว
-                </Button>
+                {!readOnly && (
+                    <Button onClick={openCreate}>
+                        <Plus className="size-4" />
+                        เพิ่มงานส่วนตัว
+                    </Button>
+                )}
             </div>
 
             <Card className="overflow-hidden py-0">
@@ -232,6 +245,7 @@ export default function TodoPanel({ onChanged }: { onChanged: () => void }) {
                                 >
                                     <Checkbox
                                         checked={todo.isDone}
+                                        disabled={readOnly}
                                         onCheckedChange={() => void toggleDone(todo)}
                                         className="mt-1"
                                         aria-label={todo.isDone ? "ยกเลิกติ๊กเสร็จ" : "ติ๊กว่าเสร็จแล้ว"}
@@ -265,11 +279,14 @@ export default function TodoPanel({ onChanged }: { onChanged: () => void }) {
                                                 </span>
                                             )}
                                             {todo._count.workLogs > 0 && (
-                                                <span>บันทึกเวลา {todo._count.workLogs} รายการ</span>
+                                                <span>
+                                                    บันทึกเวลา {todo._count.workLogs} รายการ ·{" "}
+                                                    {formatMinutes(todo.loggedMinutes)}
+                                                </span>
                                             )}
                                         </div>
                                     </div>
-                                    <div className="flex shrink-0 gap-1">
+                                    <div className={readOnly ? "hidden" : "flex shrink-0 gap-1"}>
                                         <Button
                                             variant="ghost"
                                             size="icon"

@@ -19,6 +19,8 @@ export interface TodoRow {
     createdAt: string
     updatedAt: string
     _count: { workLogs: number }
+    /// นาทีรวมที่ลงเวลาไว้กับงานนี้ (spec §20)
+    loggedMinutes: number
 }
 
 export interface TodoListResponse {
@@ -72,6 +74,8 @@ export interface WorkItem {
     href: string | null
     context: string | null
     updatedAt: string
+    /// นาทีรวมที่เจ้าของรายการลงเวลาไว้กับงานนี้ (spec §20)
+    loggedMinutes: number
 }
 
 export interface MyWorkResponse {

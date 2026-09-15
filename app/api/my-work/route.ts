@@ -5,16 +5,25 @@
 //   Task      ที่ `assigneeId = me`   และยังไม่ done
 //   TodoItem  ที่ `ownerId = me`
 //
+// `?userId=` ดู My Work ของคนอื่น — admin เท่านั้น แบบอ่านอย่างเดียว (spec §20)
+// ทุกรายการมี `loggedMinutes` = นาทีที่เจ้าของรายการลงเวลาไว้กับงานนั้น
+//
 // การรวมสามตารางอยู่ที่ `loadWorkItems()` ใน lib/worklog-service.ts — ใช้ร่วมกับ
 // widget งานวันนี้/เลยกำหนดบนแดชบอร์ด ตัวเลขสองที่จึงตรงกันเสมอ
 // การกรองและเรียงทำในหน่วยความจำ จำกัดด้วย `limit` (สูงสุด 200 รายการ) เพราะเป็น
 // "งานของคนเดียว" ปริมาณจึงอยู่ในหลักสิบเสมอ ไม่ใช่รายงานทั้งระบบ
 
 import { NextRequest, NextResponse } from "next/server"
-import { requireRole, badRequest, STAFF_ROLES } from "@/lib/rbac"
+import { requireRole, badRequest, forbidden, isAdmin, STAFF_ROLES } from "@/lib/rbac"
 import { firstIssueMessage, searchParamsToObject } from "@/lib/ticket-schema"
 import { myWorkQuerySchema } from "@/lib/worklog-schema"
-import { compareWorkItems, isDueToday, isOverdue, loadWorkItems } from "@/lib/worklog-service"
+import {
+    attachLoggedMinutes,
+    compareWorkItems,
+    isDueToday,
+    isOverdue,
+    loadWorkItems,
+} from "@/lib/worklog-service"
 import { thaiToday } from "@/lib/thai-date"
 
 export async function GET(request: NextRequest) {
@@ -26,11 +35,16 @@ export async function GET(request: NextRequest) {
     if (!parsed.success) return badRequest(firstIssueMessage(parsed.error))
     const query = parsed.data
 
+    if (query.userId && query.userId !== user.id && !isAdmin(user)) {
+        return forbidden("ดู My Work ของผู้อื่นได้เฉพาะผู้ดูแลระบบ")
+    }
+    const targetId = query.userId ?? user.id
+
     // state=done ต้องดึงงานที่จบแล้วมาด้วย ส่วน state อื่นสนใจเฉพาะงานที่ยังค้าง
     const includeDone = query.state === "done"
 
     try {
-        const all = await loadWorkItems(user.id, { includeDone, search: query.q })
+        const all = await loadWorkItems(targetId, { includeDone, search: query.q })
         const now = new Date()
         const today = thaiToday()
 
@@ -52,7 +66,7 @@ export async function GET(request: NextRequest) {
         const truncated = items.length > query.limit
 
         return NextResponse.json({
-            items: items.slice(0, query.limit),
+            items: await attachLoggedMinutes(targetId, items.slice(0, query.limit)),
             counts,
             truncated,
         })
