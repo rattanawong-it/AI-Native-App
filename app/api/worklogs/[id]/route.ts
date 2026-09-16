@@ -44,6 +44,7 @@ export async function PATCH(
                 ticketId: true,
                 taskId: true,
                 todoId: true,
+                categoryId: true,
             },
         })
         if (!current) return notFound("ไม่พบบันทึกเวลาที่ต้องการ")
@@ -54,14 +55,20 @@ export async function PATCH(
         const ticketId = input.ticketId !== undefined ? (input.ticketId ?? null) : current.ticketId
         const taskId = input.taskId !== undefined ? (input.taskId ?? null) : current.taskId
         const todoId = input.todoId !== undefined ? (input.todoId ?? null) : current.todoId
+        const categoryId =
+            input.categoryId !== undefined ? (input.categoryId ?? null) : current.categoryId
 
-        const ref = { refType, ticketId, taskId, todoId }
+        const ref = { refType, ticketId, taskId, todoId, categoryId }
         if (
             (refType === "ticket" && !ticketId) ||
             (refType === "task" && !taskId) ||
             (refType === "todo" && !todoId)
         ) {
             return badRequest("กรุณาเลือกงานที่ต้องการผูกกับบันทึกเวลานี้")
+        }
+        // แก้บันทึกเก่าให้เป็น "งานประจำ" ก็ต้องมีหัวข้อบริการเหมือนตอนสร้างใหม่ (spec §21)
+        if (refType === "other" && !categoryId) {
+            return badRequest("งานประจำต้องระบุหัวข้อบริการ")
         }
 
         const refError = await validateWorkLogRef(user, ref)
@@ -71,6 +78,9 @@ export async function PATCH(
         if (input.workDate !== undefined) data.workDate = utcDate(input.workDate)
         if (input.minutes !== undefined) data.minutes = input.minutes
         if (input.description !== undefined) data.description = input.description
+        if (input.categoryId !== undefined) {
+            data.category = categoryId ? { connect: { id: categoryId } } : { disconnect: true }
+        }
 
         // เปลี่ยนประเภทงานเมื่อไร ต้องล้าง id ของประเภทเดิมทิ้งพร้อมกันเสมอ
         if (

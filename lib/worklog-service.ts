@@ -53,11 +53,14 @@ export const workLogSelect = {
     ticketId: true,
     taskId: true,
     todoId: true,
+    categoryId: true,
     createdAt: true,
     user: { select: personSelect },
     ticket: { select: { id: true, ticketNo: true, title: true } },
     task: { select: { id: true, title: true } },
     todo: { select: { id: true, title: true } },
+    // หมวดหลักติดมาด้วยเพื่อแสดงเป็น "หมวดหลัก › หมวดย่อย" ให้อ่านออกโดยไม่ต้องยิง API หมวดหมู่ซ้ำ
+    category: { select: { id: true, name: true, parent: { select: { name: true } } } },
 } satisfies Prisma.WorkLogSelect
 
 export type WorkLogRow = Prisma.WorkLogGetPayload<{ select: typeof workLogSelect }>
@@ -78,6 +81,10 @@ export interface WorkLogDto {
     ticketId: string | null
     taskId: string | null
     todoId: string | null
+    /// หัวข้อบริการจาก Service Catalog (spec §21) — null = ไม่ได้ระบุ
+    categoryId: string | null
+    /// ชื่อหัวข้อบริการแบบเต็ม "หมวดหลัก › หมวดย่อย" — null เมื่อไม่ได้ระบุหัวข้อ
+    categoryName: string | null
     createdAt: string
     user: { id: string; name: string; email: string; image: string | null }
 }
@@ -114,6 +121,10 @@ export function toWorkLogDto(row: WorkLogRow): WorkLogDto {
         ticketId: row.ticketId,
         taskId: row.taskId,
         todoId: row.todoId,
+        categoryId: row.categoryId,
+        categoryName: row.category
+            ? [row.category.parent?.name, row.category.name].filter(Boolean).join(" › ")
+            : null,
         createdAt: row.createdAt.toISOString(),
         user: row.user,
     }
@@ -130,6 +141,7 @@ export async function validateWorkLogRef(
         ticketId?: string | null
         taskId?: string | null
         todoId?: string | null
+        categoryId?: string | null
     }
 ): Promise<string | null> {
     if (input.refType === "ticket" && input.ticketId) {
@@ -156,6 +168,16 @@ export async function validateWorkLogRef(
         })
         if (!todo) return "ไม่พบงานส่วนตัวที่ต้องการผูก"
         if (todo.ownerId !== user.id) return "ผูกได้เฉพาะงานส่วนตัวของตัวเอง"
+    }
+
+    // หัวข้อบริการเลือกได้ทุกประเภทงาน — รับเฉพาะหมวดที่ยังเปิดใช้งาน กันหมวดที่ปิดไปแล้วกลับเข้ามาทางอื่น (spec §21)
+    if (input.categoryId) {
+        const category = await prisma.serviceCategory.findUnique({
+            where: { id: input.categoryId },
+            select: { id: true, active: true },
+        })
+        if (!category) return "ไม่พบหัวข้อบริการที่เลือก"
+        if (!category.active) return "หัวข้อบริการนี้ถูกปิดใช้งานแล้ว"
     }
 
     return null

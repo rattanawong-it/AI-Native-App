@@ -5,7 +5,12 @@ import Link from "next/link"
 import { PanelLeftClose, PanelLeft, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useSession } from "@/lib/auth-client"
-import { sidebarData, bottomNavItems, filterSectionsByRole } from "./sidebar-data"
+import {
+    sidebarData,
+    bottomNavItems,
+    filterSectionsByRole,
+    sectionStartsCollapsed,
+} from "./sidebar-data"
 import { NavSection } from "./nav-section"
 import { NavItem } from "./nav-item"
 
@@ -63,14 +68,19 @@ export function Sidebar({ className }: SidebarProps) {
             <div className="flex-1 overflow-y-auto">
                 <div className={cn("py-4", collapsed ? "px-1" : "px-3")}>
                     <div className="space-y-2">
-                        {filteredSections.map((section, index) => (
-                            <NavSection
-                                key={index}
-                                section={section}
-                                collapsed={collapsed}
-                                defaultOpen={true}
-                            />
-                        ))}
+                        {filteredSections.map((section, index) => {
+                            const defaultOpen = !sectionStartsCollapsed(section, userRoles)
+                            return (
+                                // key ผูกกับชื่อหัวข้อ + ค่าเริ่มต้น ไม่ใช่ลำดับ — role มาถึงหลัง session โหลด
+                                // รายการจึงสลับตำแหน่งและค่าเริ่มต้นเปลี่ยนได้ ต้องให้ section เกิดใหม่ตามค่านั้น
+                                <NavSection
+                                    key={`${section.title ?? `section-${index}`}:${defaultOpen}`}
+                                    section={section}
+                                    collapsed={collapsed}
+                                    defaultOpen={defaultOpen}
+                                />
+                            )
+                        })}
                     </div>
 
                     {/* Bottom Navigation — ทุก role เห็น */}

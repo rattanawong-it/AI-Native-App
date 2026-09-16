@@ -101,6 +101,8 @@ export async function POST(request: NextRequest) {
                 ticketId: input.refType === "ticket" ? (input.ticketId ?? null) : null,
                 taskId: input.refType === "task" ? (input.taskId ?? null) : null,
                 todoId: input.refType === "todo" ? (input.todoId ?? null) : null,
+                // หัวข้อบริการไม่ผูกกับ refType จึงเก็บตามที่ส่งมาได้ทุกประเภท (spec §21)
+                categoryId: input.categoryId ?? null,
             },
             select: workLogSelect,
         })

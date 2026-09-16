@@ -37,6 +37,9 @@ export interface NavSectionType {
     title?: string
     items: NavItemType[]
     allowedRoles?: string[]  // ถ้าไม่กำหนด = ทุก role เห็น
+    /// role ที่ให้ "ยุบ" หัวข้อนี้ไว้ตั้งแต่เปิดหน้า — ถ้าไม่กำหนด = กางไว้ทุก role (spec §21)
+    /// admin เห็นเมนูครบทุกกลุ่มจนรายการยาวเกินจอ จึงยุบกลุ่มที่ไม่ค่อยได้ใช้ไว้ก่อน (กดกางเองได้)
+    collapsedForRoles?: string[]
 }
 
 // กลุ่ม role ที่ใช้ซ้ำ — ดึงจาก lib/roles.ts ซึ่งเป็นแหล่งความจริงเดียวของระบบ
@@ -74,6 +77,7 @@ export const sidebarData: NavSectionType[] = [
                 allowedRoles: STAFF,
             },
         ],
+        collapsedForRoles: ADMIN,
     },
     {
         // AI & ข้อมูล — ทุก role เห็น (ไม่มี allowedRoles)
@@ -81,6 +85,7 @@ export const sidebarData: NavSectionType[] = [
         items: [
             { title: "แชท AI", href: "/chat", icon: MessageCircle },
         ],
+        collapsedForRoles: ADMIN,
     },
     {
         // งานธุรการศูนย์ — เจ้าหน้าที่ขึ้นไป (agent อ่านครุภัณฑ์ / สร้างคำขอได้)
@@ -91,6 +96,7 @@ export const sidebarData: NavSectionType[] = [
             { title: "รายงาน", href: "/management/reports", icon: BarChart3 },
         ],
         allowedRoles: STAFF,
+        collapsedForRoles: ADMIN,
     },
     {
         // งานพัฒนา (SDLC) — เจ้าหน้าที่ขึ้นไป ตรงกับ SDLC_ROLES ใน lib/project-service.ts
@@ -109,12 +115,14 @@ export const sidebarData: NavSectionType[] = [
             { title: "ผู้สนใจ (Lead)", href: "/management/lead", icon: ClipboardList },
         ],
         allowedRoles: MANAGER,
+        collapsedForRoles: ADMIN,
     },
     {
         // ข้อมูลองค์กร — ทะเบียนหน่วยงาน หัวหน้าขึ้นไปแก้ได้ (กลุ่ม ORG_CONFIG ใน screen-access)
         title: "ข้อมูลองค์กร",
         items: [{ title: "หน่วยงาน", href: "/management/departments", icon: Building2 }],
         allowedRoles: MANAGER,
+        collapsedForRoles: ADMIN,
     },
     {
         // ตั้งค่าบริการ (ITSM) — เฉพาะ admin ตาม RBAC §7
@@ -125,6 +133,7 @@ export const sidebarData: NavSectionType[] = [
             { title: "ปฏิทินทำการ", href: "/admin/calendar", icon: CalendarDays },
         ],
         allowedRoles: ADMIN,
+        collapsedForRoles: ADMIN,
     },
     {
         // ผู้ดูแลระบบ (ของเดิม) — เฉพาะ admin เท่านั้น
@@ -136,6 +145,7 @@ export const sidebarData: NavSectionType[] = [
             { title: "ตั้งค่าระบบ", href: "/admin/settings", icon: Settings },
         ],
         allowedRoles: ADMIN,
+        collapsedForRoles: ADMIN,
     },
 ]
 
@@ -143,6 +153,14 @@ export const sidebarData: NavSectionType[] = [
 export const bottomNavItems: NavItemType[] = [
     { title: "ช่วยเหลือ", href: "/help", icon: HelpCircle },
 ]
+
+/// หัวข้อนี้ควร "ยุบ" ไว้ตั้งแต่เปิดหน้าหรือไม่ สำหรับ role ชุดนี้ (spec §21)
+export function sectionStartsCollapsed(
+    section: NavSectionType,
+    userRoles: string[]
+): boolean {
+    return !!section.collapsedForRoles?.some((r) => userRoles.includes(r))
+}
 
 /// กรอง section + item ตาม role ของผู้ใช้ (รองรับ multi-role)
 /// section ที่ไม่เหลือ item เลยจะถูกตัดทิ้ง

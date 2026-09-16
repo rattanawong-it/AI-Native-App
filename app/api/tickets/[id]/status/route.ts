@@ -74,6 +74,7 @@ export async function PATCH(
                 id: true,
                 ticketNo: true,
                 status: true,
+                categoryId: true,
                 requesterId: true,
                 assigneeId: true,
                 respondedAt: true,
@@ -177,6 +178,8 @@ export async function PATCH(
                         description: input.resolutionNote ?? `แก้ไข ${current.ticketNo}`,
                         refType: "ticket",
                         ticketId: id,
+                        // หัวข้อบริการมาจากหมวดหมู่ของ Ticket ใบนั้นเอง (spec §21)
+                        categoryId: current.categoryId,
                     },
                 })
             }

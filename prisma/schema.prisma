@@ -281,6 +281,7 @@ model ServiceCategory {
   tickets     Ticket[]
   slaPolicies SlaPolicy[]
   kbArticles  KbArticle[]
+  workLogs    WorkLog[] // บันทึกเวลาที่ระบุหัวข้อบริการนี้ (spec §21)
 
   @@index([parentId])
   @@index([active, sortOrder])
@@ -514,16 +515,20 @@ model WorkLog {
   ticketId    String?
   taskId      String?
   todoId      String?
+  /// หัวข้อบริการจาก Service Catalog (spec §21) — บังคับเมื่อ refType = other ที่ไม่มีงานให้ผูก
+  categoryId  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ticket Ticket?   @relation(fields: [ticketId], references: [id])
-  task   Task?     @relation(fields: [taskId], references: [id])
-  todo   TodoItem? @relation(fields: [todoId], references: [id])
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticket   Ticket?          @relation(fields: [ticketId], references: [id])
+  task     Task?            @relation(fields: [taskId], references: [id])
+  todo     TodoItem?        @relation(fields: [todoId], references: [id])
+  category ServiceCategory? @relation(fields: [categoryId], references: [id])
 
   @@index([userId, workDate])
+  @@index([categoryId])
   @@map("work_log")
 }
 
