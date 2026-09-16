@@ -43,10 +43,10 @@ import {
 
 const PAGE_SIZE = 20
 
-/// ตัวกรองสถานะแบบปุ่มเดียว — เปิดหน้ามาที่ "แจ้งใหม่" ส่วน "ทั้งหมด" ย้ายไปท้ายสุด (spec §20)
+/// ตัวกรองสถานะแบบปุ่มเดียว — เปิดหน้ามาที่ "ยังไม่เสร็จ" ส่วน "ทั้งหมด" ย้ายไปท้ายสุด (spec §21)
 /// "ยังไม่เสร็จ" = OPEN_STATUSES ส่งเป็น comma ให้ API กรองหลายสถานะในครั้งเดียว
-const DEFAULT_STATUS = "new"
 const OPEN_KEY = "open"
+const DEFAULT_STATUS = OPEN_KEY
 
 const STATUS_TABS: { key: string; label: string }[] = [
     { key: "new", label: TICKET_STATUS_LABEL.new },
