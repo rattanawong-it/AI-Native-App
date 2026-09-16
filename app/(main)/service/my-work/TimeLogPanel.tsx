@@ -72,6 +72,8 @@ interface FormState {
     refId: string
     /// หัวข้อบริการจาก Service Catalog — "" = ยังไม่ได้เลือก
     categoryId: string
+    /// ชื่อหัวข้อที่บันทึกไว้เดิม — ใช้เติมตัวเลือกให้บันทึกเก่าที่หมวดถูกปิดไปแล้ว
+    categoryName: string
 }
 
 /// วันนี้ตามปฏิทินไทย — ใช้เป็นค่าเริ่มต้นของช่องวันที่
@@ -87,6 +89,7 @@ function emptyForm(): FormState {
         refType: "ticket",
         refId: "",
         categoryId: "",
+        categoryName: "",
     }
 }
 
@@ -190,6 +193,12 @@ export default function TimeLogPanel({
         }))
     }, [categories])
 
+    /// ชื่อหัวข้อเดิมของบันทึกที่กำลังแก้ เมื่อหมวดนั้นไม่อยู่ในรายการที่เปิดใช้งานแล้ว
+    const missingCategory =
+        form.categoryId && !categories.some((c) => c.id === form.categoryId)
+            ? form.categoryName || "หัวข้อบริการเดิม"
+            : ""
+
     const openCreate = () => {
         setForm(emptyForm())
         setFormOpen(true)
@@ -204,6 +213,7 @@ export default function TimeLogPanel({
             refType: log.refType,
             refId: log.ticketId ?? log.taskId ?? log.todoId ?? "",
             categoryId: log.categoryId ?? "",
+            categoryName: log.categoryName ?? "",
         })
         setFormOpen(true)
     }
@@ -572,6 +582,12 @@ export default function TimeLogPanel({
                                         ? "ยังไม่มีหัวข้อบริการใน Service Catalog"
                                         : "-- เลือกหัวข้อบริการ --"}
                                 </option>
+                                {/* บันทึกเก่าที่หมวดถูกปิดไปแล้วจะไม่มีในรายการ — ใส่กลับเข้าไปให้เห็นว่าเดิมเลือกอะไร */}
+                                {missingCategory && (
+                                    <option value={form.categoryId}>
+                                        {missingCategory} (ปิดใช้งานแล้ว)
+                                    </option>
+                                )}
                                 {categoryGroups.map(({ parent, children }) =>
                                     children.length > 0 ? (
                                         <optgroup key={parent.id} label={parent.name}>
