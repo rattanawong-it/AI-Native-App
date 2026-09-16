@@ -13,6 +13,8 @@ interface NavSectionProps {
 }
 
 export function NavSection({ section, collapsed, defaultOpen = true }: NavSectionProps) {
+    // ค่าเริ่มต้นเปลี่ยนได้ทีหลัง (role มาถึงหลัง session โหลด) — ฝั่ง Sidebar ใส่ค่านี้ไว้ใน key
+    // ให้ component เกิดใหม่ สถานะกาง/ยุบจึงเริ่มใหม่ตามค่าที่ถูกต้องโดยไม่ต้อง setState ใน effect
     const [open, setOpen] = useState(defaultOpen)
 
     // ถ้าไม่มี title (เช่น Dashboard) แสดง items ปกติ
