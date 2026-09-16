@@ -6,6 +6,8 @@
 // หน่วยเวลาของ Time Log คิดเป็น "นาที" ทั้งระบบ
 // การผูกงาน: เลือกประเภทก่อน แล้วเลือกงานจากรายการที่ดึงมาจากงานของตัวเอง
 // ประเภท "งานประจำ" ไม่ต้องผูกกับอะไร ใช้กับงานที่ไม่มีใบสั่งงาน เช่น ประชุม/อบรม
+// หัวข้อบริการ (spec §21): เลือกจาก Service Catalog ได้ทุกประเภทงาน แต่ "งานประจำ" บังคับให้ระบุ
+// เพราะไม่มีใบสั่งงานให้อ้างอิงว่าเวลาที่ลงไปหมดไปกับบริการเรื่องใด
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
@@ -35,7 +37,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { readError, formatThaiDate } from "@/lib/ticket-types"
+import { readError, formatThaiDate, type Category } from "@/lib/ticket-types"
 import {
     formatMinutes,
     type MyWorkResponse,
@@ -68,6 +70,8 @@ interface FormState {
     description: string
     refType: string
     refId: string
+    /// หัวข้อบริการจาก Service Catalog — "" = ยังไม่ได้เลือก
+    categoryId: string
 }
 
 /// วันนี้ตามปฏิทินไทย — ใช้เป็นค่าเริ่มต้นของช่องวันที่
@@ -82,6 +86,7 @@ function emptyForm(): FormState {
         description: "",
         refType: "ticket",
         refId: "",
+        categoryId: "",
     }
 }
 
@@ -104,6 +109,9 @@ export default function TimeLogPanel({
 
     /// งานของตัวเองทั้งหมด — ใช้เป็นตัวเลือกในช่อง "ผูกกับงาน"
     const [workItems, setWorkItems] = useState<WorkItem[]>([])
+
+    /// Service Catalog ที่เปิดใช้งาน — ใช้เป็นตัวเลือกในช่อง "หัวข้อบริการ" (spec §21)
+    const [categories, setCategories] = useState<Category[]>([])
 
     const [formOpen, setFormOpen] = useState(false)
     const [form, setForm] = useState<FormState>(emptyForm())
@@ -156,6 +164,15 @@ export default function TimeLogPanel({
                 // เลือกงานไม่ได้ก็ยังบันทึกแบบ "งานประจำ" ได้ จึงไม่ต้องเตือน
             }
         })()
+        void (async () => {
+            try {
+                // ไม่ใส่ ?all=1 — เอาเฉพาะหมวดที่เปิดใช้งาน ให้ตรงกับที่ API ยอมรับ
+                const res = await fetch("/api/categories")
+                if (res.ok) setCategories(((await res.json()) as { categories: Category[] }).categories)
+            } catch {
+                toast.error("โหลดหัวข้อบริการไม่สำเร็จ")
+            }
+        })()
     }, [readOnly])
 
     /// ตัวเลือกงานที่ตรงกับประเภทที่เลือกอยู่
@@ -163,6 +180,15 @@ export default function TimeLogPanel({
         () => workItems.filter((i) => i.kind === form.refType),
         [workItems, form.refType]
     )
+
+    /// หัวข้อบริการจัดกลุ่มเป็นหมวดหลัก → หมวดย่อย เหมือนหน้าแจ้งปัญหา (F1.8)
+    const categoryGroups = useMemo(() => {
+        const parents = categories.filter((c) => !c.parentId)
+        return parents.map((p) => ({
+            parent: p,
+            children: categories.filter((c) => c.parentId === p.id),
+        }))
+    }, [categories])
 
     const openCreate = () => {
         setForm(emptyForm())
@@ -177,6 +203,7 @@ export default function TimeLogPanel({
             description: log.description,
             refType: log.refType,
             refId: log.ticketId ?? log.taskId ?? log.todoId ?? "",
+            categoryId: log.categoryId ?? "",
         })
         setFormOpen(true)
     }
@@ -192,6 +219,7 @@ export default function TimeLogPanel({
                 ticketId: form.refType === "ticket" ? form.refId || null : null,
                 taskId: form.refType === "task" ? form.refId || null : null,
                 todoId: form.refType === "todo" ? form.refId || null : null,
+                categoryId: form.categoryId || null,
             }
             const res = await fetch(form.id ? `/api/worklogs/${form.id}` : "/api/worklogs", {
                 method: form.id ? "PATCH" : "POST",
@@ -243,7 +271,9 @@ export default function TimeLogPanel({
         form.description.trim().length >= 3 &&
         Number.isInteger(Number(form.minutes)) &&
         Number(form.minutes) > 0 &&
-        (form.refType === "other" || form.refId !== "")
+        (form.refType === "other" || form.refId !== "") &&
+        // งานประจำไม่มีงานให้ผูก จึงต้องระบุหัวข้อบริการแทน (spec §21)
+        (form.refType !== "other" || form.categoryId !== "")
 
     return (
         <div className="space-y-4">
@@ -398,6 +428,12 @@ export default function TimeLogPanel({
                                     <p className="text-sm">{log.description}</p>
                                     <p className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
                                         <span>{log.refLabel}</span>
+                                        {log.categoryName && (
+                                            <>
+                                                <span>·</span>
+                                                <span className="truncate">{log.categoryName}</span>
+                                            </>
+                                        )}
                                         {log.refTitle && (
                                             <>
                                                 <span>·</span>
@@ -512,6 +548,51 @@ export default function TimeLogPanel({
                                     ))}
                                 </select>
                             </div>
+                        </div>
+
+                        <div>
+                            <Label className="mb-1.5">
+                                หัวข้อบริการ
+                                {form.refType === "other" ? (
+                                    <span className="text-sla-breached">*</span>
+                                ) : (
+                                    <span className="text-muted-foreground font-normal">
+                                        {" "}
+                                        (ไม่บังคับ)
+                                    </span>
+                                )}
+                            </Label>
+                            <select
+                                value={form.categoryId}
+                                onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+                                className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+                            >
+                                <option value="">
+                                    {categoryGroups.length === 0
+                                        ? "ยังไม่มีหัวข้อบริการใน Service Catalog"
+                                        : "-- เลือกหัวข้อบริการ --"}
+                                </option>
+                                {categoryGroups.map(({ parent, children }) =>
+                                    children.length > 0 ? (
+                                        <optgroup key={parent.id} label={parent.name}>
+                                            {children.map((c) => (
+                                                <option key={c.id} value={c.id}>
+                                                    {c.name}
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    ) : (
+                                        <option key={parent.id} value={parent.id}>
+                                            {parent.name}
+                                        </option>
+                                    )
+                                )}
+                            </select>
+                            {form.refType === "other" && form.categoryId === "" && (
+                                <p className="text-muted-foreground mt-1 text-xs">
+                                    งานประจำไม่มีใบสั่งงานให้ผูก จึงต้องระบุหัวข้อบริการ
+                                </p>
+                            )}
                         </div>
 
                         <div>

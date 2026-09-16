@@ -95,6 +95,8 @@ const workLogFields = z.object({
     ticketId: z.string().min(1).nullish(),
     taskId: z.string().min(1).nullish(),
     todoId: z.string().min(1).nullish(),
+    /// หัวข้อบริการจาก Service Catalog (spec §21) — เลือกได้ทุกประเภท แต่บังคับเมื่อ refType = other
+    categoryId: z.string().min(1).nullish(),
 })
 
 /// refType ต้องมากับ id ของงานนั้น — กันข้อมูลกำพร้าที่รายงานภาระงานจะอ่านไม่ออก
@@ -112,13 +114,30 @@ function refMatchesId(v: {
 
 const REF_ISSUE = { path: ["refType"], message: "กรุณาเลือกงานที่ต้องการผูกกับบันทึกเวลานี้" }
 
-export const createWorkLogSchema = workLogFields.refine(refMatchesId, REF_ISSUE)
+/// "งานประจำ" ไม่มีใบสั่งงานให้ผูก จึงต้องระบุหัวข้อบริการแทน ไม่งั้นรายงานภาระงานจะแยกไม่ออกว่าทำเรื่องอะไร
+function categoryRequiredForOther(v: { refType?: string; categoryId?: string | null }): boolean {
+    return v.refType !== "other" || !!v.categoryId
+}
+
+const CATEGORY_ISSUE = {
+    path: ["categoryId"],
+    message: "งานประจำต้องระบุหัวข้อบริการ",
+}
+
+export const createWorkLogSchema = workLogFields
+    .refine(refMatchesId, REF_ISSUE)
+    .refine(categoryRequiredForOther, CATEGORY_ISSUE)
 export type CreateWorkLogInput = z.infer<typeof createWorkLogSchema>
 
 export const updateWorkLogSchema = workLogFields
     .partial()
     .refine((v) => Object.keys(v).length > 0, { message: "ไม่มีข้อมูลที่ต้องการแก้ไข" })
     .refine((v) => v.refType === undefined || refMatchesId(v), REF_ISSUE)
+    // ตรวจได้เฉพาะตอนส่ง refType มาพร้อม categoryId — กรณีส่งมาไม่ครบ route จะรวมกับค่าเดิมแล้วตรวจอีกที
+    .refine(
+        (v) => v.refType === undefined || v.categoryId === undefined || categoryRequiredForOther(v),
+        CATEGORY_ISSUE
+    )
 export type UpdateWorkLogInput = z.infer<typeof updateWorkLogSchema>
 
 export const listWorkLogsQuerySchema = z.object({

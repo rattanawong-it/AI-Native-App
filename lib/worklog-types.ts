@@ -47,6 +47,10 @@ export interface WorkLogRow {
     ticketId: string | null
     taskId: string | null
     todoId: string | null
+    /// หัวข้อบริการจาก Service Catalog (spec §21) — null = ไม่ได้ระบุ
+    categoryId: string | null
+    /// ชื่อหัวข้อบริการแบบเต็ม "หมวดหลัก › หมวดย่อย"
+    categoryName: string | null
     createdAt: string
     user: Person
 }
